@@ -21,8 +21,11 @@ the second tool. The newer "runs in your browser" sites are thin: fifteen
 one-shot tools behind fifteen upload boxes, with a privacy paragraph instead
 of a proof. We beat both with four things:
 
-1. **Provable, not claimed.** Tool pages ship a Content-Security-Policy anyone
-   can read, and they keep working with the network off.
+1. **Provable, not claimed.** Every page ships a Content-Security-Policy anyone
+   can read, and once a tool page has loaded, the tools work with no
+   connection. (Until the stage-8 service worker precaches `/pdfjs/**`,
+   showing some documents on screen can need a piece of pdf.js fetched from
+   this site the first time it is used. The honesty page says so.)
 2. **Redaction that removes.** "Remove areas" rasterises the marked page; the
    text is gone, not covered.
 3. **No limits, because there is no server.** No file-size cap, no task cap,
@@ -37,12 +40,17 @@ of a proof. We beat both with four things:
 3. No watermark, no branding stamped on anybody's document.
 4. Nothing leaves the device. Documents are never uploaded, never sent to any
    API, never logged. The video of this promise is the Network tab.
+4a. We never change the file you picked. Every result is a new file, and we
+   never overwrite a file that already exists, even in a folder you chose.
 5. No limits on file count, file size or number of jobs beyond what the
    visitor's own device can do — and when the device cannot, we say so.
 6. Ads, if ever, on guide and landing pages only. Never on a tool page: the
    tool pages' CSP makes a third-party script impossible, which is the point.
 7. Analytics, if ever, cookieless and on guide pages only. Never a file name,
    never a page count, never anything a visitor typed.
+8. A file's name, size, page count or contents never go to `console.*`, into
+   an Error message, a URL, `document.title`, localStorage, sessionStorage,
+   IndexedDB or the feedback mail. Outcomes carry ids, not names.
 
 ## Who we design for
 
@@ -55,15 +63,32 @@ step is not essential, remove it.
 ## Hard technical constraints
 
 - Static site: HTML, CSS, TypeScript, built with Vite. No server, no
-  database, no backend, no serverless function. Ever.
+  database, no backend, no serverless function. Ever. Concretely: no
+  `functions/` directory, no `dist/_worker.js`, no `wrangler.*`, and no
+  `_redirects` line proxying to an absolute URL. `tests/unit/no-server.test.ts`
+  fails if any exists — `connect-src 'self'` is only a proof while the origin
+  is a folder of files that runs no code.
 - Hosting: Cloudflare Pages free plan. 20,000 files per site, 25 MiB per
-  file. `app/public/_headers` carries the headers. A CI check keeps every
-  built file under 25 MiB.
+  file. `app/public/_headers` carries the headers. `tests/unit/size.test.ts`
+  keeps every built file under 25 MiB.
 - Everything self-hosted: scripts, fonts, WASM, pdf.js cmaps. No CDN, no
   third-party request from a tool page.
 - Target device: a low-end Android on mobile data. Test at 360px first.
-- Browser floor: Chrome/Android of the last two years, Safari 16+, Firefox
-  current. Feature-detect OPFS, `showSaveFilePicker`, share-with-files.
+- Browser floor: Chrome/Edge 132+, Firefox 133+, Safari and iOS 18.4+. That
+  is what pdfjs-dist 6.4 itself needs: its module evaluates the `Iterator`
+  global at import, calls `Promise.withResolvers()` and reads its assets with
+  `Response.bytes()`, in both builds, so `legacy/` buys nothing. Import
+  `pdfjs-dist/build/*`, never `legacy/`. The e2e runs on Chromium (phone and
+  laptop projects); Safari and Firefox are checked by hand before a release.
+  Feature-detect OPFS, `showSaveFilePicker`, share-with-files.
+- One tsconfig, DOM lib. Ambient declarations live in exactly two files:
+  `app/src/files/fs-access.d.ts` (the save/directory pickers,
+  `createSyncAccessHandle`, `FileSystemSyncAccessHandle` — and deliberately
+  NOT `showOpenFilePicker` or `getAsFileSystemHandle`) and
+  `app/src/jobs/worker-scope.d.ts` (the `WorkerScope` type worker entries
+  cast `self` to). Worker files reach the global only through `self`, never
+  `window` or `document`. No `as any`, `@ts-ignore` or `declare global`
+  anywhere else; the rules test checks.
 - Heavy work runs in a Web Worker. The page never freezes.
 - No inline `style=""` attributes and no inline `<script>` in HTML: the CSP
   forbids them. Set styles with classes or `el.style.setProperty`.
@@ -88,24 +113,57 @@ app/public/_headers         the CSP and friends
 
 ### Rules the tests enforce
 
-1. **The seam.** Nothing outside `app/src/pdf/` imports `pdfjs-dist` or
-   `@cantoo/pdf-lib`. Widen the interface; never reach around it.
-2. **The Exporter.** Only `app/src/files/exporter.ts` may call
-   `showSaveFilePicker`, `showDirectoryPicker`, `createWritable`,
-   `navigator.share`, or set a download attribute. Nobody may call
-   `showOpenFilePicker` at all: the handle it returns can be written to,
-   and that is the one way "we never touch your file" could break.
+1. **The seam.** Outside `app/src/pdf/`, no file under `app/` mentions the
+   substring `pdfjs-dist` or `@cantoo/pdf-lib` in any form (static import,
+   `import type`, `export … from`, `import()`, triple-slash reference, Vite
+   alias). Inside it, `engine*.ts` never mentions `@cantoo/pdf-lib` and
+   `surgeon*.ts` never mentions `pdfjs-dist`, so the page bundle carries
+   pdf.js only and the worker bundle pdf-lib only. `app/src/pdf/index.ts`
+   exports types only. Widen the interface; never reach around it.
+2. **Where documents come from and where bytes go.**
+   2a. A document enters only as a `File` through `DocumentStore.import`.
+   Nobody calls `showOpenFilePicker`, `DataTransferItem.getAsFileSystemHandle`,
+   `webkitGetAsEntry` or `launchQueue`; a later file handler reads
+   `handle.getFile()` once, inside `files/`, and drops the handle.
+   2b. Only `app/src/files/exporter.ts` calls `showSaveFilePicker`,
+   `showDirectoryPicker`, `navigator.share`, `navigator.canShare`,
+   `URL.createObjectURL`, or sets a `download` attribute. It never replaces
+   an existing file.
+   2c. Only `app/src/files/workspace*.ts` (and its storage worker) call
+   `navigator.storage.getDirectory`, `createSyncAccessHandle` or
+   `createWritable`, and only on handles descended from `getDirectory()`.
+   The rules test strips comments, scans `app/**/*.ts` including `.d.ts`,
+   and allows each identifier only in its named file.
 3. **The shape.** `Op.run(inputs: FoolscapFile[], params, ctx): Outcome[]`.
    Plural in, plural out. One failed input is a `failed` outcome, never a
-   thrown error that loses the rest of the batch.
-4. **The CSP.** Every `/tools/*` page is served with the policy in `_headers`
-   and works after `context.setOffline(true)`. The e2e tests run against the
-   built site under that exact policy.
-5. **Size.** No built file over 25 MiB; the tool-page JS budget is stated in
-   the README and checked.
+   thrown error that loses the rest of the batch. Every `produced` outcome
+   carries a `detail` that says what was done. Ops never remove inputs.
+4. **The CSP and offline.** Every path is served with the policy in
+   `_headers` — the workers that hold the bytes live under `/assets/` and a
+   worker's policy comes from its own response, not the page's.
+   `createJobRunner()` and `createEngine()` create their workers at page load,
+   never on first use; each exposes `ready`, and the page sets
+   `data-ready="true"` on `<body>` when both resolve. The e2e waits for it,
+   calls `context.setOffline(true)`, imports fixtures, runs every live tool,
+   and separately asserts every request from navigation to the end was
+   same-origin. Stage-1 fixtures embed every font and contain no JPX, JBIG2
+   or ICC images; `tests/fixtures/README.md` says why.
+5. **Size.** No built file over 25 MiB. A tool page's initial scripts — what
+   blocks first paint — total under 60 KB gzipped and contain no PDF library;
+   pdf-lib lives only in the op worker chunk and pdf.js in its own chunks,
+   both fetched after first paint and before `data-ready`. The numbers live
+   in `tests/unit/size.test.ts` (runs over `dist/` after `vite build`) and in
+   the README.
 6. **Licences.** Only Apache-2.0, MIT, BSD, OFL or public-domain code and
    fonts. **Never add MuPDF, PyMuPDF, iText or Ghostscript** — all AGPL, and
    Ghostscript is the one most likely to be reached for by accident.
+7. **No stamp.** No output carries a Producer, Creator or Info entry the input
+   did not have, and none ever contains the strings `pdf-lib`, `Foolscap` or
+   `Sheaf`. Every `PDFDocument.load(` and `.create(` in `app/src/pdf/` passes
+   `updateMetadata: false`; a unit test re-opens every op's output and checks.
+8. **No names on the record.** `app/src` contains no `console.` call outside
+   `ui/devlog.ts`, which is `import.meta.env.DEV`-guarded and takes no
+   `FoolscapFile`.
 
 | Library | Licence | Role |
 |---|---|---|
@@ -140,7 +198,9 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
 5. The hard three: compress, passwords, OCR (tesseract.js, lazy-loaded).
 6. The design pass, as a system.
 7. SEO: one fast page per tool × intent, generated from `tools.ts`.
-8. PWA: install, offline, share target, file handler.
+8. PWA: install, offline, share target, file handler. The service worker
+   precaches `/pdfjs/**`; the offline e2e then adds a non-embedded-font, a
+   CJK-CMap and a JPX fixture and the exception in rule 4 goes.
 9. The gate: a corpus of awkward real PDFs run on every build.
 
 ## Working with the owner
@@ -157,7 +217,21 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   bought: `SITE_ORIGIN` is null until it is.
 - **2026-10-10** `@cantoo/pdf-lib` over `pdf-lib`: maintained, MIT, and it
   encrypts and decrypts, so passwords need no WASM.
-- **2026-10-10** The tool-page CSP is `connect-src 'self' blob:`, not `'none'`:
-  pdf.js must fetch its own worker, cmaps and fonts from our origin, and the
-  built site has no server to talk to anyway. The offline test is the proof
+- **2026-10-10** The CSP is served on every path, including `/assets/*`,
+  because a dedicated worker's CSP comes from its own script's response
+  headers, not from the page: with the policy on `/tools/*` only, the op
+  worker and pdf.js's worker — where the document bytes actually are — would
+  run with no policy. `connect-src 'self'`, not `'none'`: pdf.js fetches
+  cmaps, standard fonts, wasm decoders and ICC profiles from our origin on
+  first use, and documents are passed as bytes, so nothing needs `blob:`
+  there (`img-src blob:` stays for previews). The offline test is the proof
   that nothing needs the network once the page has loaded.
+- **2026-10-10** The browser floor follows the library. pdfjs-dist 6.4 needs
+  Chrome 132, Firefox 133 and Safari 18.4; a polyfill module for
+  `Promise.withResolvers`, `Response.prototype.bytes` and a global `Iterator`
+  could lower it later, and is not stage-1 work.
+- **2026-10-10** Stage-1 thumbnails render on the page thread, where pdf.js's
+  own worker parses and the page only paints. The op worker gets pdf.js only
+  when a tool that rasterises asks for it (`ctx.engine()` is lazy).
+- **2026-10-10** Contracts were adversarially reviewed before anything was
+  built on them: 46 findings, 19 applied. The rules above are the result.

@@ -1,20 +1,25 @@
-# Served by Cloudflare Pages, and by `vite preview` through scripts/vite-cf-headers.mjs
+# Served by Cloudflare Pages, and by `vite preview` through scripts/vite-cf-headers.ts
 # so the e2e tests run under the same policy production will.
 
+# The policy sits on EVERY path, not just the tool pages, because a dedicated
+# worker's CSP comes from its own script's response headers, not from the page
+# that created it: the op worker and pdf.js's worker - where the document bytes
+# actually are - are served from /assets/, and a policy on /tools/* alone would
+# leave them with none. Scripts, styles, fonts, workers and connections come
+# only from this origin. No inline styles or scripts. When guide pages carry
+# ads one day, they get their own, looser block below this one; the tool pages
+# never do.
 /*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   X-Frame-Options: DENY
   Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=(), usb=()
 
-# The tool pages. Scripts, styles, fonts and workers come only from this
-# origin. connect-src is this origin and blob: because pdf.js fetches its own
-# worker, cmaps and standard fonts from here and reads documents through blob
-# URLs; there is nothing else to connect to. No inline styles or scripts.
-/tools/*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
-  Cross-Origin-Opener-Policy: same-origin
-
-# Hashed assets never change; cache them for a year.
+# Hashed assets and the versioned pdf.js pieces never change; cache them for a year.
 /assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/pdfjs/*
   Cache-Control: public, max-age=31536000, immutable
