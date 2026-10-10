@@ -1,0 +1,11 @@
+node_modules/
+dist/
+tests/output/
+test-results/
+playwright-report/
+.DS_Store
+*.log
+.vite/
+
+# Copied from node_modules/pdfjs-dist by scripts/copy-pdfjs-assets.mjs on predev/prebuild.
+app/public/pdfjs/

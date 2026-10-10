@@ -1,0 +1,31 @@
+{
+  "name": "foolscap",
+  "private": true,
+  "type": "module",
+  "description": "PDF tools that can't upload your files. Everything runs in the browser; nothing is sent anywhere.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",
+    "test": "npm run typecheck && npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "fonts": "node scripts/fetch-fonts.mjs",
+    "pdfjs-assets": "node scripts/copy-pdfjs-assets.mjs",
+    "predev": "node scripts/copy-pdfjs-assets.mjs",
+    "prebuild": "node scripts/copy-pdfjs-assets.mjs"
+  },
+  "dependencies": {
+    "@cantoo/pdf-lib": "^2.11.1",
+    "fflate": "^0.8.2",
+    "pdfjs-dist": "^6.4.299"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "^22.20.5",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  }
+}

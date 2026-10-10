@@ -1,0 +1,12 @@
+/* Placeholder. The design pass replaces this file with the real token set. */
+:root {
+  color-scheme: light dark;
+  --paper: #fbf6ec;
+  --ink: #1b1a2e;
+}
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+}
