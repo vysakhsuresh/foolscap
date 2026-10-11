@@ -16,3 +16,14 @@ export const SITE_ORIGIN: string | null = null;
 export const FEEDBACK_EMAIL: string | null = null;
 
 export const MADE_BY = { name: 'Layerbit', url: 'https://layerbit.co.in' } as const;
+
+/**
+ * The exact Content-Security-Policy value served by app/public/_headers,
+ * shown on the privacy page so a visitor can compare it with what the
+ * browser's Network tab reports. Keep the two identical.
+ */
+export const TOOL_PAGE_CSP =
+  "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'";
+
+/** sessionStorage key for a "Then…" handoff: a JSON array of file ids, never names. */
+export const HANDOFF_KEY = 'foolscap:handoff';

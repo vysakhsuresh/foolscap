@@ -75,7 +75,7 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'extract-pages', title: 'Extract pages', summary: 'Keep only the pages you pick', action: 'Keep these pages', input: 'one-pdf', group: 'pages', status: 'soon' },
   { id: 'insert-pages', title: 'Insert pages', summary: 'Put another PDF, or blank pages, in at a chosen page', action: 'Insert them', input: 'several-pdfs', group: 'pages', status: 'soon' },
   { id: 'crop', title: 'Crop pages', summary: 'Trim the margins, or fit every page to A4 or Letter', action: 'Crop it', input: 'several-pdfs', group: 'pages', status: 'soon' },
-  { id: 'split-by-size', title: 'Split by size', summary: 'Parts that fit a 5, 10 or 25 MB email limit', action: 'Split by size', input: 'one-pdf', group: 'pages', status: 'soon' },
+  { id: 'split-by-size', title: 'Split by size', summary: 'Parts that fit a 5, 10 or 25 MB email limit', action: 'Split into parts that fit', input: 'one-pdf', group: 'pages', status: 'soon' },
 
   { id: 'compress', title: 'Compress', summary: 'Make a PDF smaller, and say so when it cannot', action: 'Compress it', input: 'several-pdfs', group: 'convert', status: 'soon' },
   { id: 'images-to-pdf', title: 'Images to PDF', summary: 'Turn photos and scans into one PDF', action: 'Make a PDF', input: 'images', group: 'convert', status: 'soon' },

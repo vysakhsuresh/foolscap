@@ -73,9 +73,10 @@ export class PdfError extends Error {
  * `range` or `docBaseUrl`. Always `cMapUrl`, `standardFontDataUrl`, `wasmUrl`
  * and `iccUrl` pointing at `/pdfjs/<version>/…/` on our own origin (each
  * ending in a slash, or pdf.js throws), and `useWorkerFetch: true`. On the
- * page, `GlobalWorkerOptions.workerSrc` is
- * `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).href` and
- * the default factories are fine. Inside a worker (later stages) it also
+ * page, `GlobalWorkerOptions.workerSrc` is the URL of `./pdfjs-worker.ts`,
+ * a two-line wrapper that installs `./shims.ts` and then imports
+ * `pdfjs-dist/build/pdf.worker.min.mjs` — a worker's globals are its own, so
+ * the page's shims cannot reach it — and the default factories are fine. Inside a worker (later stages) it also
  * needs `disableFontFace: true`, a canvas factory returning an
  * `OffscreenCanvas`, and `worker: new PDFWorker({ port })`, because pdf.js
  * otherwise reaches for `document` and `window`. Nothing imports

@@ -77,8 +77,12 @@ step is not essential, remove it.
 - Browser floor: Chrome/Edge 132+, Firefox 133+, Safari and iOS 18.4+. That
   is what pdfjs-dist 6.4 itself needs: its module evaluates the `Iterator`
   global at import, calls `Promise.withResolvers()` and reads its assets with
-  `Response.bytes()`, in both builds, so `legacy/` buys nothing. Import
-  `pdfjs-dist/build/*`, never `legacy/`. The e2e runs on Chromium (phone and
+  `Response.bytes()`. Its generic build also calls four newer helpers
+  (`Map.prototype.getOrInsertComputed`, `Math.sumPrecise`,
+  `Uint8Array.prototype.toHex`, `Promise.try`) that even Chrome 141 lacks, so
+  `app/src/pdf/shims.ts` installs guarded polyfills ahead of pdf.js on the
+  page and inside its worker (`pdfjs-worker.ts` wraps the worker for that).
+  Import `pdfjs-dist/build/*`, never `legacy/`. The e2e runs on Chromium (phone and
   laptop projects); Safari and Firefox are checked by hand before a release.
   Feature-detect OPFS, `showSaveFilePicker`, share-with-files.
 - One tsconfig, DOM lib. Ambient declarations live in exactly two files:
@@ -130,8 +134,9 @@ app/public/_headers         the CSP and friends
    `URL.createObjectURL`, or sets a `download` attribute. It never replaces
    an existing file.
    2c. Only `app/src/files/workspace*.ts` (and its storage worker) call
-   `navigator.storage.getDirectory`, `createSyncAccessHandle` or
-   `createWritable`, and only on handles descended from `getDirectory()`.
+   `navigator.storage.getDirectory` or `createSyncAccessHandle`, and only on
+   handles descended from `getDirectory()`. `createWritable` is allowed there
+   and in `exporter.ts`, which needs it for the save-dialog handle.
    The rules test strips comments, scans `app/**/*.ts` including `.d.ts`,
    and allows each identifier only in its named file.
 3. **The shape.** `Op.run(inputs: FoolscapFile[], params, ctx): Outcome[]`.

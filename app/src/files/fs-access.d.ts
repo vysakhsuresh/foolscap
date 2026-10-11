@@ -41,3 +41,11 @@ interface FileSystemFileHandle {
   /** Workers only. Only app/src/files/workspace*.ts may call this, on handles under getDirectory(). */
   createSyncAccessHandle(): Promise<FileSystemSyncAccessHandle>;
 }
+
+interface FileSystemDirectoryHandle {
+  /**
+   * Entry names, for listing and sweeping the workspace. TypeScript keeps this
+   * in the DOM.AsyncIterable lib, which the tsconfig does not load.
+   */
+  keys(): AsyncIterableIterator<string>;
+}

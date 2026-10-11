@@ -4,9 +4,68 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>How nothing leaves your device — Foolscap</title>
-</head>
-<body>
-  <h1>Nothing leaves your device</h1>
+  <meta name="description" content="There is no server. The security policy on every page, how to check it yourself, and the one honest caveat.">
+  <meta name="theme-color" content="#fbf6ea" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#17161f" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="How nothing leaves your device — Foolscap">
+  <meta property="og:description" content="There is no server. The security policy on every page, how to check it yourself, and the one honest caveat.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
   <script type="module" src="/src/pages/private.ts"></script>
+</head>
+<body data-page="private">
+  <header class="site-header" data-testid="site-header">
+    <div class="wrap site-header__row">
+      <a class="brand" href="/"><svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true" focusable="false"><path d="M17 21h24l9 9v27a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3V24a3 3 0 0 1 3-3Z" fill="var(--surface)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M41 21v9h9Z" fill="var(--highlighter)" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M22 40h18M22 47h22M22 54h12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M14 21.5C13 17 10 13 6 9c7 1 12 4 16 8 1-5 3-9 5-13 2 4 4 8 5 13 4-4 10-7 16-8-4 4-7 8-8 12.5Z" fill="var(--highlighter)" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><circle cx="6" cy="9" r="2.8" fill="currentColor"/><circle cx="27" cy="4" r="2.8" fill="currentColor"/><circle cx="48" cy="9" r="2.8" fill="currentColor"/></svg><span>Foolscap</span></a>
+      <nav class="site-nav" data-testid="site-nav" aria-label="Site">
+        <a href="/#tools">Tools</a>
+        <a href="/private/" aria-current="page">Nothing leaves</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    <article class="prose">
+      <h1>Nothing leaves your device. Here is how you can check.</h1>
+      <p class="lead">Most PDF sites upload your file to a server, do the work there and send it back. Foolscap has no server. The work happens inside your browser, and the file never goes anywhere.</p>
+
+      <h2>There is no server</h2>
+      <p>This website is a folder of files: some pages, some scripts, some fonts. Nothing at this address can run code or receive a file. When you merge two PDFs, your browser does the merging, on your device, using scripts it already downloaded. There is nothing for it to send the file to.</p>
+
+      <h2>The policy that enforces it</h2>
+      <p>Every page is served with a Content-Security-Policy header. It is a rule your browser enforces: it says where the page may load things from and where it may send things. Ours is this, exactly:</p>
+      <code class="csp" data-testid="privacy-csp">default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'</code>
+      <p><strong>'self'</strong> means this website’s own address. <strong>connect-src 'self'</strong> means a page may only talk to this address — and because this address is a folder of files, nothing here can run code or receive a file. The policy also forbids inline scripts and anything from another domain, so no advert, tracker or third-party script can be added later without changing the header.</p>
+
+      <h2>Check it yourself</h2>
+      <div class="prose__block" data-testid="privacy-offline">
+        <ol>
+          <li>Open a tool page, such as <a href="/tools/merge/">Merge</a>, and wait a second for it to load.</li>
+          <li>Turn on airplane mode, or switch off Wi-Fi and mobile data.</li>
+          <li>Add your PDFs and run the tool. It works, because nothing needs to be sent anywhere.</li>
+        </ol>
+        <p>On a laptop, open the browser’s developer tools (press F12) and look at the <strong>Network</strong> tab while you use a tool. Every request goes to this site, and none of them carries your document.</p>
+      </div>
+
+      <h2>One honest caveat</h2>
+      <p>Showing some documents on screen can need a piece of the PDF renderer that is fetched from this site the first time it is used: a font the document did not embed, or a decoder for an unusual image type. That fetch goes to this site and carries nothing of yours. Once the offline service worker lands, those pieces will be stored up front and this caveat goes.</p>
+
+      <h2>What we store</h2>
+      <p>Your files, in your own browser’s private storage, on this device, until you leave the page. Each tool page clears that storage when it opens. Nothing is kept across visits, and nothing is sent.</p>
+      <p>We never put a file’s name, size, page count or contents into a log, an error message, a URL or a cookie. There are no cookies, and no analytics on tool pages.</p>
+
+      <div class="callout">
+        <p><strong>Still not sure?</strong> Good. Do not take our word for it: open the Network tab and watch.</p>
+      </div>
+
+      <p><a class="button" href="/#tools">Pick a tool</a></p>
+    </article>
+  </main>
+  <footer class="site-footer" data-testid="site-footer">
+    <div class="wrap site-footer__row">
+      <p>From <a href="https://layerbit.co.in" rel="noopener">Layerbit</a></p>
+      <p class="site-footer__links"><a href="/private/">How nothing leaves your device</a><span data-feedback></span></p>
+    </div>
+  </footer>
 </body>
 </html>
