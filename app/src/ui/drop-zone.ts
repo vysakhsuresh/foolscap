@@ -37,13 +37,37 @@ export function bindDropZone(zone: HTMLElement, input: HTMLInputElement, onFiles
   });
   zone.addEventListener('drop', (ev) => {
     ev.preventDefault();
+    ev.stopPropagation();
     depth = 0;
     zone.classList.remove('is-over');
     const files = ev.dataTransfer ? [...ev.dataTransfer.files] : [];
     if (files.length > 0) onFiles(files);
   });
 
-  // A drop anywhere else on the page would navigate to the file; swallow it.
-  document.addEventListener('dragover', (ev) => ev.preventDefault());
-  document.addEventListener('drop', (ev) => ev.preventDefault());
+  // Files dropped anywhere on the page count, not only on the box: the box
+  // lights up as soon as files are dragged over the window. (Left alone, the
+  // browser would navigate away to show the file.)
+  const carriesFiles = (ev: DragEvent) => ev.dataTransfer?.types.includes('Files') === true;
+  let pageDepth = 0;
+  document.addEventListener('dragenter', (ev) => {
+    if (!carriesFiles(ev)) return;
+    pageDepth += 1;
+    zone.classList.add('is-over');
+  });
+  document.addEventListener('dragleave', () => {
+    pageDepth = Math.max(0, pageDepth - 1);
+    if (pageDepth === 0 && depth === 0) zone.classList.remove('is-over');
+  });
+  document.addEventListener('dragover', (ev) => {
+    ev.preventDefault();
+    if (ev.dataTransfer && carriesFiles(ev)) ev.dataTransfer.dropEffect = 'copy';
+  });
+  document.addEventListener('drop', (ev) => {
+    ev.preventDefault();
+    pageDepth = 0;
+    depth = 0;
+    zone.classList.remove('is-over');
+    const files = ev.dataTransfer ? [...ev.dataTransfer.files] : [];
+    if (files.length > 0) onFiles(files);
+  });
 }

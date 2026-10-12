@@ -44,6 +44,51 @@ if (finder && input) {
     } else if (event.key === 'Escape' && document.activeElement === input) {
       input.value = '';
       filter();
+    } else if (event.key === 'Enter' && document.activeElement === input && input.value.trim()) {
+      // Enter opens the first tool that matches: "merge" ⏎ and you are there.
+      const first = document.querySelector<HTMLAnchorElement>('.family:not([hidden]) a.tool-card:not([hidden])');
+      if (first) {
+        event.preventDefault();
+        first.click();
+      }
     }
   });
 }
+
+// ---- Coming back from a tool ----
+// Every tool page has a way home at its bottom-left, to "/#from-<tool>". It
+// lands where you left the home page, not at its top: the scroll position is
+// kept for this tab (a number, nothing else), and if that spot no longer shows
+// the tool you came from, its card is brought into view instead. Either way
+// the card glows once, so your eye lands on it.
+const SCROLL_KEY = 'foolscap:home-y';
+
+window.addEventListener('pagehide', () => {
+  try {
+    sessionStorage.setItem(SCROLL_KEY, String(Math.round(window.scrollY)));
+  } catch {
+    // Private mode may refuse; coming back then finds the card instead.
+  }
+});
+
+function cameBack(): void {
+  const match = /^#from-([a-z-]+)$/.exec(location.hash);
+  if (!match) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  const card = document.querySelector<HTMLElement>(`[data-testid="tool-card-${match[1]}"]`);
+  let saved: number | null = null;
+  try {
+    const raw = sessionStorage.getItem(SCROLL_KEY);
+    saved = raw === null ? null : Number(raw);
+  } catch {
+    saved = null;
+  }
+  if (saved !== null && Number.isFinite(saved)) window.scrollTo({ top: saved, behavior: 'instant' });
+  if (!card) return;
+  const box = card.getBoundingClientRect();
+  if (box.top < 0 || box.bottom > window.innerHeight) card.scrollIntoView({ block: 'center', behavior: 'instant' });
+  card.classList.add('is-back');
+  card.addEventListener('animationend', () => card.classList.remove('is-back'), { once: true });
+}
+
+cameBack();

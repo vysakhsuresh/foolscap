@@ -32,6 +32,9 @@
   align-items: center;
   gap: var(--space-2);
   min-height: var(--target);
+  /* Room for the coffee pill, which is pinned to the window rather than the row. */
+  padding-inline-end: calc(var(--gutter) + var(--support-w) + var(--space-2));
+  --support-w: 46px;
 }
 
 .brand {
@@ -52,10 +55,16 @@
 }
 
 .mark {
-  width: 40px;
-  height: 40px;
+  width: auto;
+  height: 52px;
   flex: none;
-  filter: drop-shadow(0 4px 14px rgb(79 172 254 / 0.35));
+  margin-block: -6px;
+  filter: drop-shadow(0 6px 18px rgb(139 92 246 / 0.35));
+  transition: transform var(--motion-slow) var(--spring);
+}
+
+.brand:hover .mark {
+  transform: rotate(-6deg) scale(1.06);
 }
 
 .site-nav {
@@ -93,8 +102,14 @@
   }
 }
 
-/* Buy me a coffee: Layerbit's gold pill. Icon only on a phone. */
+/* Buy me a coffee: Layerbit's gold pill, pinned so it stays as you scroll.
+   It sits where the header row ends, and stays there. Icon only on a phone. */
 .support {
+  position: fixed;
+  top: calc(var(--space-3) + (var(--target) - 46px) / 2);
+  right: calc(max(0px, (100% - var(--content)) / 2) + var(--gutter));
+  z-index: 60;
+  height: 46px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -118,8 +133,8 @@
 }
 
 .support svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   flex: none;
   color: var(--gold);
 }
@@ -133,6 +148,7 @@
 
 .support__text {
   display: none;
+  font-weight: 600;
 }
 
 main {
@@ -522,17 +538,22 @@ main {
 .family__icon {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   flex: none;
-  border-radius: 11px;
-  background: color-mix(in srgb, var(--tool-b) 16%, transparent);
-  color: var(--tool-b);
+  border-radius: 13px;
+  background: var(--icon-gloss), var(--tool-gradient);
+  color: var(--on-neon);
+  box-shadow: var(--icon-edge), 0 6px 20px var(--tool-glow);
 }
 
 .family__icon svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+}
+
+.family__icon svg path {
+  stroke-width: 2.4;
 }
 
 .family__title {
@@ -603,26 +624,45 @@ a.tool-card:hover::after {
   opacity: 1;
 }
 
+/*
+ * The icons: a glossy tile in the family's gradient, lit from the top, with a
+ * bright edge and a coloured glow, and a heavier line so the drawing reads at
+ * a glance. On hover a sheen sweeps across and the tile springs.
+ */
 .tool-card__icon {
   grid-area: icon;
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: var(--tool-gradient);
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--icon-sheen), var(--icon-gloss), var(--tool-gradient);
+  background-size: 260% 100%, 100% 100%, 100% 100%;
+  background-position: 120% 0, 0 0, 0 0;
+  background-repeat: no-repeat;
   color: var(--on-neon);
-  box-shadow: 0 6px 20px var(--tool-glow);
-  transition: transform var(--motion) var(--spring);
+  box-shadow: var(--icon-edge), 0 8px 24px var(--tool-glow);
+  transition:
+    transform var(--motion) var(--spring),
+    box-shadow var(--motion),
+    background-position 0.7s var(--ease);
 }
 
-a.tool-card:hover .tool-card__icon {
-  transform: rotate(-6deg) scale(1.06);
+a.tool-card:hover .tool-card__icon,
+a.tool-card:focus-visible .tool-card__icon {
+  transform: rotate(-8deg) scale(1.1);
+  background-position: -60% 0, 0 0, 0 0;
+  box-shadow: var(--icon-edge), 0 12px 32px var(--tool-glow), 0 0 0 4px color-mix(in srgb, var(--tool-b) 18%, transparent);
 }
 
 .tool-card__icon svg {
-  width: 24px;
-  height: 24px;
+  width: 27px;
+  height: 27px;
+  filter: drop-shadow(0 1px 0 rgb(255 255 255 / 0.35));
+}
+
+.tool-card__icon svg path {
+  stroke-width: 2.3;
 }
 
 .tool-card__title {
@@ -838,9 +878,17 @@ a.tool-card:hover .tool-card__go {
 }
 
 .related__icon {
-  width: 18px;
-  height: 18px;
-  color: var(--tool-b);
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border-radius: 9px;
+  background: var(--icon-gloss), var(--tool-gradient);
+  color: var(--on-neon);
+  box-shadow: var(--icon-edge), 0 4px 12px var(--tool-glow);
+}
+
+.related__icon path {
+  stroke-width: 2.4;
 }
 
 .related__item--all {
@@ -1003,13 +1051,13 @@ select.input option {
 }
 
 .drop-zone__icon {
-  width: 56px;
-  height: 56px;
-  padding: 12px;
-  border-radius: 18px;
-  background: var(--tool-gradient);
+  width: 60px;
+  height: 60px;
+  padding: 13px;
+  border-radius: 19px;
+  background: var(--icon-gloss), var(--tool-gradient);
   color: var(--on-neon);
-  box-shadow: 0 8px 24px var(--tool-glow);
+  box-shadow: var(--icon-edge), 0 10px 28px var(--tool-glow);
   transition: transform var(--motion) var(--spring);
 }
 
@@ -1925,14 +1973,26 @@ select.input option {
 /* ---- Layout at larger widths ---- */
 
 @media (min-width: 640px) {
+  .support {
+    padding-inline: 18px;
+  }
+
   .support__text {
     display: inline;
+  }
+
+  .site-header__row {
+    --support-w: 196px;
   }
 }
 
 @media (min-width: 820px) {
   .site-header {
     padding-block: var(--space-4);
+  }
+
+  .support {
+    top: calc(var(--space-4) - 1px);
   }
 
   .hero {
@@ -2434,4 +2494,147 @@ select.input option {
 .scan-card__number {
   margin-inline-end: auto;
   font-weight: 600;
+}
+
+/* ---- Home: the way back, bottom-left on every tool page ----
+   Layerbit's glass pill, with the mark in it. It goes to the home page at the
+   spot you left it, not the top; on a phone it sits beside the pinned button. */
+
+.home-fab {
+  position: fixed;
+  left: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  min-width: 56px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgb(20 22 30 / 0.78);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: 0 8px 25px rgb(0 0 0 / 0.5);
+  color: var(--text);
+  font-weight: 600;
+  font-size: var(--text-s);
+  white-space: nowrap;
+  transition:
+    transform var(--motion-slow) var(--spring),
+    border-color var(--motion),
+    box-shadow var(--motion);
+}
+
+.home-fab__mark {
+  width: auto;
+  height: 40px;
+  flex: none;
+  filter: drop-shadow(0 3px 8px rgb(139 92 246 / 0.45));
+  transition: transform var(--motion-slow) var(--spring);
+}
+
+.home-fab__label {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-width var(--motion-slow) var(--ease),
+    opacity var(--motion),
+    margin var(--motion);
+}
+
+.home-fab:hover,
+.home-fab:focus-visible {
+  color: var(--text);
+  transform: translateY(-3px);
+  border-color: rgb(139 92 246 / 0.6);
+  box-shadow:
+    0 12px 30px rgb(0 0 0 / 0.55),
+    0 0 24px rgb(139 92 246 / 0.25);
+}
+
+.home-fab:hover .home-fab__mark,
+.home-fab:focus-visible .home-fab__mark {
+  transform: rotate(-8deg) scale(1.05);
+}
+
+@media (hover: hover) {
+  .home-fab:hover .home-fab__label,
+  .home-fab:focus-visible .home-fab__label {
+    max-width: 8rem;
+    opacity: 1;
+    margin-inline-end: 10px;
+  }
+}
+
+/* The way back on a home page that greets you: the card you came from glows once. */
+.tool-card.is-back {
+  animation: came-back 1.8s var(--ease) 1;
+}
+
+@keyframes came-back {
+  0%,
+  100% {
+    box-shadow: var(--shadow);
+  }
+  30% {
+    box-shadow:
+      0 0 0 2px var(--tool-b),
+      0 0 34px var(--tool-glow);
+  }
+}
+
+@media (max-width: 819px) {
+  /* Beside the pinned button, never over the page. */
+  body[data-page='tool'] .run {
+    padding-inline-start: calc(var(--gutter) + 64px);
+  }
+
+  .home-fab {
+    height: 52px;
+    min-width: 52px;
+    bottom: max(var(--space-3), env(safe-area-inset-bottom));
+  }
+
+  .home-fab__mark {
+    height: 36px;
+  }
+}
+
+@media (min-width: 820px) {
+  .home-fab {
+    left: 30px;
+    bottom: 30px;
+    height: 60px;
+    min-width: 60px;
+    padding-inline: 9px;
+  }
+
+  .home-fab__mark {
+    height: 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-card.is-back {
+    animation: none;
+    box-shadow: 0 0 0 2px var(--tool-b);
+  }
+}
+
+.related__item:has(.related__icon) {
+  padding-inline-start: 8px;
+}
+
+/* Pinned buttons float over the page as it scrolls: give them a solid enough
+   ground that words behind them never show through. */
+.support {
+  background: rgb(20 22 30 / 0.88);
+}
+
+/* The way home sits at the bottom-left: the footer leaves it room. */
+body[data-page='tool'] .site-footer {
+  padding-bottom: calc(var(--space-6) + 76px);
 }

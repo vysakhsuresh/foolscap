@@ -201,18 +201,26 @@ drop zone shrinks to one line once files are in.
 **Links are never underlined.** They are told apart by colour and weight, and
 every one has the button focus ring. A test checks every page.
 
-**Buy me a coffee** (a gold pill in the header, `HELP.coffee` in
+**Buy me a coffee** (a gold pill pinned top-right as on Layerbit, so it
+stays as you scroll; a mug with three lines of steam; `HELP.coffee` in
 `site/config.ts`) and **Get help** (Layerbit's glowing orb, bottom-right,
 opening a popover with Email and WhatsApp — no script needed) match
 layerbit.co.in. They are plain links: nothing is fetched until tapped, and
 the privacy page says so. On a phone the orb steps aside once files are on a
 tool page; Get help stays in every footer.
 
+**The way home** is Layerbit's bottom-left glass pill with the mark in it, on
+every tool page. It goes to `/#from-<tool>`, and the home page lands where
+you left it (the scroll position is kept for the tab, a number and nothing
+else), or on that tool's card, which glows once. On a phone it sits beside
+the pinned button, never over the page.
+
 Touch targets at least 44px. Text contrast at least 4.5:1 — muted text is
 `#94a3b8` (7:1 on the ground); dark text on every gradient stop is 7:1 or
-more. Nothing smaller than 24px is drawn in a gradient. The mark is a white
-page with a folded corner on a cyan→violet tile, an F cut out of the page so
-the tile shows through; it reads at 16px. The name sits beside it, large.
+more. Nothing smaller than 24px is drawn in a gradient. The mark is the owner's
+drawing: a PDF sheet wearing a jester's cap, a pen, and the stars around it,
+its white background cut away (`app/public/brand/`, plus `favicon.ico` and
+the install manifest). The name sits beside it, large.
 Facts (Free forever, No sign-up…) are plain text with a tick, never pills
 that look tappable; the nav marks the current page by colour, and a
 background appears only under the pointer or the keyboard.
@@ -315,3 +323,9 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   and the offline proof runs it. Scan's corner finder is Otsu plus the largest
   bright patch, which is cheap and right for paper on a table; the handles
   are there for the rest.
+- **2026-10-13** The owner's jester-cap drawing replaces the cut-out F as the
+  mark. Coffee pill pinned like Layerbit's, with a bigger, three-steam cup.
+  A way home bottom-left on every tool page. Icon tiles made glossy and
+  heavier. Drop a file anywhere on a tool page; Enter in the finder opens the
+  first match; an install manifest. Buttons no longer jitter under a pointer
+  resting on their edge.

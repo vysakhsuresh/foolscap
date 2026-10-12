@@ -28,13 +28,24 @@ const groupOf = (id: GroupId) => GROUPS.find((g) => g.id === id) ?? { id, title:
 
 // ---- The shell: one copy, every page ----
 
-// The mark: a page with its corner folded, and an F cut out of it so the
-// tile's colour shows through. Legible at 16 pixels in a browser tab.
-const MARK =
-  '<svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="40" height="40" aria-hidden="true" focusable="false"><defs><linearGradient id="mark-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00f2fe"/><stop offset=".5" stop-color="#4facfe"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#mark-g)"/><path d="M19 11h18l11 11v27a5 5 0 0 1-5 5H19a5 5 0 0 1-5-5V16a5 5 0 0 1 5-5Z" fill="#fff"/><path d="M37 11v7a4 4 0 0 0 4 4h7Z" fill="#c7d2fe"/><rect x="22" y="25" width="6" height="22" rx="3" fill="url(#mark-g)"/><rect x="22" y="25" width="18" height="6" rx="3" fill="url(#mark-g)"/><rect x="22" y="34.5" width="13" height="5.5" rx="2.75" fill="url(#mark-g)"/></svg>';
+// The mark: a sheet with a jester's cap and a pen, the stars around it (the
+// owner's drawing, background cut away). A picture, so a plain <img>.
+const MARK = '<img class="mark" data-testid="mark" src="/brand/mark.png" width="115" height="128" alt="">';
 
+// Buy me a coffee's cup: a mug, its handle, and three lines of steam.
 const CUP =
-  '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9h12v5a6 6 0 0 1-6 6h0a6 6 0 0 1-6-6V9ZM16 10.5h1.5a2.75 2.75 0 0 1 0 5.5H16M8 3c0 1.2 1 1.6 1 3M12 3c0 1.2 1 1.6 1 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 10h13v4.5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6V10ZM16.5 11.5h1.25a2.75 2.75 0 0 1 0 5.5H16M6.5 2.5c0 1.25 1 1.75 1 3.25M10 2.5c0 1.25 1 1.75 1 3.25M13.5 2.5c0 1.25 1 1.75 1 3.25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+// The tab icon, the home-screen icon and the install manifest, on every page.
+const ICONS = `<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="icon" href="/brand/favicon-48.png" type="image/png" sizes="48x48">
+  <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">`;
+
+// Back to the tools, from the bottom-left of every tool page, to the spot you left.
+const HOME_FAB = (id: string) =>
+  `<a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools"><img class="home-fab__mark" src="/brand/mark.png" width="115" height="128" alt=""><span class="home-fab__label">All tools</span></a>`;
+
 
 function header(current: 'tools' | 'privacy'): string {
   const t = current === 'tools' ? ' aria-current="page"' : '';
@@ -82,8 +93,8 @@ function head(title: string, description: string, script: string): string {
   <meta property="og:type" content="website">
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(description)}">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/icon.svg">
+  ${ICONS}
+  <meta name="theme-color" content="#0a0c10">
   <script type="module" src="${script}"></script>
 </head>`;
 }
@@ -137,6 +148,7 @@ function toolPage(tool: ToolMeta): string {
     </nav>
   </main>
   ${FOOTER}
+  ${HOME_FAB(tool.id)}
 </body>
 </html>
 `;
@@ -212,6 +224,7 @@ for (const dir of existsSync(toolsDir) ? readdirSync(toolsDir) : []) {
 const ADSENSE_META = `<meta name="google-adsense-account" content="${ADSENSE.client}">`;
 const shell = (html: string, current: 'tools' | 'privacy') =>
   (html.includes('google-adsense-account') ? html : html.replace('<meta name="theme-color" content="#0a0c10">', `<meta name="theme-color" content="#0a0c10">\n  ${ADSENSE_META}`))
+    .replace(/(?:<link rel="(?:icon|apple-touch-icon|manifest)"[^>]*>\s*)+/, `${ICONS}\n  `)
     .replace(/<header class="site-header"[\s\S]*?<\/header>/, header(current))
     .replace(/<footer class="site-footer"[\s\S]*?<\/footer>[\s\S]*?(<\/body>)/, `${FOOTER}\n$1`);
 

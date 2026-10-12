@@ -125,3 +125,78 @@ test('a button does not jitter when the pointer rests on its bottom edge', async
   }
   expect(new Set(tops).size, `the button moved: ${tops.join(', ')}`).toBe(1);
 });
+
+test('every tool page has a way home, bottom-left, that lands where you left the home page', async ({ page }) => {
+  await openPage(page, '/');
+  const card = page.getByTestId('tool-card-sign');
+  await card.evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  const leftAt = await page.evaluate(() => window.scrollY);
+  expect(leftAt).toBeGreaterThan(200);
+  await card.click();
+  await expect(page).toHaveURL(/\/tools\/sign\/$/);
+
+  const fab = page.getByTestId('home-fab');
+  await expect(fab).toBeVisible();
+  const box = (await fab.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(box.x).toBeLessThan(40);
+  expect(viewport.height - (box.y + box.height)).toBeLessThan(40);
+  // It stays there as the page scrolls.
+  await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
+  expect((await fab.boundingBox())!.y).toBeCloseTo(box.y, 0);
+
+  await fab.click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(leftAt - 40);
+  await expect(page.getByTestId('tool-card-sign')).toBeInViewport();
+});
+
+test('arriving at a tool from elsewhere, the way home still finds its card', async ({ page }) => {
+  await openTool(page, 'ocr');
+  await page.evaluate(() => sessionStorage.clear());
+  await page.getByTestId('home-fab').click();
+  await expect(page.getByTestId('tool-card-ocr')).toBeInViewport();
+  await expect(page.getByTestId('tool-card-ocr')).toHaveClass(/is-back/);
+});
+
+test('Buy me a coffee stays on screen as the page scrolls', async ({ page }) => {
+  await openPage(page, '/');
+  await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
+  await expect(page.getByTestId('support')).toBeInViewport();
+  const cup = page.locator('[data-testid="support"] svg path');
+  expect((await cup.getAttribute('d'))!.match(/M\d+(\.\d+)? 2\.5c/g)).toHaveLength(3);
+});
+
+test('the mark and the icons are served from this site', async ({ page, request }) => {
+  await openPage(page, '/');
+  const loaded = await page.getByTestId('mark').evaluate((img) => (img as HTMLImageElement).naturalWidth);
+  expect(loaded).toBeGreaterThan(0);
+  for (const path of ['/favicon.ico', '/brand/apple-touch-icon.png', '/brand/icon-192.png', '/brand/icon-512.png', '/manifest.webmanifest']) {
+    const res = await request.get(path);
+    expect(res.status(), path).toBe(200);
+  }
+  const manifest = await (await request.get('/manifest.webmanifest')).json();
+  expect(manifest.icons.length).toBeGreaterThan(1);
+});
+
+test('a PDF dropped anywhere on a tool page is taken, not only on the box', async ({ page }) => {
+  await openTool(page, 'merge');
+  const bytes = [...(await pagesPdf(1))];
+  const transfer = await page.evaluateHandle((data) => {
+    const dt = new DataTransfer();
+    dt.items.add(new File([new Uint8Array(data)], 'Dropped.pdf', { type: 'application/pdf' }));
+    return dt;
+  }, bytes);
+  await page.dispatchEvent('[data-testid="tool-title"]', 'dragenter', { dataTransfer: transfer });
+  await expect(page.getByTestId('drop-zone')).toHaveClass(/is-over/);
+  await page.dispatchEvent('[data-testid="tool-title"]', 'drop', { dataTransfer: transfer });
+  await expect(page.getByTestId('file-item')).toHaveCount(1);
+  await expect(page.getByTestId('drop-zone')).not.toHaveClass(/is-over/);
+});
+
+test('Enter in the finder opens the first tool that matches', async ({ page }) => {
+  await openPage(page, '/');
+  await page.getByTestId('tool-search').fill('lock');
+  await page.getByTestId('tool-search').press('Enter');
+  await expect(page).toHaveURL(/\/tools\/add-password\/$/);
+});
