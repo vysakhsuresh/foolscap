@@ -229,7 +229,7 @@ function toolPage(tool: ToolMeta): string {
   const path = `/tools/${tool.id}/`;
   // Search results cut a title at about 60 characters: the long form only when it fits.
   const long = `${SEARCH_NAMES[tool.id]} online, free and private — Foolscap`;
-  const title = long.length <= 65 ? long : `${SEARCH_NAMES[tool.id]}, free and private — Foolscap`;
+  const title = [long, `${SEARCH_NAMES[tool.id]}, free and private — Foolscap`].find((t) => t.length <= 65) ?? `${SEARCH_NAMES[tool.id]}, free — Foolscap`;
   // Search results show about 160 characters of a description: the promise shortens before the summary does.
   const description = [
     `${SEARCH_NAMES[tool.id]} in your browser. ${tool.summary}. Nothing is uploaded: free, no sign-up, no limits, no watermark.`,

@@ -39,6 +39,14 @@ export function createFormPanel(onChange: () => void): FormPanel {
   /** Each field's name, what it held when the file was opened, and what it holds now. */
   let read: Array<{ readonly name: string; readonly was: string | boolean; now(): string | boolean; set(value: string | boolean): boolean }> = [];
 
+  let pending: ReturnType<typeof parseAnswers> = null;
+  const fillFrom = (answers: NonNullable<ReturnType<typeof parseAnswers>>) => {
+    let filled = 0;
+    for (const entry of read) if (entry.name in answers && entry.set(answers[entry.name]!)) filled++;
+    loadSaid.textContent = filled === 0 ? 'None of those answers belong to this form.' : `Filled ${filled} ${filled === 1 ? 'answer' : 'answers'} from the file. Check them, then tap Fill it in.`;
+    onChange();
+  };
+
   loader.addEventListener('change', () => {
     const file = loader.files?.[0];
     loader.value = '';
@@ -50,10 +58,13 @@ export function createFormPanel(onChange: () => void): FormPanel {
           loadSaid.textContent = "That file isn't a set of saved answers.";
           return;
         }
-        let filled = 0;
-        for (const entry of read) if (entry.name in answers && entry.set(answers[entry.name]!)) filled++;
-        loadSaid.textContent = filled === 0 ? 'None of those answers belong to this form.' : `Filled ${filled} ${filled === 1 ? 'answer' : 'answers'} from the file. Check them, then tap Fill it in.`;
-        onChange();
+        // Chosen while the form is still being read: kept, and filled in once its fields are known.
+        if (state !== 'ready') {
+          pending = answers;
+          loadSaid.textContent = 'Reading the form first…';
+          return;
+        }
+        fillFrom(answers);
       },
       () => {
         loadSaid.textContent = "That file couldn't be read.";
@@ -80,6 +91,7 @@ export function createFormPanel(onChange: () => void): FormPanel {
       list.replaceChildren();
       if (fields.length === 0) {
         state = 'none';
+        pending = null;
         list.append(
           el('p', { class: 'options__note', testid: 'form-none' }, [
             'This PDF has no fields to fill in. To write on it anyway, use ',
@@ -159,6 +171,11 @@ export function createFormPanel(onChange: () => void): FormPanel {
       keep.root.hidden = false;
       loadBox.hidden = false;
       state = 'ready';
+      if (pending !== null) {
+        const answers = pending;
+        pending = null;
+        fillFrom(answers);
+      }
       onChange();
     },
     // Only the answers that changed travel: a field left alone is left exactly as it was.
