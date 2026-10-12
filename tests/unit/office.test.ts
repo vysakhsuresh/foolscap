@@ -192,3 +192,26 @@ describe('Word or Excel to PDF', () => {
     expect(bad?.kind).toBe('failed');
   });
 });
+
+describe('PDF to Excel on a bank statement', () => {
+  it('joins every page into one sheet, keeps the account details apart, and the totals add up', async () => {
+    const { bankStatementPdf } = await import('../fixtures/statement');
+    const statement = await bankStatementPdf([2024, 1], [2024, 12]);
+    const h = harness();
+    const input = await h.add('Statement.pdf', statement.bytes);
+    const out = only(await getOp('pdf-to-excel').run([input], { scans: false }, h.ctx));
+    const book = fromXlsx(await h.bytesOf(out.file));
+    expect(book.sheets.map((s) => s.name)).toEqual(['Table', 'Other details']);
+    const rows = book.sheets[0]!.rows;
+    // The header once, the opening balance, then every transaction, each with its date.
+    expect(rows[0]).toEqual(['Date', 'Narration', 'Chq/Ref No.', 'Value Dt', 'Withdrawal Amt.', 'Deposit Amt.', 'Closing Balance']);
+    expect(rows).toHaveLength(statement.transactions + 2);
+    expect(rows.slice(1).every((r) => /^\d\d\/\d\d\/\d\d$/.test(r[0] ?? ''))).toBe(true);
+    const sum = (k: number) => Math.round(rows.slice(2).reduce((n, r) => n + (Number((r[k] ?? '').replace(/,/g, '')) || 0), 0) * 100) / 100;
+    expect(sum(4)).toBe(statement.withdrawals);
+    expect(sum(5)).toBe(statement.deposits);
+    // A narration that wrapped onto two lines is one cell.
+    expect(rows.some((r) => /^NEFT CR-HDFC0000123-TECHNOPARK SOLUTIONS PVT LTD-SALARY [A-Z]{3} 2024$/.test(r[1] ?? ''))).toBe(true);
+    expect(JSON.stringify(book.sheets[1]!.rows)).toContain('ANJALI MENON');
+  });
+});

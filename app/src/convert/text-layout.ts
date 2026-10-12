@@ -185,17 +185,53 @@ export function toWorkbook(pages: readonly PageText[]): Workbook {
     return { sheets: [{ name: 'Text', rows }] };
   }
 
-  const first = withTables[0]?.tables[0];
-  if (first && withTables.length > 1 && withTables.every((p) => p.tables.length === 1 && sameColumns(p.tables[0], first))) {
-    const header = tableRows(first)[0];
+  // Each page's main table is its longest. When most pages' main tables share
+  // their columns, they are one table broken by page breaks: a statement.
+  const mains = withTables.map((p) => ({ p, main: p.tables.reduce((best, t) => (tableRows(t).length > tableRows(best).length ? t : best)) }));
+  const first = mains[0]?.main;
+  const alike = first ? mains.filter((m) => sameColumns(m.main, first)).length : 0;
+  if (first && mains.length > 1 && alike >= Math.max(2, Math.ceil(mains.length * 0.6))) {
+    // The header is the row that comes back at the top of later pages.
+    const counts = new Map<string, { row: string[]; n: number }>();
+    for (const m of mains.slice(1)) {
+      const top = tableRows(m.main)[0];
+      if (!top || top.every((c) => c === '')) continue;
+      const key = top.map((c) => c.trim().toLowerCase()).join('\u0001');
+      const entry = counts.get(key) ?? { row: top, n: 0 };
+      entry.n++;
+      counts.set(key, entry);
+    }
+    const repeated = [...counts.values()].sort((a, b) => b.n - a.n)[0];
+    const header = repeated && repeated.n >= 1 ? repeated.row : tableRows(first)[0];
     const rows: string[][] = [];
-    withTables.forEach((p, i) => {
-      const t = p.tables[0];
-      if (!t) return;
-      const tr = tableRows(t);
-      // The header repeated at the top of each page is kept once.
-      const start = i > 0 && header && sameRow(tr[0], header) ? 1 : 0;
-      const body = tr.slice(start);
+    // Whatever is not the statement itself (account details above it, a summary
+    // after it) is kept on a sheet of its own, so nothing is lost.
+    const other: string[][] = [];
+    const keep = (more: readonly string[][]) => {
+      const filled = more.filter((r) => r.some((c) => c.trim() !== ''));
+      if (filled.length === 0) return;
+      if (other.length > 0) other.push([]);
+      other.push(...filled.map((r) => [...r]));
+    };
+    for (const { p, main } of mains) {
+      for (const t of p.tables) if (t !== main) keep(tableRows(t));
+      // A short page can find its columns a little differently (the last page of
+      // a statement, with a dozen rows): its words are put back into the
+      // statement's own columns by where they sit.
+      const close = Math.abs(main.columns.length - first.columns.length) <= 2;
+      if (!sameColumns(main, first) && !close) {
+        keep(tableRows(main));
+        continue;
+      }
+      const tr = sameColumns(main, first) ? tableRows(main) : recut(main, first.columns);
+      let from = 0;
+      const at = header ? tr.findIndex((r) => sameRow(r, header)) : -1;
+      if (at >= 0) {
+        keep(tr.slice(0, at));
+        // The header is kept once, at the top.
+        from = rows.length === 0 ? at : at + 1;
+      }
+      const body = tr.slice(from);
       // A row the page break cut in two: its second half is joined back to its first.
       const head = body[0];
       const last = rows[rows.length - 1];
@@ -204,8 +240,8 @@ export function toWorkbook(pages: readonly PageText[]): Workbook {
         body.shift();
       }
       rows.push(...body);
-    });
-    return { sheets: [{ name: 'Table', rows }] };
+    }
+    return { sheets: other.length > 0 ? [{ name: 'Table', rows }, { name: 'Other details', rows: other }] : [{ name: 'Table', rows }] };
   }
 
   return {
@@ -812,6 +848,44 @@ function cellText(segs: readonly Segment[]): string {
     .map((s) => s.text.trim())
     .filter((t) => t !== '')
     .join(' ');
+}
+
+/** A table's words put into `columns` by where each piece sits: its middle, or the nearest column. */
+function recut(t: FoundTable, columns: FoundTable['columns']): string[][] {
+  return t.rows.map((row) => {
+    const cells: Piece[][] = columns.map(() => []);
+    for (const cell of row) {
+      for (const seg of cell) {
+        for (const piece of seg.pieces) {
+          const mid = (piece.x0 + piece.x1) / 2;
+          let k = columns.findIndex((c) => mid >= c.x0 && mid <= c.x1);
+          if (k < 0) {
+            let best = Infinity;
+            columns.forEach((c, i) => {
+              const d = mid < c.x0 ? c.x0 - mid : mid - c.x1;
+              if (d < best) {
+                best = d;
+                k = i;
+              }
+            });
+          }
+          cells[k]?.push(piece);
+        }
+      }
+    }
+    return cells.map((pieces) => {
+      // Pieces touching on one line are one word; a gap or a new line is a space.
+      let text = '';
+      let prev: Piece | undefined;
+      for (const p of pieces.sort((a, c) => a.y - c.y || a.x0 - c.x0)) {
+        const gap = prev && Math.abs(prev.y - p.y) < p.size * 0.4 ? p.x0 - prev.x1 : Infinity;
+        if (text !== '' && gap > p.size * WORD_GAP && !text.endsWith(' ') && !p.text.startsWith(' ')) text += ' ';
+        text += p.text;
+        prev = p;
+      }
+      return text.replace(/\s+/g, ' ').trim();
+    });
+  });
 }
 
 function tableRows(t: FoundTable): string[][] {
