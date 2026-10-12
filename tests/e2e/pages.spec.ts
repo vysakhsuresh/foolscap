@@ -55,8 +55,8 @@ for (const id of TOOL_IDS) {
     const backend = await page.locator('body').getAttribute('data-storage-backend');
     expect(['opfs', 'memory']).toContain(backend);
 
-    const fontLoaded = await page.evaluate(() => document.fonts.ready.then(() => document.fonts.check("12px 'Bricolage Grotesque'")));
-    expect(fontLoaded, 'Bricolage Grotesque is loaded, not just declared').toBe(true);
+    const fontLoaded = await page.evaluate(() => document.fonts.ready.then(() => document.fonts.check("12px 'Space Grotesk'")));
+    expect(fontLoaded, 'Space Grotesk is loaded, not just declared').toBe(true);
 
     const small = await page.evaluate(
       ({ min, inlineMin }) => {
@@ -79,5 +79,27 @@ for (const id of TOOL_IDS) {
       { min: MIN_TARGET, inlineMin: MIN_INLINE_LINK_HEIGHT },
     );
     expect(small, `controls under ${MIN_TARGET}×${MIN_TARGET}px`).toEqual([]);
+  });
+}
+
+// The owner's rules for the shell: links are never underlined, Buy me a coffee
+// goes to Layerbit's page, and Get help opens Email and WhatsApp with no script.
+for (const path of ['/', '/private/', '/tools/merge/']) {
+  test(`${path} underlines no link and carries Support and Get help`, async ({ page }) => {
+    await page.goto(path);
+    const underlined = await page.$$eval('a', (as) =>
+      as.filter((a) => getComputedStyle(a).textDecorationLine.includes('underline')).map((a) => a.textContent?.trim()),
+    );
+    expect(underlined, 'no link is underlined').toEqual([]);
+
+    await expect(page.getByTestId('support')).toHaveAttribute('href', 'https://www.buymeacoffee.com/layerbit');
+
+    await expect(page.getByTestId('help-panel')).toBeHidden();
+    await page.getByTestId('help-orb').click();
+    await expect(page.getByTestId('help-panel')).toBeVisible();
+    await expect(page.getByTestId('help-email')).toHaveAttribute('href', /^mailto:ceo@layerbit\.co\.in\?subject=/);
+    await expect(page.getByTestId('help-whatsapp')).toHaveAttribute('href', 'https://wa.me/916282595823');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('help-panel')).toBeHidden();
   });
 }

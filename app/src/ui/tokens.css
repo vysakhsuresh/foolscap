@@ -1,36 +1,47 @@
 /*
-  Design tokens. Paper, ink and highlighter: a warm paper ground, deep ink
-  text, one electric highlighter for shapes and states (ink text on it, never
-  white), and one strong action colour for the primary buttons.
+  Design tokens. The Layerbit family: a near-black ground lit from above,
+  frosted-glass surfaces, Space Grotesk, and neon light for meaning. Each tool
+  owns one gradient (--tool-a → --tool-b) that colours its card, its drop
+  zone and its main button, so a page tells you which tool you are in before
+  you read a word.
 
-  Every text/background pair here is checked at 4.5:1 or better; the numbers
-  are in the stage-1 report and in README. Highlighter is a fill, never text
-  and never an outline on its own: it sits inside an ink border.
+  Contrast, checked: text #f8fafc and muted #94a3b8 on the ground and on glass
+  are 17:1 and 7:1; dark text #0a0c10 on every gradient stop is 7:1 or more.
+  Nothing smaller than 24px is drawn in a gradient.
 */
 @import './fonts.css';
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  --paper: #fbf6ea;
-  --surface: #fffcf4;
-  --surface-2: #f3ecdc;
-  --ink: #1b1a2e;
-  --muted: #5a5670;
-  --line: #e3d9c6;
-  --line-strong: #b9b0a0;
-  --highlighter: #f7e84a;
-  --on-highlighter: #1b1a2e;
-  --action: #3a2fd1;
-  --action-hover: #2d23b0;
-  --on-action: #ffffff;
-  --danger: #a8231b;
-  --ok: #1f6b3c;
-  --focus: #3a2fd1;
-  --thumb-bg: #ffffff;
+  --bg: #0a0c10;
+  --bg-glow: radial-gradient(1200px 600px at 50% -10%, #1a1e2d 0%, rgb(10 12 16 / 0) 70%);
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --glass: rgb(20 22 30 / 0.62);
+  --glass-strong: rgb(20 22 30 / 0.92);
+  --glass-hover: rgb(30 34 48 / 0.7);
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.16);
+  --on-neon: #0a0c10;
 
-  --shadow: 0 1px 2px rgb(27 26 46 / 0.06), 0 6px 18px rgb(27 26 46 / 0.08);
-  --shadow-lift: 0 2px 4px rgb(27 26 46 / 0.08), 0 14px 32px rgb(27 26 46 / 0.14);
+  --cyan: #38bdf8;
+  --neon-a: #00f2fe;
+  --neon-b: #4facfe;
+  --gold: #ffc107;
+  --ok: #4ade80;
+  --danger: #f87171;
+  --whatsapp: #25d366;
+
+  /* The current tool's colours. Pages without a tool get Layerbit's own. */
+  --tool-a: var(--neon-a);
+  --tool-b: var(--neon-b);
+  --tool-gradient: linear-gradient(135deg, var(--tool-a) 0%, var(--tool-b) 100%);
+  --tool-glow: color-mix(in srgb, var(--tool-b) 35%, transparent);
+
+  --shadow: 0 4px 20px rgb(0 0 0 / 0.35);
+  --shadow-lift: 0 14px 40px rgb(0 0 0 / 0.55);
+  --blur: blur(16px);
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -41,52 +52,59 @@
   --space-7: 3rem;
   --space-8: 4.5rem;
 
-  --radius-s: 10px;
+  --radius-s: 12px;
   --radius-m: 16px;
-  --radius-l: 24px;
+  --radius-l: 22px;
   --radius-pill: 999px;
 
-  --text-s: clamp(0.875rem, 0.84rem + 0.2vw, 0.9375rem);
-  --text-m: clamp(1rem, 0.96rem + 0.25vw, 1.125rem);
-  --text-l: clamp(1.125rem, 1.05rem + 0.4vw, 1.375rem);
-  --text-xl: clamp(1.5rem, 1.3rem + 1vw, 2.125rem);
-  --text-2xl: clamp(2rem, 1.5rem + 2.4vw, 3.25rem);
-  --text-3xl: clamp(2.5rem, 1.7rem + 4vw, 4.5rem);
+  --text-xs: 0.8125rem;
+  --text-s: clamp(0.875rem, 0.85rem + 0.15vw, 0.9375rem);
+  --text-m: clamp(1rem, 0.97rem + 0.2vw, 1.0625rem);
+  --text-l: clamp(1.125rem, 1.06rem + 0.35vw, 1.3125rem);
+  --text-xl: clamp(1.375rem, 1.2rem + 0.9vw, 1.875rem);
+  --text-2xl: clamp(1.875rem, 1.45rem + 2.2vw, 3rem);
+  --text-3xl: clamp(2.375rem, 1.6rem + 3.9vw, 4.25rem);
 
-  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
-  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --motion-fast: 120ms;
-  --motion: 220ms;
-  --motion-slow: 360ms;
+  --motion-fast: 140ms;
+  --motion: 260ms;
+  --motion-slow: 420ms;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
   --gutter: 16px;
-  --content: 1100px;
+  --content: 1120px;
   --target: 44px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #17161f;
-    --surface: #221f2e;
-    --surface-2: #2b2838;
-    --ink: #f3eee2;
-    --muted: #b9b3c8;
-    --line: #38344a;
-    --line-strong: #5a5570;
-    --highlighter: #e8da3f;
-    --on-highlighter: #1b1a2e;
-    --action: #a6abff;
-    --action-hover: #bfc3ff;
-    --on-action: #15143a;
-    --danger: #ff9a8f;
-    --ok: #8fd9a8;
-    --focus: #a6abff;
-    --thumb-bg: #ffffff;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 6px 18px rgb(0 0 0 / 0.35);
-    --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.35), 0 14px 32px rgb(0 0 0 / 0.5);
-  }
+/* One gradient per tool. A new tool adds one line here. */
+[data-tool='merge'],
+[data-tone='merge'] {
+  --tool-a: #00f2fe;
+  --tool-b: #4facfe;
+}
+
+[data-tool='split'],
+[data-tone='split'] {
+  --tool-a: #ff7ac6;
+  --tool-b: #ffb35c;
+}
+
+[data-tool='organise'],
+[data-tone='organise'] {
+  --tool-a: #b69bff;
+  --tool-b: #4ee6b0;
+}
+
+/* A custom property built from others is resolved where it is declared, so the
+   gradient and glow are rebuilt wherever a tool's colours change. */
+[data-tool],
+[data-tone],
+.steps li {
+  --tool-gradient: linear-gradient(135deg, var(--tool-a) 0%, var(--tool-b) 100%);
+  --tool-glow: color-mix(in srgb, var(--tool-b) 35%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -94,6 +112,13 @@
     --motion-fast: 0ms;
     --motion: 0ms;
     --motion-slow: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 
@@ -106,29 +131,32 @@
 html {
   -webkit-text-size-adjust: 100%;
   overflow-x: clip;
+  background: var(--bg);
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
-  font-family: var(--font-body);
+  font-family: var(--font);
   font-size: var(--text-m);
-  line-height: 1.5;
-  background: var(--paper);
-  color: var(--ink);
+  line-height: 1.55;
+  background: var(--bg-glow), var(--bg);
+  background-repeat: no-repeat;
+  color: var(--text);
   display: flex;
   flex-direction: column;
   overflow-x: clip;
   overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
 h2,
 h3 {
-  font-family: var(--font-display);
   font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
   margin: 0;
 }
 
@@ -136,10 +164,17 @@ p {
   margin: 0;
 }
 
+/* Links are never underlined. They are told apart by colour and weight, and
+   every one of them gets the same focus ring as a button. */
 a {
-  color: var(--action);
-  text-decoration-thickness: 0.08em;
-  text-underline-offset: 0.12em;
+  color: var(--cyan);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--motion-fast);
+}
+
+a:hover {
+  color: var(--text);
 }
 
 button,
@@ -148,9 +183,14 @@ input {
   color: inherit;
 }
 
+::selection {
+  background: color-mix(in srgb, var(--tool-b) 45%, transparent);
+  color: var(--text);
+}
+
 :focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
 }
 
 .visually-hidden {

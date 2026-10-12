@@ -175,18 +175,39 @@ app/public/_headers         the CSP and friends
 | `pdfjs-dist` | Apache-2.0 | Reading and rasterising, behind `PdfEngine` |
 | `@cantoo/pdf-lib` | MIT | Everything structural, and AES-256, behind `PdfSurgeon` |
 | `fflate` | MIT | ZIP for "save all" |
-| Bricolage Grotesque | OFL | Display face, self-hosted |
+| Space Grotesk | OFL | The site's one face, self-hosted |
 
 ## Design direction
 
-Playful and bright without being silly — the visitor is holding a bank
-statement. The palette is paper, ink and highlighter: a warm paper ground, a
-deep ink, one electric accent for shapes and states, and a strong action
-colour for buttons. Big friendly type (Bricolage Grotesque for display,
-system-ui for body so the body costs no bytes), chunky rounded shapes,
-motion that confirms rather than decorates. Light and dark. Touch targets at
-least 44px. Text contrast at least 4.5:1 — checked, not eyeballed. The mark
-is a sheet of paper wearing a fool's cap: the etymology, drawn.
+The Layerbit family, made playful. The ground is near-black (`#0a0c10`) lit
+from above; surfaces are frosted glass; the type is **Space Grotesk**, the
+same face as layerbit.co.in and the Sheaf app. Colour is neon light with a
+meaning: **each tool owns one gradient** (merge cyan→blue, split pink→orange,
+organise violet→mint) that colours its card, its drop zone, its title and its
+main button, so a page tells you which tool you are in before you read a word.
+A new tool adds one line to `tokens.css`. Professional means restraint
+everywhere else: one accent per screen, generous space, no decoration that
+does not confirm something. Dark only, matching Layerbit.
+
+Efficiency is part of the design. The live tools sit directly under the
+headline; tools not built yet are one compact "Coming next" panel, never a
+wall of cards. On a phone the main button is pinned under the thumb, and the
+drop zone shrinks to one line once files are in.
+
+**Links are never underlined.** They are told apart by colour and weight, and
+every one has the button focus ring. A test checks every page.
+
+**Buy me a coffee** (a gold pill in the header, `HELP.coffee` in
+`site/config.ts`) and **Get help** (Layerbit's glowing orb, bottom-right,
+opening a popover with Email and WhatsApp — no script needed) match
+layerbit.co.in. They are plain links: nothing is fetched until tapped, and
+the privacy page says so. On a phone the orb steps aside once files are on a
+tool page; Get help stays in every footer.
+
+Touch targets at least 44px. Text contrast at least 4.5:1 — muted text is
+`#94a3b8` (7:1 on the ground); dark text on every gradient stop is 7:1 or
+more. Nothing smaller than 24px is drawn in a gradient. The mark is a white
+sheet wearing a neon fool's cap: the etymology, drawn.
 
 Copy is plain English in the Sheaf voice: short, confident, honest about
 costs ("a redacted page becomes a picture"). Every button is a verb.
@@ -240,3 +261,7 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   when a tool that rasterises asks for it (`ctx.engine()` is lazy).
 - **2026-10-10** Contracts were adversarially reviewed before anything was
   built on them: 46 findings, 19 applied. The rules above are the result.
+- **2026-10-12** Redesigned in the Layerbit family at the owner's request: the
+  paper-and-highlighter look read as unprofessional. Dark glass, neon per-tool
+  gradients, Space Grotesk (40 KB, down from 105 KB), no underlined links,
+  Buy me a coffee and Get help as on layerbit.co.in.

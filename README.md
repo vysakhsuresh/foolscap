@@ -20,6 +20,10 @@ Every result has **Save**, **Save all** (a folder, or one ZIP), **Share** (on
 phones that can share files — straight into WhatsApp) and **Then…**, which
 hands the result to the next tool without saving in between.
 
+Every page has **Get help** (Email or WhatsApp, the same as
+layerbit.co.in) and **Buy me a coffee**. Both are ordinary links; nothing is
+fetched until they are tapped.
+
 The other twenty-four tools are listed on the home page as coming soon, in
 the order they will arrive (see the build order in `CLAUDE.md`).
 
@@ -89,7 +93,7 @@ button, and still works.
 app/
   index.html, tools/<id>/index.html, private/index.html   the pages
   public/_headers                                         the CSP and friends
-  public/fonts/                                           Bricolage Grotesque + OFL
+  public/fonts/                                           Space Grotesk + OFL
   src/pdf/    the seam: pdf.js engine, pdf-lib surgeon, PageSelection, shims
   src/files/  DocumentStore, Workspace (OPFS via a storage worker; memory fallback), Exporter
   src/ops/    the one Op shape, the tool registry, merge / split / organise
@@ -121,7 +125,7 @@ carry canonical URLs.
 | `pdfjs-dist` | Apache-2.0 |
 | `@cantoo/pdf-lib` | MIT |
 | `fflate` | MIT |
-| Bricolage Grotesque | OFL (`app/public/fonts/OFL-*.txt`) |
+| Space Grotesk | OFL (`app/public/fonts/OFL-*.txt`) |
 
 Never MuPDF, PyMuPDF, iText or Ghostscript: all AGPL.
 

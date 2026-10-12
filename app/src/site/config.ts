@@ -12,9 +12,6 @@ export const DESCRIPTION =
  */
 export const SITE_ORIGIN: string | null = null;
 
-/** Where "Something's wrong" goes. A mailto link; there is no backend to post to. Null hides the link. */
-export const FEEDBACK_EMAIL: string | null = null;
-
 export const MADE_BY = { name: 'Layerbit', url: 'https://layerbit.co.in' } as const;
 
 /**
@@ -27,3 +24,14 @@ export const TOOL_PAGE_CSP =
 
 /** sessionStorage key for a "Then…" handoff: a JSON array of file ids, never names. */
 export const HANDOFF_KEY = 'foolscap:handoff';
+
+/**
+ * Get help and Buy me a coffee, the same as on layerbit.co.in. These are plain
+ * links: nothing is fetched or sent until someone taps one, and each opens
+ * another site or app that carries nothing of theirs.
+ */
+export const HELP = {
+  email: 'ceo@layerbit.co.in',
+  whatsapp: 'https://wa.me/916282595823',
+  coffee: 'https://www.buymeacoffee.com/layerbit',
+} as const;

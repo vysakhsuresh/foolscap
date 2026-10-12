@@ -1,12 +1,10 @@
 /**
- * Downloads the display font and self-hosts it.
+ * Downloads the site's font and self-hosts it.
  *
  * Nothing on a tool page may come from a third party, the CSP forbids it, and
  * a font that silently falls back turns the one typeface with personality into
  * the system default. So the file lives in the repo with its licence beside it.
  *
- * Only the display face is fetched. Body text is system-ui, which costs no
- * bytes on a phone on mobile data.
  *
  * Writes:
  *   app/public/fonts/*.woff2             the font files, one per subset
@@ -30,10 +28,9 @@ const UA = 'Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 (KHTML, like Geck
 const KEEP_SUBSETS = new Set(['latin', 'latin-ext']);
 
 const FAMILIES = [
-  // The display face: friendly, a little odd, and not what the competition uses.
-  // Variable weight 400..800 in one file; the optical-size axis lets the same
-  // file set a 64px headline and a 14px label without either looking wrong.
-  { family: 'Bricolage Grotesque', spec: 'Bricolage+Grotesque:opsz,wght@12..96,400..800', slug: 'bricolage-grotesque', ofl: 'bricolagegrotesque' },
+  // The one face for everything: the same as layerbit.co.in and the Sheaf app,
+  // so the family reads as one. Variable weight 300..700 in one file per subset.
+  { family: 'Space Grotesk', spec: 'Space+Grotesk:wght@300..700', slug: 'space-grotesk', ofl: 'spacegrotesk' },
 ];
 
 async function get(url, as = 'text') {
