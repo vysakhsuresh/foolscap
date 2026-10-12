@@ -6,7 +6,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { AES_EC384 } from '../fixtures/certificates';
 import { bloatedPdf, outlinedPdf, pagesPdf, pdfInfo } from '../fixtures/pdfs';
-import { downloadFrom, openTool, run, useDownloads } from './helpers';
+import { ORIGIN, downloadFrom, openTool, run, useDownloads } from './helpers';
 
 test.beforeEach(async ({ context }) => {
   await useDownloads(context);
@@ -368,7 +368,7 @@ test('summarise never reaches for an online AI: without one built in, it says so
   page.on('request', (r) => requests.push(r.url()));
   await page.getByTestId('ai-summarise').click();
   await expect(page.getByTestId('ai-status')).toContainText(/built-in AI|key points/);
-  expect(requests.filter((u) => !u.startsWith('http://127.0.0.1:4173'))).toEqual([]);
+  expect(requests.filter((u) => !u.startsWith(ORIGIN))).toEqual([]);
 });
 
 test('rent receipts: no file needed, just the details', async ({ page }) => {

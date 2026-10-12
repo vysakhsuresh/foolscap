@@ -5,7 +5,7 @@
  */
 import type { FoolscapFile } from '../files/types';
 import { markPage, type Area, type Mark, type PdfDoc } from '../pdf';
-import { baseName, failed, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
+import { baseName, failed, noteMissing, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import { checkCancelled, type CreateFormParams, type EditImagesParams, type FillFormParams, type MarksParams, type Op, type OpContext, type Outcome, type RemoveAreasParams } from './op';
 import type { ToolId } from './tools';
 
@@ -17,7 +17,12 @@ function areaOk(area: Area, pageCount: number): boolean {
   return Number.isInteger(area.page) && area.page >= 0 && area.page < pageCount && [area.x, area.y, area.w, area.h].every(inUnit) && area.w > 0 && area.h > 0;
 }
 
+/** Sizes and line widths are fractions of the page's width too; anything else is not something the editor sends. */
+const fraction = (n: unknown, most: number): boolean => typeof n === 'number' && Number.isFinite(n) && n > 0 && n <= most;
+
 function markOk(mark: Mark, pageCount: number): boolean {
+  if (mark.kind === 'text' && !fraction(mark.size, 0.5)) return false;
+  if ((mark.kind === 'ink' || mark.kind === 'line' || mark.kind === 'shape') && !fraction(mark.width, 0.2)) return false;
   if (mark.kind === 'ink' || mark.kind === 'line') {
     const onPage = Number.isInteger(mark.page) && mark.page >= 0 && mark.page < pageCount;
     if (mark.kind === 'ink') return onPage && mark.points.length >= 2 && mark.points.every(inUnit);
@@ -45,7 +50,7 @@ async function withOne(
   }
   try {
     ctx.progress({ done: 0, total: 0, label: 'Working on it…' });
-    return [await work(doc, input)];
+    return [noteMissing(await work(doc, input), doc)];
   } catch (error) {
     return [failed(error, inputs)];
   } finally {
@@ -269,7 +274,9 @@ function fillForm(inputs: readonly FoolscapFile[], params: FillFormParams, ctx: 
   return withOne(inputs, ctx, async (doc, input) => {
       if (Object.keys(params.values).length === 0 && !params.seal) return refused([input], 'Nothing was changed. Type your answers first.');
       const filled = Object.values(params.values).filter((v) => v !== '' && v !== false).length;
-      doc.fillForm(params.values, params.seal);
+      const matched = doc.fillForm(params.values, params.seal);
+      // Answers saved from another form fit nothing here; saying "5 answers" would be untrue.
+      if (matched === 0 && !params.seal) return refused([input], 'None of these answers fit a box in this PDF. They may be from a different form.');
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
       const sealed = params.seal ? ', sealed so the answers can no longer be changed' : ', still editable';
       return store(ctx, 'fill-form', [input], `${baseName(input.name)} (filled).pdf`, bytes, `${plural(filled, 'answer')}${sealed}${relocked ? LOCKED : ''}`);

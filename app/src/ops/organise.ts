@@ -7,7 +7,7 @@
 import type { Origin } from '../files/types';
 import type { PdfDoc, Rotation } from '../pdf';
 import { PageSelection } from '../pdf/page-selection';
-import { baseName, failed, passwordFor, plural, readInput, refused } from './common';
+import { baseName, failed, fitName, lockNote, passwordFor, plural, readInput, refused, saveKeepingLock } from './common';
 import { checkCancelled, type Op, type OrganiseParams } from './op';
 
 type Page = OrganiseParams['pages'][number];
@@ -47,11 +47,12 @@ export const organiseOp: Op<OrganiseParams> = {
       checkCancelled(ctx.signal);
 
       let bytes: Uint8Array;
+      let relocked: boolean;
       if (permutation) {
         doc.reorder(order);
         pages.forEach((page, i) => doc.setRotation(i, page.rotation));
         ctx.progress({ done: 0, total: 0, label: 'Writing the file…' });
-        bytes = await doc.save();
+        ({ bytes, relocked } = await saveKeepingLock(ctx, doc, input));
       } else {
         const out = await ctx.surgeon.create();
         try {
@@ -59,15 +60,15 @@ export const organiseOp: Op<OrganiseParams> = {
           pages.forEach((page, i) => out.setRotation(i, page.rotation));
           checkCancelled(ctx.signal);
           ctx.progress({ done: 0, total: 0, label: 'Writing the file…' });
-          bytes = await out.save();
+          ({ bytes, relocked } = await saveKeepingLock(ctx, out, input, doc.wasEncrypted));
         } finally {
           out.close();
         }
       }
 
       const origin: Origin = { kind: 'derived', tool: 'organise', from: [input.id] };
-      const file = await ctx.workspace.put(`${baseName(input.name)} organised.pdf`, bytes, 'pdf', origin);
-      return [{ kind: 'produced', file, detail: detailFor(pages, sourcePages.length, permutation, rotated) }];
+      const file = await ctx.workspace.put(fitName(`${baseName(input.name)} organised.pdf`), bytes, 'pdf', origin);
+      return [{ kind: 'produced', file, detail: `${detailFor(pages, sourcePages.length, permutation, rotated)}${lockNote(relocked)}` }];
     } catch (error) {
       return [failed(error, inputs)];
     } finally {

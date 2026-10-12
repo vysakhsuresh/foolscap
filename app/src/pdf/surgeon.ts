@@ -20,6 +20,10 @@ import {
   PDFTextField,
   TextRenderingMode,
   beginText,
+  drawObject,
+  concatTransformationMatrix,
+  setFillingRgbColor,
+  setGraphicsState,
   endText,
   lineTo,
   moveTo,
@@ -36,12 +40,15 @@ import {
   setStrokingRgbColor,
   stroke,
   PDFArray,
+  PDFContentStream,
   PDFDict,
   PDFDocument,
   PDFHexString,
   PDFInvalidObject,
   PDFName,
   PDFNumber,
+  PDFObjectCopier,
+  PDFPage,
   PDFRawStream,
   PDFRef,
   PDFString,
@@ -50,7 +57,7 @@ import {
   degrees,
   rgb,
   type PDFFont,
-  type PDFPage,
+  drawPage as drawPageOperators,
 } from '@cantoo/pdf-lib';
 import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './common';
 import { zlibSync } from 'fflate';
@@ -127,13 +134,14 @@ export function createSurgeon(): PdfSurgeon {
       try {
         const doc = await load(data, password);
         repairTrailer(doc);
+        const missing = repairPageTree(doc);
         // pdf-lib is lenient: a header followed by junk, or a file cut short,
         // "loads" with no catalog or no pages and only fails later, inside an
         // op. Fail here instead, where the message can say what happened.
         if (doc.getPageCount() === 0) throw notReadable(data, new Error('No pages'));
         // pdf-lib clears isEncrypted once a password has opened the file and
         // records that in its context instead; either means it was locked.
-        return wrap(doc, data.byteLength, doc.isEncrypted || doc.context.isDecrypted === true);
+        return wrap(doc, data.byteLength, doc.isEncrypted || doc.context.isDecrypted === true, missing);
       } catch (error) {
         throw toPdfError(error, data);
       }
@@ -252,13 +260,116 @@ function repairTrailer(doc: PDFDocument): void {
   }
 }
 
-function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted: boolean): PdfDoc {
+/**
+ * A file cut short (an interrupted download, a mail attachment that did not
+ * finish) still lists every page in its page tree, but the objects for the
+ * last few are gone. pdf-lib skips those when counting pages and then writes
+ * the dangling references back out, which pdf.js and every other reader
+ * refuse. Prune them, so what is saved holds the pages that were there, and
+ * say how many were lost so the tool can tell the person.
+ */
+function repairPageTree(doc: PDFDocument): number {
+  const { context } = doc;
+  const seen = new Set<PDFDict>();
+  let lost = 0;
+  const walk = (node: PDFDict): number => {
+    if (seen.has(node)) return 0;
+    seen.add(node);
+    const kids = node.lookup(PDFName.of('Kids'));
+    if (!(kids instanceof PDFArray)) return 0;
+    let leaves = 0;
+    for (let i = kids.size() - 1; i >= 0; i--) {
+      const kid = kids.get(i);
+      const target = kid instanceof PDFRef ? context.lookup(kid) : kid;
+      if (!(target instanceof PDFDict) || seen.has(target)) {
+        kids.remove(i);
+        lost++;
+        continue;
+      }
+      const type = target.get(PDFName.of('Type'));
+      if (type === PDFName.of('Pages') || (type === undefined && target.has(PDFName.of('Kids')))) leaves += walk(target);
+      else leaves++;
+    }
+    node.set(PDFName.of('Count'), PDFNumber.of(leaves));
+    return leaves;
+  };
+  const root = doc.catalog.lookup(PDFName.of('Pages'));
+  if (root instanceof PDFDict) walk(root);
+  return lost;
+}
+
+/**
+ * A JPEG or PNG into the document. pdf-lib's own errors for a picture it
+ * cannot read ("SOI not found", "Invalid PNG") would surface as the file
+ * being unreadable, when it is the picture that is.
+ */
+async function embedPicture(doc: PDFDocument, bytes: Uint8Array, kind: 'jpeg' | 'png') {
+  try {
+    return kind === 'jpeg' ? await doc.embedJpg(bytes) : await doc.embedPng(bytes);
+  } catch (error) {
+    if (isMemoryFailure(error)) throw tooLarge(bytes.byteLength, error);
+    throw new PdfError("That picture couldn't be read. Save it as a JPEG or PNG and try again.", 'unknown', { cause: error });
+  }
+}
+
+function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted: boolean, missingPages = 0): PdfDoc {
   let doc: PDFDocument | null = initial;
   const fonts = new Map<'regular' | 'bold', PDFFont>();
   let drawable: Set<number> | null = null;
   /** Annotations on pages Remove areas turned into pictures; non-empty means save() finishes the job. */
   const removedWidgets = new Set<string>();
   let replaced = false;
+  /** Tiled watermarks already drawn as a form, by what they say and the page size they cover. */
+  const tiles = new Map<string, PDFRef>();
+  /** One object copier per source document, so what its pages share is copied into this one once. */
+  const copiers = new WeakMap<PDFDocument, PDFObjectCopier>();
+  const copierFrom = (from: PDFDocument): PDFObjectCopier => {
+    let copier = copiers.get(from);
+    if (copier === undefined) {
+      copier = PDFObjectCopier.for(from.context, live().context);
+      copiers.set(from, copier);
+    }
+    return copier;
+  };
+
+  /**
+   * A page of another document as a form XObject in this one: its drawing
+   * instructions as they are, its resources through the shared copier.
+   * pdf-lib's own embedPage makes a new copier for every page, so on a
+   * sheet of four (or a whole document fitted to A4) a picture the pages
+   * share went in once per page: a 150 KB file came out at 12 MB.
+   */
+  const embedPageOnce = (page: PDFPage, box: { x: number; y: number; width: number; height: number }): PDFRef => {
+    const target = live();
+    const context = target.context;
+    const resources = page.node.Resources();
+    const copied = resources === undefined ? context.obj({}) : page.doc === target ? resources : copierFrom(page.doc).copy(resources);
+    const contents = page.node.Contents();
+    const streams = contents instanceof PDFArray ? contents.asArray() : contents === undefined ? [] : [contents];
+    const parts: Uint8Array[] = [];
+    for (const item of streams) {
+      const stream = item instanceof PDFRef ? page.doc.context.lookup(item) : item;
+      if (stream instanceof PDFRawStream) parts.push(decodePDFRawStream(stream).decode());
+      else if (stream instanceof PDFContentStream) parts.push(stream.getUnencodedContents());
+    }
+    const joined = new Uint8Array(parts.reduce((n, p) => n + p.length + 1, 0));
+    let at = 0;
+    for (const p of parts) {
+      joined.set(p, at);
+      joined[at + p.length] = 0x0a;
+      at += p.length + 1;
+    }
+    const form = context.flateStream(joined, {
+      Type: 'XObject',
+      Subtype: 'Form',
+      FormType: 1,
+      BBox: [box.x, box.y, box.x + box.width, box.y + box.height],
+      // The box's corner at the origin, as pdf-lib's embedder places it.
+      Matrix: [1, 0, 0, 1, -box.x, -box.y],
+      Resources: copied,
+    });
+    return context.register(form);
+  };
 
   const font = (bold: boolean): PDFFont => {
     const key = bold ? 'bold' : 'regular';
@@ -305,6 +416,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
     },
 
     wasEncrypted,
+    missingPages,
 
     visibleBox(index) {
       const { x, y, width, height } = pageAt(index).getCropBox();
@@ -322,13 +434,52 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const text = stamp.text.replace(/[\r\n\t]+/g, ' ').trim();
       if (text.length === 0) return;
       assertDrawable(f, text);
-      const width = f.widthOfTextAtSize(text, stamp.size);
-      const capHeight = f.heightAtSize(stamp.size, { descender: false });
       const view = viewOf(page);
       const angle = stamp.angle ?? 0;
-      const centres = stamp.tiled === true ? tileCentres(view, width, stamp.size) : [anchorCentre(view, stamp, width, capHeight)];
+      let size = stamp.size;
+      let margin = stamp.margin;
+      if (stamp.tiled !== true && angle === 0) {
+        // A small page (a till receipt, a card) gets a margin to match, and
+        // words that would still run off its edge are made smaller to fit.
+        margin = Math.min(stamp.margin ?? 36, Math.min(view.width, view.height) * 0.08);
+        const room = view.width - 2 * margin;
+        if (room > 0 && f.widthOfTextAtSize(text, size) > room) size = Math.max(1, (size * room) / f.widthOfTextAtSize(text, size));
+      }
+      const width = f.widthOfTextAtSize(text, size);
+      const capHeight = f.heightAtSize(size, { descender: false });
+      const placed = { ...stamp, size, ...(margin === undefined ? {} : { margin }) };
+      const centres = stamp.tiled === true ? tileCentres(view, width, size) : [anchorCentre(view, placed, width, capHeight)];
       const rad = (angle * Math.PI) / 180;
       const [r, g, b] = stamp.color ?? [0, 0, 0];
+      if (stamp.tiled === true) {
+        // A tiled watermark is a couple of hundred copies of the words on
+        // every page. Drawn one by one that is 17 KB a page (a 130 KB file
+        // came out at 5 MB); drawn once into a form every page of the same
+        // size shares, each page only says "draw that here".
+        const key = [text, size, angle, stamp.opacity ?? 1, r, g, b, stamp.bold === true, view.width, view.height].join('|');
+        let form = tiles.get(key);
+        if (form === undefined) {
+          const operators = [pushGraphicsState(), setGraphicsState('GS0'), beginText(), setFillingRgbColor(r, g, b), setFontAndSize('F0', size)];
+          for (const [cx, cy] of centres) {
+            const vx = cx - (Math.cos(rad) * width) / 2 + (Math.sin(rad) * capHeight) / 2;
+            const vy = cy - (Math.sin(rad) * width) / 2 - (Math.cos(rad) * capHeight) / 2;
+            operators.push(rotateAndSkewTextDegreesAndTranslate(angle, 0, 0, vx, vy), showText(f.encodeText(text)));
+          }
+          operators.push(endText(), popGraphicsState());
+          const opacity = stamp.opacity ?? 1;
+          const context = live().context;
+          form = context.register(
+            context.formXObject(operators, {
+              BBox: [0, 0, view.width, view.height],
+              Resources: { Font: { F0: f.ref }, ExtGState: { GS0: { Type: 'ExtGState', ca: opacity, CA: opacity } } },
+            }),
+          );
+          tiles.set(key, form);
+        }
+        const name = page.node.newXObject('Wm', form);
+        page.pushOperators(pushGraphicsState(), concatTransformationMatrix(...view.matrix()), drawObject(name), popGraphicsState());
+        return;
+      }
       for (const [cx, cy] of centres) {
         // The text's own origin is its bottom-left; put its centre on (cx, cy).
         const vx = cx - (Math.cos(rad) * width) / 2 + (Math.sin(rad) * capHeight) / 2;
@@ -337,7 +488,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         page.drawText(text, {
           x: px,
           y: py,
-          size: stamp.size,
+          size,
           font: f,
           color: rgb(r, g, b),
           opacity: stamp.opacity ?? 1,
@@ -359,12 +510,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
           if (from === undefined) throw new Error('The source document is not open.');
           const page = from.getPage(index);
           const crop = page.getCropBox();
-          const embedded = await target.embedPage(page, {
-            left: crop.x,
-            bottom: crop.y,
-            right: crop.x + crop.width,
-            top: crop.y + crop.height,
-          });
+          const xobject = embedPageOnce(page, crop);
           const rotation = normaliseRotation(page.getRotation().angle);
           const sideways = rotation === 90 || rotation === 270;
           const seenWidth = sideways ? crop.height : crop.width;
@@ -384,7 +530,8 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
             270: [tx + w, ty],
           };
           const [ox, oy] = origin[rotation];
-          sheet.drawPage(embedded, { x: ox, y: oy, xScale: scale, yScale: scale, rotate: degrees(-rotation) });
+          const name = sheet.node.newXObject('EmbeddedPdfPage', xobject);
+          sheet.pushOperators(...drawPageOperators(name, { x: ox, y: oy, xScale: scale, yScale: scale, rotate: degrees(-rotation), xSkew: degrees(0), ySkew: degrees(0) }));
         }
       } catch (error) {
         if (isMemoryFailure(error)) throw tooLarge(byteLength, error);
@@ -394,7 +541,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
 
     async addImagePage(image, paper, margin) {
       const target = live();
-      const embedded = image.kind === 'jpeg' ? await target.embedJpg(image.bytes) : await target.embedPng(image.bytes);
+      const embedded = await embedPicture(target, image.bytes, image.kind);
       const { width: iw, height: ih } = embedded;
       let pw: number;
       let ph: number;
@@ -599,13 +746,13 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         };
         switch (mark.kind) {
           case 'image': {
-            const image = await d.embedPng(mark.png);
+            const image = await embedPicture(d, mark.png, 'png');
             const [px, py] = view.toPage(vx, vy);
             page.drawImage(image, { x: px, y: py, width: w, height: h, rotate: degrees(view.rotation) });
             break;
           }
           case 'picture': {
-            const image = mark.format === 'jpeg' ? await d.embedJpg(mark.bytes) : await d.embedPng(mark.bytes);
+            const image = await embedPicture(d, mark.bytes, mark.format);
             const [px, py] = view.toPage(vx, vy);
             page.drawImage(image, { x: px, y: py, width: w, height: h, rotate: degrees(view.rotation) });
             break;
@@ -769,7 +916,16 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         let name = base;
         for (let n = 2; taken.has(name); n++) name = `${base} ${n}`;
         taken.add(name);
-        const look = { ...rect, rotate: degrees(view.rotation), borderWidth: 0.75, borderColor: rgb(0.55, 0.58, 0.65), backgroundColor: rgb(0.94, 0.96, 1) };
+        // pdf-lib turns a widget's box about the (x, y) it is given, with width
+        // and height as the reader sees them; give it the corner and the sides
+        // that land the turned box exactly on `rect`.
+        const anchored: Record<Rotation, { x: number; y: number; width: number; height: number }> = {
+          0: rect,
+          90: { x: rect.x + rect.width, y: rect.y, width: rect.height, height: rect.width },
+          180: { x: rect.x + rect.width, y: rect.y + rect.height, width: rect.width, height: rect.height },
+          270: { x: rect.x, y: rect.y + rect.height, width: rect.height, height: rect.width },
+        };
+        const look = { ...anchored[view.rotation], rotate: degrees(view.rotation), borderWidth: 0.75, borderColor: rgb(0.55, 0.58, 0.65), backgroundColor: rgb(0.94, 0.96, 1) };
         switch (field.kind) {
           case 'text':
           case 'multiline': {
@@ -898,7 +1054,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
           continue;
         }
         // Replace: the new picture fills the old one's box, kept to its own shape and centred.
-        const image = edit.format === 'jpeg' ? await d.embedJpg(edit.bytes) : await d.embedPng(edit.bytes);
+        const image = await embedPicture(d, edit.bytes, edit.format);
         const name = nameFor();
         if (xobjects instanceof PDFDict) xobjects.set(PDFName.of(name), image.ref);
         else if (resources) resources.set(PDFName.of('XObject'), context.obj({ [name]: image.ref }));
@@ -967,9 +1123,11 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const d = live();
       const form = d.getForm();
       const f = font(false);
+      let matched = 0;
       for (const [name, value] of Object.entries(values)) {
         const field = form.getFieldMaybe(name);
         if (field === undefined) continue;
+        matched++;
         if (field instanceof PDFTextField) {
           const text = typeof value === 'string' ? value : '';
           assertDrawable(f, text.replace(/\n/g, ''));
@@ -1000,6 +1158,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         if (error instanceof PdfError) throw error;
         throw new PdfError("This form couldn't be filled. Its fields may be built in a way this tool can't change yet.", 'unknown', { cause: error });
       }
+      return matched;
     },
 
     async compress(recompress, signal) {
@@ -1075,12 +1234,19 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         }
       }
       try {
-        // copyPages clones every object a page reaches into this document's
+        // The copier clones every object a page reaches into this document's
         // context, including when source === this: the copies get fresh refs
         // and the tree is untouched until addPage, so order and repeats are
-        // exactly as asked and the source is never modified.
-        const copies = await target.copyPages(from, [...indices]);
-        for (const copy of copies) target.addPage(copy);
+        // exactly as asked and the source is never modified. One copier per
+        // source for this document's whole life, so a logo or a font that
+        // every page shares is copied once, not once per batch of pages.
+        await from.flush();
+        const copier = copierFrom(from);
+        const pages = from.getPages();
+        for (const index of indices) {
+          const node = copier.copy(pages[index]!.node);
+          target.addPage(PDFPage.of(node, target.context.register(node), target));
+        }
       } catch (error) {
         if (isMemoryFailure(error)) throw tooLarge(byteLength, error);
         throw error;
@@ -1207,6 +1373,8 @@ interface PageView {
   readonly width: number;
   readonly height: number;
   readonly rotation: Rotation;
+  /** `toPage` as a PDF matrix, for drawing a whole form in the page as the reader sees it. */
+  matrix(): [number, number, number, number, number, number];
   toPage(vx: number, vy: number): [number, number];
 }
 
@@ -1218,6 +1386,19 @@ function viewOf(page: PDFPage): PageView {
     width: sideways ? h : w,
     height: sideways ? w : h,
     rotation,
+    matrix() {
+      // toPage, as a PDF matrix [a b c d e f]: px = a·vx + c·vy + e, py = b·vx + d·vy + f.
+      switch (rotation) {
+        case 0:
+          return [1, 0, 0, 1, x, y];
+        case 90:
+          return [0, 1, -1, 0, x + w, y];
+        case 180:
+          return [-1, 0, 0, -1, x + w, y + h];
+        case 270:
+          return [0, -1, 1, 0, x, y + h];
+      }
+    },
     toPage(vx, vy) {
       switch (rotation) {
         case 0:

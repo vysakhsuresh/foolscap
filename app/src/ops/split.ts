@@ -6,7 +6,7 @@
 import type { FoolscapFile, Origin } from '../files/types';
 import type { PdfDoc } from '../pdf';
 import { PageSelection } from '../pdf/page-selection';
-import { baseName, failed, passwordFor, plural, readInput, refused } from './common';
+import { baseName, failed, fitName, lockNote, passwordFor, plural, readInput, refused, saveKeepingLock } from './common';
 import { checkCancelled, type Op, type Outcome, type SplitParams } from './op';
 
 const RANGES_HELP = 'Type the pages to split out, like 1-3, 7, 12-';
@@ -77,9 +77,9 @@ export const splitOp: Op<SplitParams> = {
           const part = await ctx.surgeon.create();
           try {
             await part.appendPages(source, pages);
-            const bytes = await part.save();
-            const file = await ctx.workspace.put(name, bytes, 'pdf', origin);
-            outcomes.push({ kind: 'produced', file, detail: plural(pages.length, 'page') });
+            const { bytes, relocked } = await saveKeepingLock(ctx, part, input, source.wasEncrypted);
+            const file = await ctx.workspace.put(fitName(name), bytes, 'pdf', origin);
+            outcomes.push({ kind: 'produced', file, detail: `${plural(pages.length, 'page')}${lockNote(relocked)}` });
           } finally {
             part.close();
           }

@@ -8,7 +8,7 @@ import { LIVE_TOOLS, type ToolId } from '../../app/src/ops/tools';
 import { GUIDES } from '../../app/src/site/guides';
 import { pdfInfo, type Bytes, type PdfInfo } from '../fixtures/pdfs';
 
-export const ORIGIN = 'http://127.0.0.1:4173';
+export const ORIGIN = `http://127.0.0.1:${process.env['E2E_PORT'] ?? '4173'}`;
 export const TOOL_IDS: readonly ToolId[] = LIVE_TOOLS.map((t) => t.id);
 /** The reading pages; the guides are sampled (seo.spec.ts opens every one). */
 export const READING_PAGES = ['/guides/', ...GUIDES.slice(0, 3).map((g) => `/guides/${g.slug}/`), '/about/', '/terms/', '/contact/', '/404.html'];

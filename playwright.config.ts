@@ -1,6 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
+ * 4173 unless E2E_PORT says otherwise: two checkouts on one machine (a
+ * worktree beside the main one) each need their own preview, and reusing
+ * the other's server would test the other's code.
+ */
+const PORT = process.env['E2E_PORT'] ?? '4173';
+const ORIGIN = `http://127.0.0.1:${PORT}`;
+
+/**
  * The e2e tests run against the BUILT site served by `vite preview`, with the
  * production headers from app/public/_headers applied. That is deliberate: the
  * Content-Security-Policy on the tool pages is the proof that nothing leaves
@@ -21,7 +29,7 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: ORIGIN,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     // The service worker would answer requests the tests mean to watch go to
@@ -29,8 +37,8 @@ export default defineConfig({
     serviceWorkers: 'block',
   },
   webServer: {
-    command: 'npm run build && npm run preview',
-    url: 'http://127.0.0.1:4173/',
+    command: PORT === '4173' ? 'npm run build && npm run preview' : `npm run build && npx vite preview --port ${PORT} --strictPort`,
+    url: `${ORIGIN}/`,
     reuseExistingServer: !process.env['CI'],
     timeout: 120_000,
   },

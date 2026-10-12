@@ -243,13 +243,12 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     if (!ws) return;
     say('');
     clearResult();
-    if (!several) {
-      // One-pdf tools replace: a second drop means "this one instead".
-      while (entries.length > 0) await removeEntry(0);
-      files = files.slice(0, 1);
-    }
+    if (!several) files = files.slice(0, 1);
     const store = createDocumentStore(ws, takesImages ? 'image' : tool.input === 'pdf-and-files' || tool.input === 'office' ? 'any' : 'pdf');
     const results = await store.import(files);
+    // One-pdf tools replace: a second drop means "this one instead". A drop
+    // that is refused (empty, not a PDF) leaves the file already there alone.
+    if (!several && results.some((result) => result.ok)) while (entries.length > 0) await removeEntry(0);
     const problems: string[] = [];
     const added: Entry[] = [];
     for (const result of results) {

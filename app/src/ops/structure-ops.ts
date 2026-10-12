@@ -6,7 +6,7 @@ import type { FileKind, FoolscapFile } from '../files/types';
 import { looksLikeImage, looksLikePdf } from '../files/document-store';
 import type { OutlineItem, PageLabelRange, PdfDoc, Rgb } from '../pdf';
 import { PageSelection } from '../pdf/page-selection';
-import { baseName, failed, forEachPdf, passwordFor, plural, readInput, refused, store } from './common';
+import { baseName, failed, forEachPdf, lockNote, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import { checkCancelled, type AttachmentsParams, type BackgroundParams, type BookmarksParams, type Op, type OpContext, type Outcome, type PageLabelsParams } from './op';
 
 /** "#ffeecc" → [1, 0.93, 0.8], or null for anything else. */
@@ -30,7 +30,8 @@ export const backgroundOp: Op<BackgroundParams> = {
       if (pages.length === 0) return refused([input], `This file has ${plural(n, 'page')}; none of the pages typed are in it.`);
       for (const index of pages) doc.setBackground(index, color);
       const which = pages.length === n ? `All ${plural(n, 'page')}` : `${pages.length === 1 ? 'Page' : 'Pages'} ${PageSelection.describe(pages)}`;
-      return store(ctx, 'background', [input], `${baseName(input.name)} coloured.pdf`, await doc.save(), `${which} given a ${params.color.toUpperCase()} background`);
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+      return store(ctx, 'background', [input], `${baseName(input.name)} coloured.pdf`, bytes, `${which} given a ${params.color.toUpperCase()} background${lockNote(relocked)}`);
     });
   },
 };
@@ -73,7 +74,8 @@ export const pageLabelsOp: Op<PageLabelsParams> = {
       const base = baseName(input.name);
       if (params.mode === 'remove') {
         doc.setPageLabels([]);
-        return store(ctx, 'page-labels', [input], `${base} labels removed.pdf`, await doc.save(), 'Page labels removed: readers show plain page numbers');
+        const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+        return store(ctx, 'page-labels', [input], `${base} labels removed.pdf`, bytes, `Page labels removed: readers show plain page numbers${lockNote(relocked)}`);
       }
       const ranges = labelRanges(params.front, params.start, params.prefix.trim(), n);
       doc.setPageLabels(ranges);
@@ -85,7 +87,8 @@ export const pageLabelsOp: Op<PageLabelsParams> = {
           : lead === n
             ? `Pages labelled i to ${roman(n)}`
             : `Pages labelled i to ${roman(lead)}, then ${first} onwards`;
-      return store(ctx, 'page-labels', [input], `${base} labelled.pdf`, await doc.save(), detail);
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+      return store(ctx, 'page-labels', [input], `${base} labelled.pdf`, bytes, `${detail}${lockNote(relocked)}`);
     });
   },
 };
@@ -120,8 +123,8 @@ export const attachmentsOp: Op<AttachmentsParams> = {
         await doc.attach({ name: file.name, bytes: await readInput(ctx, file) });
       }
       ctx.progress({ done: 0, total: 0, label: 'Saving…' });
-      const bytes = await doc.save();
-      return [await store(ctx, 'attachments', inputs, `${baseName(target.name)} with attachments.pdf`, bytes, `${plural(rest.length, 'file')} attached inside; open the PDF's attachments panel to see them`)];
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, target);
+      return [await store(ctx, 'attachments', inputs, `${baseName(target.name)} with attachments.pdf`, bytes, `${plural(rest.length, 'file')} attached inside; open the PDF's attachments panel to see them${lockNote(relocked)}`)];
     } catch (error) {
       return [failed(error, inputs)];
     } finally {
@@ -191,7 +194,8 @@ export const bookmarksOp: Op<BookmarksParams> = {
       doc.setBookmarks(items);
       const total = countItems(items);
       const detail = total === 0 ? 'Every bookmark removed' : `${plural(total, 'bookmark')}, ready in any reader's side panel`;
-      return store(ctx, 'bookmarks', [input], `${baseName(input.name)} bookmarked.pdf`, await doc.save(), detail);
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+      return store(ctx, 'bookmarks', [input], `${baseName(input.name)} bookmarked.pdf`, bytes, `${detail}${lockNote(relocked)}`);
     });
   },
 };

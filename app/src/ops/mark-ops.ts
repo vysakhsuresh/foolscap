@@ -1,7 +1,7 @@
 /** The Mark up family's stamping tools: watermark, page numbers, header and footer. */
 import type { FoolscapFile } from '../files/types';
 import type { Anchor } from '../pdf';
-import { baseName, forEachPdf, plural, refused, store } from './common';
+import { baseName, forEachPdf, lockNote, plural, refused, saveKeepingLock, store } from './common';
 import { checkCancelled, type HeaderFooterParams, type Op, type OpContext, type Outcome, type PageNumbersParams, type WatermarkParams } from './op';
 
 const GREY: readonly [number, number, number] = [0.42, 0.42, 0.46];
@@ -28,8 +28,9 @@ export const watermarkOp: Op<WatermarkParams> = {
           doc.stampText(i, { text, anchor: 'center', size, bold: true, opacity: OPACITY[params.strength], color: GREY, angle: 45 });
         }
       }
-      const detail = `"${text}" ${params.layout === 'tiled' ? 'repeated across' : 'across'} ${plural(doc.pageCount, 'page')}`;
-      return store(ctx, 'watermark', [input], `${baseName(input.name)} watermarked.pdf`, await doc.save(), detail);
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+      const detail = `"${text}" ${params.layout === 'tiled' ? 'repeated across' : 'across'} ${plural(doc.pageCount, 'page')}${lockNote(relocked)}`;
+      return store(ctx, 'watermark', [input], `${baseName(input.name)} watermarked.pdf`, bytes, detail);
     });
   },
 };
@@ -65,8 +66,9 @@ export const pageNumbersOp: Op<PageNumbersParams> = {
         checkCancelled(ctx.signal);
         doc.stampText(i, { text: numberText(params.format, start + i - skip, last), anchor: params.position as Anchor, size: 10, color: INK, margin: 28 });
       }
-      const detail = skip ? `Pages 2 to ${doc.pageCount} numbered ${start} to ${last}; cover left blank` : `Numbered ${start} to ${last}`;
-      return store(ctx, 'page-numbers', [input], `${baseName(input.name)} numbered.pdf`, await doc.save(), detail);
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+      const detail = (skip ? `Pages 2 to ${doc.pageCount} numbered ${start} to ${last}; cover left blank` : `Numbered ${start} to ${last}`) + lockNote(relocked);
+      return store(ctx, 'page-numbers', [input], `${baseName(input.name)} numbered.pdf`, bytes, detail);
     });
   },
 };
@@ -90,7 +92,8 @@ async function batesNumbers(inputs: readonly FoolscapFile[], params: PageNumbers
     }
     const from = `${prefix}${String(first).padStart(digits, '0')}`;
     const to = `${prefix}${String(next - 1).padStart(digits, '0')}`;
-    return store(ctx, 'page-numbers', [input], `${baseName(input.name)} (Bates ${from}).pdf`, await doc.save(), `Bates numbered ${from} to ${to}`);
+    const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+    return store(ctx, 'page-numbers', [input], `${baseName(input.name)} (Bates ${from}).pdf`, bytes, `Bates numbered ${from} to ${to}${lockNote(relocked)}`);
   });
 }
 
@@ -130,7 +133,8 @@ export const headerFooterOp: Op<HeaderFooterParams> = {
       }
       const which = header && footer ? 'Header and footer' : header ? 'Header' : 'Footer';
       const suffix = header && footer ? 'with header and footer' : header ? 'with header' : 'with footer';
-      return store(ctx, 'header-footer', [input], `${name} ${suffix}.pdf`, await doc.save(), `${which} on ${plural(doc.pageCount, 'page')}`);
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+      return store(ctx, 'header-footer', [input], `${name} ${suffix}.pdf`, bytes, `${which} on ${plural(doc.pageCount, 'page')}${lockNote(relocked)}`);
     });
   },
 };

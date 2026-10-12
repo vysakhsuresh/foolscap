@@ -1,6 +1,6 @@
 /** The Protect family: add and remove a password, and a document's details. */
 import type { DocInfo, DocInfoField } from '../pdf';
-import { baseName, forEachPdf, plural, refused, store } from './common';
+import { baseName, forEachPdf, lockNote, plural, refused, saveKeepingLock, store } from './common';
 import type { AddPasswordParams, DocumentDetailsParams, NoParams, Op } from './op';
 
 export const addPasswordOp: Op<AddPasswordParams> = {
@@ -77,7 +77,8 @@ export const documentDetailsOp: Op<DocumentDetailsParams> = {
         doc.stripMetadata();
         const had = (Object.keys(before) as DocInfoField[]).map((k) => LABEL[k]);
         const detail = had.length > 0 ? `Removed the ${list(had)}, and any hidden XMP metadata` : 'No details were set; any hidden XMP metadata removed';
-        return store(ctx, 'document-details', [input], `${base} cleaned.pdf`, await doc.save(), detail);
+        const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+        return store(ctx, 'document-details', [input], `${base} cleaned.pdf`, bytes, `${detail}${lockNote(relocked)}`);
       }
       if (params.mode === 'clean') {
         const report = doc.clean({ scripts: true, attachments: params.attachments, comments: params.comments, metadata: true });
@@ -87,14 +88,16 @@ export const documentDetailsOp: Op<DocumentDetailsParams> = {
         if (report.comments > 0) gone.push(plural(report.comments, 'comment'));
         const nothingElse = report.scripts + report.attachments + report.comments === 0;
         const detail = `Removed ${list(gone)}${nothingElse ? '; it carried no scripts' + (params.attachments ? ', attachments' : '') + (params.comments ? ' or comments' : '') : ''}`;
-        return store(ctx, 'document-details', [input], `${base} cleaned.pdf`, await doc.save(), detail);
+        const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+        return store(ctx, 'document-details', [input], `${base} cleaned.pdf`, bytes, `${detail}${lockNote(relocked)}`);
       }
       const next: DocInfo = { title: params.title.trim(), author: params.author.trim(), subject: params.subject.trim(), keywords: params.keywords.trim() };
       const changed = (Object.keys(next) as DocInfoField[]).filter((k) => (before[k] ?? '') !== (next[k] ?? ''));
       if (changed.length === 0) return { kind: 'skipped', inputIds: [input.id], reason: 'Those details are what the file already has, so nothing changed.' };
       doc.setInfo(next);
       const detail = `Updated the ${list(changed.map((k) => LABEL[k]))}`;
-      return store(ctx, 'document-details', [input], `${base} details.pdf`, await doc.save(), detail);
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+      return store(ctx, 'document-details', [input], `${base} details.pdf`, bytes, `${detail}${lockNote(relocked)}`);
     });
   },
 };

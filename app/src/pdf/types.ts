@@ -469,6 +469,12 @@ export interface PdfDoc {
   readonly pageCount: number;
   /** Whether the file this was opened from was encrypted (with or without a password to open it). */
   readonly wasEncrypted: boolean;
+  /**
+   * Pages the file's page tree lists but whose page objects are gone (a file
+   * cut short). They are left out of everything; a tool that saves this
+   * document says how many, because the person did not ask for fewer pages.
+   */
+  readonly missingPages: number;
   pages(): readonly PageInfo[];
   /** The visible area of a page: its CropBox, or its MediaBox when it has none. */
   visibleBox(index: number): Box;
@@ -539,7 +545,8 @@ export interface PdfDoc {
    * the answers can no longer be changed. Throws PdfError 'unsupported-text'
    * for letters the form's font cannot draw.
    */
-  fillForm(values: FormValues, seal: boolean): void;
+  /** Returns how many of `values` named a field this form has. */
+  fillForm(values: FormValues, seal: boolean): number;
   /** Adds new fillable fields; names already taken get a number. Returns the names given. */
   addFields(fields: readonly NewField[]): string[];
   /**

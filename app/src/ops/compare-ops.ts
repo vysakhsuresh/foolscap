@@ -6,7 +6,7 @@
  */
 import { wordsOf, type PlacedWord } from '../pdf/find-text';
 import type { Area, Mark } from '../pdf';
-import { baseName, failed, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
+import { baseName, failed, lockNote, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import { diffWords } from './diff';
 import { checkCancelled, type Op, type OpContext, type Outcome } from './op';
 import { openView } from './render-ops';
@@ -108,9 +108,9 @@ export const compareOp: Op<Record<string, never>> = {
     }
     try {
       await doc.drawMarks(marks);
-      const { bytes } = await saveKeepingLock(ctx, doc, newer);
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, newer);
       const pages = new Set([...added.map((x) => x.page), ...notes.map((n) => n.at.page)]).size;
-      const detail = `${plural(added.length, 'word')} added and ${plural(removed, 'word')} taken out, on ${plural(pages, 'page')} of the newer file: new words in green, a comment where words went`;
+      const detail = `${plural(added.length, 'word')} added and ${plural(removed, 'word')} taken out, on ${plural(pages, 'page')} of the newer file: new words in green, a comment where words went${lockNote(relocked)}`;
       return [await store(ctx, 'compare', inputs, `${baseName(newer.name)} (compared).pdf`, bytes, detail)] as Outcome[];
     } catch (error) {
       return [failed(error, inputs)];
