@@ -11,6 +11,7 @@
   <meta property="og:title" content="Scan a document — Foolscap">
   <meta property="og:description" content="Photograph pages and straighten them. In your browser; nothing is uploaded. Free, no sign-up, no limits, no watermark.">
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/brand/favicon-48.png" type="image/png" sizes="48x48">
   <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -20,7 +21,7 @@
 <body data-tool="scan" data-group="read" data-page="tool">
   <header class="site-header" data-testid="site-header">
     <div class="wrap site-header__row">
-      <a class="brand" href="/"><img class="mark" data-testid="mark" src="/brand/mark.png" width="115" height="128" alt=""><span>Foolscap</span></a>
+      <a class="brand" href="/"><svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true" focusable="false"><defs><linearGradient id="mark-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#4facfe"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#mark-g)"/><g transform="translate(8.5 9) scale(.74)"><g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 29 C 16 18, 9 10, 4.5 19 C 11 15, 20 16, 24.5 22 C 27 15, 29.5 10, 32 6.5 C 34.5 10, 37 15, 39.5 22 C 44 16, 53 15, 59.5 19 C 55 10, 48 18, 46 29 V52 Q46 57 41 57 H23 Q18 57 18 52 Z"/><path d="M25 39 H39 M25 47.5 H35"/></g><g fill="#fff"><circle cx="4.5" cy="20" r="4"/><circle cx="32" cy="6.5" r="4"/><circle cx="59.5" cy="20" r="4"/></g></g></svg><span>Foolscap</span></a>
       <nav class="site-nav" data-testid="site-nav" aria-label="Site">
         <a href="/#tools" aria-current="page">Tools</a>
         <a href="/private/">Privacy</a>
@@ -30,12 +31,12 @@
   </header>
   <main class="wrap tool" data-app>
     <header class="tool__head">
-      <a class="crumb" href="/#read"><svg class="crumb__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Read and capture</span></a>
+      <a class="crumb" href="/#read"><svg class="crumb__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v16"/><path d="M16 13h2"/><path d="M16 9h2"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/><path d="M6 13h2"/><path d="M6 9h2"/></g></svg><span>Read and capture</span></a>
       <h1 class="tool__title" data-testid="tool-title">Scan a document</h1>
       <p class="tool__summary">Photograph pages and straighten them. Nothing is uploaded: the work happens on this device.</p>
     </header>
     <label class="drop-zone" data-testid="drop-zone" for="file-input" tabindex="0" role="button" aria-describedby="drop-hint">
-      <svg class="drop-zone__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="drop-zone__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></g></svg>
       <span class="drop-zone__title">Take a photo of each page, or pick photos</span>
       <span class="drop-zone__hint" id="drop-hint">One photo per page, in order. They stay on this device.</span>
       <input class="visually-hidden" id="file-input" data-testid="file-input" type="file" accept="image/*" multiple tabindex="-1">
@@ -44,9 +45,9 @@
     <nav class="related" aria-labelledby="related-title">
       <h2 class="related__title" id="related-title">More in Read and capture</h2>
       <div class="related__list">
-        <a class="related__item" href="/tools/read/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h6a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H3zM21 5h-6a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h7z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Read</span></a>
-        <a class="related__item" href="/tools/ocr/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M8.5 15.5l2.5-7 2.5 7M9.5 13h3M16 10v5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Make searchable</span></a>
-        <a class="related__item" href="/tools/extract-text/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 6h14M5 10h14M5 14h9M5 18h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Extract text</span></a>
+        <a class="related__item" href="/tools/read/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v16"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/></g></svg><span>Read</span></a>
+        <a class="related__item" href="/tools/ocr/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8h8"/><path d="M7 12h10"/><path d="M7 16h6"/></g></svg><span>Make searchable</span></a>
+        <a class="related__item" href="/tools/extract-text/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></g></svg><span>Extract text</span></a>
         <a class="related__item related__item--all" href="/#tools"><span>All tools</span><span aria-hidden="true">→</span></a>
       </div>
     </nav>
@@ -68,6 +69,6 @@
     <a class="help-option" data-testid="help-email" href="mailto:ceo@layerbit.co.in?subject=Foolscap%20help"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v12H3zM3 7l9 6 9-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Send us an email</a>
     <a class="help-option help-option--whatsapp" data-testid="help-whatsapp" href="https://wa.me/916282595823" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.8L4 20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 9.5c.3 1.8 2.2 4 4 4.6l1.2-1.1 1.8.8c0 1-.9 1.7-2 1.7-3 0-5.9-2.9-5.9-5.9 0-1.1.7-2 1.7-2l.8 1.8Z" fill="currentColor"/></svg>Chat on WhatsApp</a>
   </div>
-  <a class="home-fab" data-testid="home-fab" href="/#from-scan" aria-label="All tools"><img class="home-fab__mark" src="/brand/mark.png" width="115" height="128" alt=""><span class="home-fab__label">All tools</span></a>
+  <a class="home-fab" data-testid="home-fab" href="/#from-scan" aria-label="All tools"><svg class="home-fab__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="fab-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#4facfe"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><g fill="none" stroke="url(#fab-g)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 29 C 16 18, 9 10, 4.5 19 C 11 15, 20 16, 24.5 22 C 27 15, 29.5 10, 32 6.5 C 34.5 10, 37 15, 39.5 22 C 44 16, 53 15, 59.5 19 C 55 10, 48 18, 46 29 V52 Q46 57 41 57 H23 Q18 57 18 52 Z"/><path d="M25 39 H39 M25 47.5 H35"/></g><g fill="url(#fab-g)"><circle cx="4.5" cy="20" r="4"/><circle cx="32" cy="6.5" r="4"/><circle cx="59.5" cy="20" r="4"/></g></svg><span class="home-fab__label">All tools</span></a>
 </body>
 </html>

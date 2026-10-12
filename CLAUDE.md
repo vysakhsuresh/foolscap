@@ -159,8 +159,8 @@ app/public/_headers         the CSP and friends
    both fetched after first paint and before `data-ready`. The numbers live
    in `tests/unit/size.test.ts` (runs over `dist/` after `vite build`) and in
    the README.
-6. **Licences.** Only Apache-2.0, MIT, BSD, OFL or public-domain code and
-   fonts. **Never add MuPDF, PyMuPDF, iText or Ghostscript** — all AGPL, and
+6. **Licences.** Only Apache-2.0, MIT, BSD, ISC, OFL or public-domain code
+   and fonts (ISC is the two-clause BSD in fewer words; Lucide uses it). **Never add MuPDF, PyMuPDF, iText or Ghostscript** — all AGPL, and
    Ghostscript is the one most likely to be reached for by accident.
 7. **No stamp.** No output carries a Producer, Creator or Info entry the input
    did not have, and none ever contains the strings `pdf-lib`, `Foolscap` or
@@ -176,6 +176,7 @@ app/public/_headers         the CSP and friends
 | `@cantoo/pdf-lib` | MIT | Everything structural, and AES-256, behind `PdfSurgeon` |
 | `fflate` | MIT | ZIP for "save all" |
 | `tesseract.js` (+ core, English model) | Apache-2.0 | Make searchable, in the op worker, self-hosted under `/tesseract/` |
+| Lucide (`lucide-static`) | ISC | The tool and family icons, copied into `ui/tool-icons.ts` by `scripts/gen-icons.mjs` |
 | Space Grotesk | OFL | The site's one face, self-hosted |
 
 ## Design direction
@@ -217,10 +218,15 @@ the pinned button, never over the page.
 
 Touch targets at least 44px. Text contrast at least 4.5:1 — muted text is
 `#94a3b8` (7:1 on the ground); dark text on every gradient stop is 7:1 or
-more. Nothing smaller than 24px is drawn in a gradient. The mark is the owner's
-drawing: a PDF sheet wearing a jester's cap, a pen, and the stars around it,
-its white background cut away (`app/public/brand/`, plus `favicon.ico` and
-the install manifest). The name sits beside it, large.
+more. Nothing smaller than 24px is drawn in a gradient. The mark is one line: a
+page whose top edge is a jester's cap, bells on its three points (the fool's
+cap the paper carried), white on a cyan→violet tile; drawn inline in the
+header, as the line alone in the way-home pill, and in `app/public/brand/`
+for the favicon and install icons. The name sits beside it, large.
+
+The icons are Lucide's, as on Layerbit: line drawings in the family's own
+colour (`--icon-ink`, the middle of its gradient) on a faint tile of that
+colour with a thin rim.
 Facts (Free forever, No sign-up…) are plain text with a tick, never pills
 that look tappable; the nav marks the current page by colour, and a
 background appears only under the pointer or the keyboard.
@@ -329,3 +335,7 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   heavier. Drop a file anywhere on a tool page; Enter in the finder opens the
   first match; an install manifest. Buttons no longer jitter under a pointer
   resting on their edge.
+- **2026-10-13** At the owner's request: a professional vector mark (the
+  capped page, one line) replaces the jester picture, and the tool icons are
+  Lucide's, drawn in each family's colour on a faint tile, as on Layerbit.
+  ISC added to the allowed licences for Lucide.

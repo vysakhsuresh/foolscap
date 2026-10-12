@@ -55,11 +55,10 @@
 }
 
 .mark {
-  width: auto;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   flex: none;
-  margin-block: -6px;
-  filter: drop-shadow(0 6px 18px rgb(139 92 246 / 0.35));
+  filter: drop-shadow(0 6px 18px rgb(79 172 254 / 0.35));
   transition: transform var(--motion-slow) var(--spring);
 }
 
@@ -542,18 +541,18 @@ main {
   height: 42px;
   flex: none;
   border-radius: 13px;
-  background: var(--icon-gloss), var(--tool-gradient);
-  color: var(--on-neon);
-  box-shadow: var(--icon-edge), 0 6px 20px var(--tool-glow);
+  background: color-mix(in srgb, var(--icon-ink) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--icon-ink) 26%, transparent);
+  color: var(--icon-ink);
 }
 
 .family__icon svg {
-  width: 22px;
-  height: 22px;
+  width: 23px;
+  height: 23px;
 }
 
-.family__icon svg path {
-  stroke-width: 2.4;
+.family__icon svg g {
+  stroke-width: 1.7;
 }
 
 .family__title {
@@ -625,44 +624,42 @@ a.tool-card:hover::after {
 }
 
 /*
- * The icons: a glossy tile in the family's gradient, lit from the top, with a
- * bright edge and a coloured glow, and a heavier line so the drawing reads at
- * a glance. On hover a sheen sweeps across and the tile springs.
+ * The icons, as on Layerbit: Lucide's line drawings in the family's own
+ * colour, on a faint tile of that colour with a thin rim. On hover the tile
+ * fills a little, glows, and turns.
  */
 .tool-card__icon {
   grid-area: icon;
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 16px;
-  background: var(--icon-sheen), var(--icon-gloss), var(--tool-gradient);
-  background-size: 260% 100%, 100% 100%, 100% 100%;
-  background-position: 120% 0, 0 0, 0 0;
-  background-repeat: no-repeat;
-  color: var(--on-neon);
-  box-shadow: var(--icon-edge), 0 8px 24px var(--tool-glow);
+  background: color-mix(in srgb, var(--icon-ink) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--icon-ink) 26%, transparent);
+  color: var(--icon-ink);
   transition:
-    transform var(--motion) var(--spring),
-    box-shadow var(--motion),
-    background-position 0.7s var(--ease);
+    transform 0.4s var(--spring),
+    background 0.4s var(--ease),
+    border-color 0.4s var(--ease),
+    box-shadow 0.4s var(--ease);
 }
 
 a.tool-card:hover .tool-card__icon,
 a.tool-card:focus-visible .tool-card__icon {
-  transform: rotate(-8deg) scale(1.1);
-  background-position: -60% 0, 0 0, 0 0;
-  box-shadow: var(--icon-edge), 0 12px 32px var(--tool-glow), 0 0 0 4px color-mix(in srgb, var(--tool-b) 18%, transparent);
+  transform: scale(1.1) rotate(5deg);
+  background: color-mix(in srgb, var(--icon-ink) 20%, transparent);
+  border-color: color-mix(in srgb, var(--icon-ink) 55%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--icon-ink) 35%, transparent);
 }
 
 .tool-card__icon svg {
-  width: 27px;
-  height: 27px;
-  filter: drop-shadow(0 1px 0 rgb(255 255 255 / 0.35));
+  width: 30px;
+  height: 30px;
 }
 
-.tool-card__icon svg path {
-  stroke-width: 2.3;
+.tool-card__icon svg g {
+  stroke-width: 1.6;
 }
 
 .tool-card__title {
@@ -882,13 +879,13 @@ a.tool-card:hover .tool-card__go {
   height: 28px;
   padding: 5px;
   border-radius: 9px;
-  background: var(--icon-gloss), var(--tool-gradient);
-  color: var(--on-neon);
-  box-shadow: var(--icon-edge), 0 4px 12px var(--tool-glow);
+  background: color-mix(in srgb, var(--icon-ink) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--icon-ink) 24%, transparent);
+  color: var(--icon-ink);
 }
 
-.related__icon path {
-  stroke-width: 2.4;
+.related__icon g {
+  stroke-width: 2;
 }
 
 .related__item--all {
@@ -1051,14 +1048,18 @@ select.input option {
 }
 
 .drop-zone__icon {
-  width: 60px;
-  height: 60px;
-  padding: 13px;
-  border-radius: 19px;
-  background: var(--icon-gloss), var(--tool-gradient);
-  color: var(--on-neon);
-  box-shadow: var(--icon-edge), 0 10px 28px var(--tool-glow);
+  width: 64px;
+  height: 64px;
+  padding: 15px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--icon-ink) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--icon-ink) 26%, transparent);
+  color: var(--icon-ink);
   transition: transform var(--motion) var(--spring);
+}
+
+.drop-zone__icon g {
+  stroke-width: 1.5;
 }
 
 .drop-zone:hover .drop-zone__icon,
@@ -2528,8 +2529,8 @@ select.input option {
 }
 
 .home-fab__mark {
-  width: auto;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   flex: none;
   filter: drop-shadow(0 3px 8px rgb(139 92 246 / 0.45));
   transition: transform var(--motion-slow) var(--spring);
@@ -2599,7 +2600,8 @@ select.input option {
   }
 
   .home-fab__mark {
-    height: 36px;
+    width: 34px;
+    height: 34px;
   }
 }
 
@@ -2613,7 +2615,8 @@ select.input option {
   }
 
   .home-fab__mark {
-    height: 42px;
+    width: 40px;
+    height: 40px;
   }
 }
 

@@ -169,9 +169,10 @@ test('Buy me a coffee stays on screen as the page scrolls', async ({ page }) => 
 
 test('the mark and the icons are served from this site', async ({ page, request }) => {
   await openPage(page, '/');
-  const loaded = await page.getByTestId('mark').evaluate((img) => (img as HTMLImageElement).naturalWidth);
-  expect(loaded).toBeGreaterThan(0);
-  for (const path of ['/favicon.ico', '/brand/apple-touch-icon.png', '/brand/icon-192.png', '/brand/icon-512.png', '/manifest.webmanifest']) {
+  // The mark is drawn inline, so it is there before any image could load.
+  expect(await page.getByTestId('mark').evaluate((el) => el.tagName.toLowerCase())).toBe('svg');
+  await expect(page.getByTestId('mark')).toBeVisible();
+  for (const path of ['/favicon.ico', '/favicon.svg', '/brand/mark.svg', '/brand/apple-touch-icon.png', '/brand/icon-192.png', '/brand/icon-512.png', '/manifest.webmanifest']) {
     const res = await request.get(path);
     expect(res.status(), path).toBe(200);
   }

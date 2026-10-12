@@ -145,6 +145,7 @@ carry canonical URLs.
 | `pdfjs-dist` | Apache-2.0 |
 | `@cantoo/pdf-lib` | MIT |
 | `fflate` | MIT |
+| Lucide icons (`lucide-static`) | ISC (`licenses/lucide-ISC.txt`) |
 | `tesseract.js`, `tesseract.js-core` | Apache-2.0 (licences copied next to them in `/tesseract/`) |
 | Tesseract English model (`@tesseract.js-data/eng`, tessdata best_int) | Apache-2.0 |
 | Space Grotesk | OFL (`app/public/fonts/OFL-*.txt`) |

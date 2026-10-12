@@ -11,6 +11,7 @@
   <meta property="og:title" content="Remove areas — Foolscap">
   <meta property="og:description" content="Genuinely remove what you mark, not a black box over it. In your browser; nothing is uploaded. Free, no sign-up, no limits, no watermark.">
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/brand/favicon-48.png" type="image/png" sizes="48x48">
   <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -20,7 +21,7 @@
 <body data-tool="remove-areas" data-group="protect" data-page="tool">
   <header class="site-header" data-testid="site-header">
     <div class="wrap site-header__row">
-      <a class="brand" href="/"><img class="mark" data-testid="mark" src="/brand/mark.png" width="115" height="128" alt=""><span>Foolscap</span></a>
+      <a class="brand" href="/"><svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true" focusable="false"><defs><linearGradient id="mark-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#4facfe"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#mark-g)"/><g transform="translate(8.5 9) scale(.74)"><g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 29 C 16 18, 9 10, 4.5 19 C 11 15, 20 16, 24.5 22 C 27 15, 29.5 10, 32 6.5 C 34.5 10, 37 15, 39.5 22 C 44 16, 53 15, 59.5 19 C 55 10, 48 18, 46 29 V52 Q46 57 41 57 H23 Q18 57 18 52 Z"/><path d="M25 39 H39 M25 47.5 H35"/></g><g fill="#fff"><circle cx="4.5" cy="20" r="4"/><circle cx="32" cy="6.5" r="4"/><circle cx="59.5" cy="20" r="4"/></g></g></svg><span>Foolscap</span></a>
       <nav class="site-nav" data-testid="site-nav" aria-label="Site">
         <a href="/#tools" aria-current="page">Tools</a>
         <a href="/private/">Privacy</a>
@@ -30,12 +31,12 @@
   </header>
   <main class="wrap tool" data-app>
     <header class="tool__head">
-      <a class="crumb" href="/#protect"><svg class="crumb__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Protect</span></a>
+      <a class="crumb" href="/#protect"><svg class="crumb__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></g></svg><span>Protect</span></a>
       <h1 class="tool__title" data-testid="tool-title">Remove areas</h1>
       <p class="tool__summary">Genuinely remove what you mark, not a black box over it. Nothing is uploaded: the work happens on this device.</p>
     </header>
     <label class="drop-zone" data-testid="drop-zone" for="file-input" tabindex="0" role="button" aria-describedby="drop-hint">
-      <svg class="drop-zone__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 5h16M4 10h6M13 9h7v3h-7zM4 15h16M4 19h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="drop-zone__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></g></svg>
       <span class="drop-zone__title">Drop a PDF here, or tap to pick one</span>
       <span class="drop-zone__hint" id="drop-hint">It stays on this device. No size limit.</span>
       <input class="visually-hidden" id="file-input" data-testid="file-input" type="file" accept="application/pdf,.pdf" tabindex="-1">
@@ -44,9 +45,9 @@
     <nav class="related" aria-labelledby="related-title">
       <h2 class="related__title" id="related-title">More in Protect</h2>
       <div class="related__list">
-        <a class="related__item" href="/tools/add-password/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4M12 15v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Add a password</span></a>
-        <a class="related__item" href="/tools/remove-password/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 11h12v10H6zM8 11V7a4 4 0 0 1 7.6-1.8M12 15v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Remove a password</span></a>
-        <a class="related__item" href="/tools/document-details/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v6M12 7.5h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Document details</span></a>
+        <a class="related__item" href="/tools/add-password/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g></svg><span>Add a password</span></a>
+        <a class="related__item" href="/tools/remove-password/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></g></svg><span>Remove a password</span></a>
+        <a class="related__item" href="/tools/document-details/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></g></svg><span>Document details</span></a>
         <a class="related__item related__item--all" href="/#tools"><span>All tools</span><span aria-hidden="true">→</span></a>
       </div>
     </nav>
@@ -68,6 +69,6 @@
     <a class="help-option" data-testid="help-email" href="mailto:ceo@layerbit.co.in?subject=Foolscap%20help"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v12H3zM3 7l9 6 9-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Send us an email</a>
     <a class="help-option help-option--whatsapp" data-testid="help-whatsapp" href="https://wa.me/916282595823" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.8L4 20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 9.5c.3 1.8 2.2 4 4 4.6l1.2-1.1 1.8.8c0 1-.9 1.7-2 1.7-3 0-5.9-2.9-5.9-5.9 0-1.1.7-2 1.7-2l.8 1.8Z" fill="currentColor"/></svg>Chat on WhatsApp</a>
   </div>
-  <a class="home-fab" data-testid="home-fab" href="/#from-remove-areas" aria-label="All tools"><img class="home-fab__mark" src="/brand/mark.png" width="115" height="128" alt=""><span class="home-fab__label">All tools</span></a>
+  <a class="home-fab" data-testid="home-fab" href="/#from-remove-areas" aria-label="All tools"><svg class="home-fab__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="fab-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#4facfe"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><g fill="none" stroke="url(#fab-g)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 29 C 16 18, 9 10, 4.5 19 C 11 15, 20 16, 24.5 22 C 27 15, 29.5 10, 32 6.5 C 34.5 10, 37 15, 39.5 22 C 44 16, 53 15, 59.5 19 C 55 10, 48 18, 46 29 V52 Q46 57 41 57 H23 Q18 57 18 52 Z"/><path d="M25 39 H39 M25 47.5 H35"/></g><g fill="url(#fab-g)"><circle cx="4.5" cy="20" r="4"/><circle cx="32" cy="6.5" r="4"/><circle cx="59.5" cy="20" r="4"/></g></svg><span class="home-fab__label">All tools</span></a>
 </body>
 </html>

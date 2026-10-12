@@ -11,6 +11,7 @@
   <meta property="og:title" content="Extract images — Foolscap">
   <meta property="og:description" content="Pull out the embedded originals, not re-rendered pages. In your browser; nothing is uploaded. Free, no sign-up, no limits, no watermark.">
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/brand/favicon-48.png" type="image/png" sizes="48x48">
   <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -20,7 +21,7 @@
 <body data-tool="extract-images" data-group="convert" data-page="tool">
   <header class="site-header" data-testid="site-header">
     <div class="wrap site-header__row">
-      <a class="brand" href="/"><img class="mark" data-testid="mark" src="/brand/mark.png" width="115" height="128" alt=""><span>Foolscap</span></a>
+      <a class="brand" href="/"><svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true" focusable="false"><defs><linearGradient id="mark-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#4facfe"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#mark-g)"/><g transform="translate(8.5 9) scale(.74)"><g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 29 C 16 18, 9 10, 4.5 19 C 11 15, 20 16, 24.5 22 C 27 15, 29.5 10, 32 6.5 C 34.5 10, 37 15, 39.5 22 C 44 16, 53 15, 59.5 19 C 55 10, 48 18, 46 29 V52 Q46 57 41 57 H23 Q18 57 18 52 Z"/><path d="M25 39 H39 M25 47.5 H35"/></g><g fill="#fff"><circle cx="4.5" cy="20" r="4"/><circle cx="32" cy="6.5" r="4"/><circle cx="59.5" cy="20" r="4"/></g></g></svg><span>Foolscap</span></a>
       <nav class="site-nav" data-testid="site-nav" aria-label="Site">
         <a href="/#tools" aria-current="page">Tools</a>
         <a href="/private/">Privacy</a>
@@ -30,12 +31,12 @@
   </header>
   <main class="wrap tool" data-app>
     <header class="tool__head">
-      <a class="crumb" href="/#convert"><svg class="crumb__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8h15l-3-3M20 16H5l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Convert and print</span></a>
+      <a class="crumb" href="/#convert"><svg class="crumb__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></g></svg><span>Convert and print</span></a>
       <h1 class="tool__title" data-testid="tool-title">Extract images</h1>
       <p class="tool__summary">Pull out the embedded originals, not re-rendered pages. Nothing is uploaded: the work happens on this device.</p>
     </header>
     <label class="drop-zone" data-testid="drop-zone" for="file-input" tabindex="0" role="button" aria-describedby="drop-hint">
-      <svg class="drop-zone__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h12v12H3zM3 14l4-4 3 3 2-2 3 3M17 11h5M20 9l2 2-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg class="drop-zone__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10l-3.1-3.1a2 2 0 0 0-2.814.014L6 21"/><path d="m14 19 3 3v-5.5"/><path d="m17 22 3-3"/><circle cx="9" cy="9" r="2"/></g></svg>
       <span class="drop-zone__title">Drop a PDF here, or tap to pick one</span>
       <span class="drop-zone__hint" id="drop-hint">It stays on this device. No size limit.</span>
       <input class="visually-hidden" id="file-input" data-testid="file-input" type="file" accept="application/pdf,.pdf" tabindex="-1">
@@ -44,10 +45,10 @@
     <nav class="related" aria-labelledby="related-title">
       <h2 class="related__title" id="related-title">More in Convert and print</h2>
       <div class="related__list">
-        <a class="related__item" href="/tools/compress/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Compress</span></a>
-        <a class="related__item" href="/tools/images-to-pdf/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 4h18v16H3zM3 16l5-5 4 4 3-3 6 6M15.5 8.5h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Images to PDF</span></a>
-        <a class="related__item" href="/tools/pdf-to-images/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 3h10l4 4v14H5zM5 17l4-4 3 3 2-2 5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>PDF to images</span></a>
-        <a class="related__item" href="/tools/n-up/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 3h16v18H4zM7 6h4v5H7zM13 6h4v5h-4zM7 13h4v5H7zM13 13h4v5h-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Pages per sheet</span></a>
+        <a class="related__item" href="/tools/compress/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 15 6 6m-6-6v4.8m0-4.8h4.8"/><path d="M9 19.8V15m0 0H4.2M9 15l-6 6"/><path d="M15 4.2V9m0 0h4.8M15 9l6-6"/><path d="M9 4.2V9m0 0H4.2M9 9 3 3"/></g></svg><span>Compress</span></a>
+        <a class="related__item" href="/tools/images-to-pdf/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 11-1.296-1.296a2.4 2.4 0 0 0-3.408 0L11 16"/><path d="M4 8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2"/><circle cx="13" cy="7" r="1" fill="currentColor"/><rect x="8" y="2" width="14" height="14" rx="2"/></g></svg><span>Images to PDF</span></a>
+        <a class="related__item" href="/tools/pdf-to-images/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><circle cx="10" cy="12" r="2"/><path d="m20 17-1.296-1.296a2.41 2.41 0 0 0-3.408 0L9 22"/></g></svg><span>PDF to images</span></a>
+        <a class="related__item" href="/tools/n-up/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><rect x="3" y="3" width="18" height="18" rx="2"/></g></svg><span>Pages per sheet</span></a>
         <a class="related__item related__item--all" href="/#tools"><span>All tools</span><span aria-hidden="true">→</span></a>
       </div>
     </nav>
@@ -69,6 +70,6 @@
     <a class="help-option" data-testid="help-email" href="mailto:ceo@layerbit.co.in?subject=Foolscap%20help"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v12H3zM3 7l9 6 9-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Send us an email</a>
     <a class="help-option help-option--whatsapp" data-testid="help-whatsapp" href="https://wa.me/916282595823" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.8L4 20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 9.5c.3 1.8 2.2 4 4 4.6l1.2-1.1 1.8.8c0 1-.9 1.7-2 1.7-3 0-5.9-2.9-5.9-5.9 0-1.1.7-2 1.7-2l.8 1.8Z" fill="currentColor"/></svg>Chat on WhatsApp</a>
   </div>
-  <a class="home-fab" data-testid="home-fab" href="/#from-extract-images" aria-label="All tools"><img class="home-fab__mark" src="/brand/mark.png" width="115" height="128" alt=""><span class="home-fab__label">All tools</span></a>
+  <a class="home-fab" data-testid="home-fab" href="/#from-extract-images" aria-label="All tools"><svg class="home-fab__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="fab-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#4facfe"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><g fill="none" stroke="url(#fab-g)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 29 C 16 18, 9 10, 4.5 19 C 11 15, 20 16, 24.5 22 C 27 15, 29.5 10, 32 6.5 C 34.5 10, 37 15, 39.5 22 C 44 16, 53 15, 59.5 19 C 55 10, 48 18, 46 29 V52 Q46 57 41 57 H23 Q18 57 18 52 Z"/><path d="M25 39 H39 M25 47.5 H35"/></g><g fill="url(#fab-g)"><circle cx="4.5" cy="20" r="4"/><circle cx="32" cy="6.5" r="4"/><circle cx="59.5" cy="20" r="4"/></g></svg><span class="home-fab__label">All tools</span></a>
 </body>
 </html>
