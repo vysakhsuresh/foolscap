@@ -20,9 +20,12 @@
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.11.1",
+    "@noble/hashes": "1.8.0",
     "@tesseract.js-data/eng": "^1.0.0",
+    "asn1js": "^3.0.10",
     "fflate": "^0.8.2",
     "pdfjs-dist": "^6.4.299",
+    "pkijs": "^3.4.1",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {

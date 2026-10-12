@@ -1,0 +1,214 @@
+/**
+ * Opening certificate files the way people's computers actually export them.
+ *
+ * The files below were made once with OpenSSL 3 (its legacy provider for the
+ * old ciphers) from throwaway keys made for this test alone; they sign
+ * nothing real. Between them they cover the schemes Windows, the macOS
+ * Keychain, Java and OpenSSL 1.x and 3 write: PBES2 with AES and triple DES,
+ * the PKCS#12 PBE family (three- and two-key triple DES, RC2 at 40 and 128
+ * bits, RC4), MACs over SHA-1, SHA-256 and SHA-512, a non-ASCII password and
+ * an empty one, RSA and EC keys, and a certificate that comes with its issuer.
+ *
+ *   LEGACY_RSA_CHAIN      openssl pkcs12 -export -legacy -certfile ca.crt          password hunter2
+ *   AES_EC384             openssl pkcs12 -export                                    password pässword
+ *   RC2_128_2DES_EC256    -certpbe PBE-SHA1-RC2-128 -keypbe PBE-SHA1-2DES           password secret
+ *   RC4_EC256             -certpbe PBE-SHA1-RC4-40 -keypbe PBE-SHA1-RC4-128         password secret
+ *   EMPTY_PASSWORD_EC256  -certpbe AES-128-CBC -keypbe DES-EDE3-CBC -macalg sha512  empty password
+ */
+import { describe, expect, it } from 'vitest';
+import { CertificateError } from '../../app/src/sign/errors';
+import { readIdentity } from '../../app/src/sign/identity';
+import { rc2CbcDecrypt } from '../../app/src/sign/legacy-ciphers';
+
+const LEGACY_RSA_CHAIN = [
+  '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',
+  'ICCAA=',
+].join('');
+
+const AES_EC384 = [
+  'MIIEjgIBAzCCBEQGCSqGSIb3DQEHAaCCBDUEggQxMIIELTCCArIGCSqGSIb3DQEHBqCCAqMwggKfAgEAMIICmAYJKoZIhvcNAQcBMFcGCSqGSI',
+  'b3DQEFDTBKMCkGCSqGSIb3DQEFDDAcBAj+XytpbOa0PAICCAAwDAYIKoZIhvcNAgkFADAdBglghkgBZQMEASoEEOhThAq+739l9uvS4fe7qcuA',
+  'ggIw9LoZHaPgwZITVjfOGuUfSGHfW7jWBUenuIodqdsG3Qs0FWvYvzF2vk0lq9X15lnnDfHv0Tg6pu7VeC/s2vlZJVnf6fDbLQX6r717aOFmM8',
+  'RagO1pfkPwNrnIL/RIfZhXl46n8uJyaSy6wHXop2lEjEDlYknQqd/SN7DStp41OFTw3wWRohnMNtNCD/AiFkP+oSqO0qba1pKCef+m3YzgRpLz',
+  '7veW5d3wIt4RAX2qA6ZLkyuT1lij/BVeVhN8VPaj0MCaKVVCf/gqo/+S+ORknqsxsEX5lxDO5ogWXlHjMLPdO8nsWCJjNTBoscFDtREPhmffR1',
+  'nyDZcE3JoG7k25UNLYwEcL6RUe+r8SPRaqKicwaKI4PzeT85YE7r5/8KwvRVQr5naBlVMIWnRRCZpb3aW7W9srvXBQ9BqZVgQrrREZ7OFSyncn',
+  'PRGI9oMrvKDzcZEe1zhJghkZroVYKQtHlIusGEMxCpM8y3NxocxVOXE2Oti25rACguqanv/1FEQj+FOpu3nnMlHKd1UZKjZSBGCoNjaQ7X3rIx',
+  'gZMX3aa5iXGU8iFtjTSc9Psjb1zt+TzBdUqKnPYq8C54u5TgUBWk8KPgEwKyQDdLHloD/eCDPVOScVSmdmJj1kOG1L+2wA7Urhmk+SC+7xbYRI',
+  'biyWHilDTSy4FMOvWztWgTfreZqbMPYH2iysghZPKZU7nc5bf6TQR7dj+LRDxi0Npu+7Z6Lj1XDP5ACBD5NqpKaO9PUwggFzBgkqhkiG9w0BBw',
+  'GgggFkBIIBYDCCAVwwggFYBgsqhkiG9w0BDAoBAqCCASAwggEcMFcGCSqGSIb3DQEFDTBKMCkGCSqGSIb3DQEFDDAcBAgcifg7JftikAICCAAw',
+  'DAYIKoZIhvcNAgkFADAdBglghkgBZQMEASoEEN7A4n1Injf/qmqPnHYDsaQEgcC3YDGNfn8D55C4XTgOJsOrWUhy/KRqJo69Iv3id02o2JTB5m',
+  'U2F1/6D276brJtDLezN4Xn4PdmsEOhl0ZLQCPn/rnGhI1SvUOxnR13fHZGFEZYNMwqTKs/sOQQ/y+kSA0dY5FW/+LHFKTyeHAvYKpuuV0QE0c1',
+  '93h6kkD/272qNaAG3r2v00ZeGqgfxW38MMH1QFNHcbb5BMAHwhzWG2ZTLUGibpUVzDwrnmpjZFTne3kCTJvul/vVa9I5kvQrCcsxJTAjBgkqhk',
+  'iG9w0BCRUxFgQUZR3d8rukDUPoPzEQYRQgDWM4bH8wQTAxMA0GCWCGSAFlAwQCAQUABCBY+kqs+5zOlZxbsaH/EnWnyoI9kjNhBslap9Ct/uym',
+  'RQQIQdMn27ykdEMCAggA',
+].join('');
+
+const RC2_128_2DES_EC256 = [
+  'MIIDkgIBAzCCA0gGCSqGSIb3DQEHAaCCAzkEggM1MIIDMTCCAicGCSqGSIb3DQEHBqCCAhgwggIUAgEAMIICDQYJKoZIhvcNAQcBMBwGCiqGSI',
+  'b3DQEMAQUwDgQIY02ZQV95EQoCAggAgIIB4HojHATLgBulqg98DutYCUTg+t04O/xUOYUQnX0GFaeJyD1n/CdQqyfzQYXdbc5K/q0jIFypbDLR',
+  '5XY/BTlIhDhHbS1kvfeRSanImf2KZIfk2Vci6snWP54674qwGFKjiHH/mQ18V4+HNSErZW4bjdTqBkwHp2kQzrPN2cndyNIg0+RmFVn+id6MHV',
+  'm1/Fe8u78jZL9N+g2YA9SFOHVOHIwNxpKlUwEiouegRBK+QBPCKivv0WT4PuQYPwVsTGFml6fMCDFjVkj6XDVTZCEeuXEJnZ2oT37SJsdX2efs',
+  'eEmmTRqWEylWBFW/nFKxFNXX8j5/9G/RwJzR71xQ6Y2ho/61ztJzAf6h+NMQ2gcpORuQT1G1GmNvEewE7uNd6hTjqf6hv+1B+WqMHdxLbwsiPy',
+  'LRWrjUoQFLLecoIYZfSQ2BCwfcB2ZP9jKY78WIqrbTuHlMyvmSxGDbddarHsXlLfbjuxeBAL0SgFoR71FbgRRjO49bEGAEb1J4VdPvA65wxx7i',
+  'Y178rJAEe+t901fKQadeT1UXM68wOR5479yiZlJka38Jx1vQLNbkXIN6WJTxTYKJYLABOct8H31+ZXrCPX9HwMU9/3AqZM8ACs7ffW1wT7F6J/',
+  'dTcMp3KTd0jGiK4TCCAQIGCSqGSIb3DQEHAaCB9ASB8TCB7jCB6wYLKoZIhvcNAQwKAQKggbQwgbEwHAYKKoZIhvcNAQwBBDAOBAiMnc2dkyjK',
+  'UwICCAAEgZDHFubtG/YdD5xLIMaBUAq2BKeV+Z9fXlK8id74IsW5IKw10G937695k3KawjmRsou09AeY5N2KfyJ8FkR4P6QbhPPXB3oPT7QJkP',
+  'VR+B56y5rRBxGpETYRdX5RFQMmtbCEi0tJ7WUt3IguEB8NBLX8w2vEtB6k8AHVdneJb2pKTee8Qxh9ZHBBlh6NOamuDY8xJTAjBgkqhkiG9w0B',
+  'CRUxFgQUHkchqYzdNNiDKVE6MAYmS4Lt3DYwQTAxMA0GCWCGSAFlAwQCAQUABCBw7v3OVkJwWbePCYaMUei6MDw6vuJdxt/lvgCeBy4rUQQIuT',
+  'cdLRTjBp0CAggA',
+].join('');
+
+const RC4_EC256 = [
+  'MIIDhwIBAzCCAz0GCSqGSIb3DQEHAaCCAy4EggMqMIIDJjCCAiMGCSqGSIb3DQEHBqCCAhQwggIQAgEAMIICCQYJKoZIhvcNAQcBMBwGCiqGSI',
+  'b3DQEMAQIwDgQIOSe5sEmuJckCAggAgIIB3AmvvdJ4da42P2c3Z67ZuYtpVQtvZeQ7S9SEY7YU0MdIyzJZXUBBwLf4eVtNHPPeODC7o5wZbXxu',
+  '25OG1zu9nTHtLq4DlAjhJCPWsa4s496N0Aj0cxseZ+92A5Gwlvzl2OyE3vqL57g40rptK58ckvyuFQsKioRWmvWpQ4rOsyicLwVhSqSofOeIwL',
+  'hRfSYbessAocW5X/7Pkp8vw6gAJ0Ee90vWl8y2Go/GjnZTkF0gb3W3lLr8JK+6NG9/8mj/Lh6W2us552zV5gMRXrd/hmc90xUpEz1X9A7vBBFW',
+  'uDjJPwLSVLm8mXOxBMREjiCT/rtDIpFkGtQrtTA/nINi0Fe4ixBJY1b9xDSQejVyrO3NsFGDC/LNMgQ4xBWdGiy+3cMsqJFmRMx3MRSuC4q0Xj',
+  'iwV/oZQE5UWnN2zLu/tt4GsSMPqfPHTxpvZ7oh8+n2dN5VXRDgPXES6J+in2EwFI46Kt9wVOe39CTJsckS6uNZWg0xcf7aRfZum+JDLfRYJAil',
+  'Z3ar9Ssbm0RXiqSsBdjFFlDPHOMhzPBE6nzrc9oONuqk0kM6T259zqdlPHp/yWxLSQmp4pD/IPabbFFtzwzk536AA7J4xCvzz09OoWdl6AC+xb',
+  '2SxE2bdKmmMIH8BgkqhkiG9w0BBwGgge4EgeswgegwgeUGCyqGSIb3DQEMCgECoIGuMIGrMBwGCiqGSIb3DQEMAQEwDgQIu109ScH8UeACAggA',
+  'BIGKTZEs9chO9tvJiW5vbeyzZmkz0WDaeTCLY9ay5oX6r3wqQuLnuab2W3YAW8eIK9Hnovm58XZ8O4XlZaKnefdhMmHnBzQ3vxOSWFoe2xQnfZ',
+  'Q/SWh+Muu1tOBzXf//93GyNz7Ofi8LXvCIGTAM6nrK5zylz1qvDcqU3+BwfS4yi5yjHJlhJbyyATEiMSUwIwYJKoZIhvcNAQkVMRYEFB5HIamM',
+  '3TTYgylROjAGJkuC7dw2MEEwMTANBglghkgBZQMEAgEFAAQgg9iFRAY9TfF8ZUOQuLCU4Vwng4S5rAVAON6pq99IHd8ECP2HNOkkY8wyAgIIAA',
+  '==',
+].join('');
+
+const EMPTY_PASSWORD_EC256 = [
+  'MIIEIwIBAzCCA7kGCSqGSIb3DQEHAaCCA6oEggOmMIIDojCCAmIGCSqGSIb3DQEHBqCCAlMwggJPAgEAMIICSAYJKoZIhvcNAQcBMFcGCSqGSI',
+  'b3DQEFDTBKMCkGCSqGSIb3DQEFDDAcBAikXgmV5AtU/AICCAAwDAYIKoZIhvcNAgkFADAdBglghkgBZQMEAQIEEKprMgDUNDfWbVwYWvBSkcaA',
+  'ggHgntNH5WJfc8AMA452ASNw4JKiCsWVz8ZBLBJnq+mUFDqT72QkOMuWzzt0njgQYSoiR0b+t8VsqW6+KFlGdZIplsCB19P4f8x+V9XI9bzUfk',
+  'lVt2kzQXwyxptCHHVfMEnqHh92ZPVzlliVul2GTuHCbdXrc5WJuge8vHudoRMP1BQ09HXaZeP8Ci1uzwY79ou/M5/oOZhw6ZQH8f/UdbcXCWku',
+  'SScbXsDRvNbdqP6H0492IjVh7eUB65Ell/XcYrfTmedXbZKWqJE5RAFQ5Hl4+MQzyES6OWzF9EcfZrNIQ0JTr8zljrZkskMKpSIpH+umVZt3Yd',
+  'f1yd73cWeMTcY8bfcYthcWyL3nnvVsHikpcX/C66VFtD4fzucf9A7zYk4G5Cg+z/2LFQ/9p8fZtuLhvaZF/ZIZup7IChjZm14KwSekWJ2awqIx',
+  'Vyk4im3TREujhd3FDYfAIfAGubXRmnzoX/3HOK8/dJ9/vjHnds1oSAuGCLpRiTjSPBZT5/VUg1P6e+SumCHL7j+MbFNjw7ARrk8R0vG1L56zCm',
+  'emzDgPIfJzs8j8mDgU+ulvayg0kW6IYKSTa85zEQKhacEWTSH2fYEq3yFLKP+IIZ7Bp+jFmniXO8TMZSrrGpiyW9EbKsSuMIIBOAYJKoZIhvcN',
+  'AQcBoIIBKQSCASUwggEhMIIBHQYLKoZIhvcNAQwKAQKggeYwgeMwTgYJKoZIhvcNAQUNMEEwKQYJKoZIhvcNAQUMMBwECNMjF4wk01Z4AgIIAD',
+  'AMBggqhkiG9w0CCQUAMBQGCCqGSIb3DQMHBAgJ8JzM6L1y1QSBkFsLeSYmiVMJweoA5E8SDCkhMNLI6ZVEnLvb6VKHGFSL9yj5zUGBrI/9RL4s',
+  'ua63v2qDbtXXw841pIjrdxqJ/nD9lpyUAz37x7KcYiSI3RwDyTrp3MqSpaHlaaBe2l8vvFJDKOUc83L9ZEYJmtQjE5E0eyuhuqupDwHKIYhOKv',
+  '9nIWaPizXbiUlrRkFBJZkLWTElMCMGCSqGSIb3DQEJFTEWBBQeRyGpjN002IMpUTowBiZLgu3cNjBhMFEwDQYJYIZIAWUDBAIDBQAEQFQfCQO6',
+  'MwGw4MHESITG4kwNPv+QKGYySqTAFsg0YUqSihXfa8LsLK5QThjE++G6eTwvolDCKINyQ3g1Y20jX4cECF2O+UwyynTHAgIIAA==',
+].join('');
+
+const bytes = (base64: string): Uint8Array => new Uint8Array(Buffer.from(base64, 'base64'));
+
+async function problem(promise: Promise<unknown>): Promise<CertificateError> {
+  try {
+    await promise;
+  } catch (error) {
+    expect(error).toBeInstanceOf(CertificateError);
+    return error as CertificateError;
+  }
+  throw new Error('expected a rejection');
+}
+
+const CASES = [
+  {
+    label: 'legacy 3DES + RC2-40 with a SHA-1 MAC, an RSA key and its issuer',
+    file: LEGACY_RSA_CHAIN,
+    password: 'hunter2',
+    subject: 'Meera Nair',
+    issuer: 'Test Root CA',
+    kind: 'RSASSA-PKCS1-v1_5',
+    chain: 1,
+  },
+  {
+    label: 'PBES2 AES-256 with a SHA-256 MAC, P-384 and a non-ASCII password',
+    file: AES_EC384,
+    password: 'pässword',
+    subject: 'Kerala Test Co',
+    issuer: 'Kerala Test Co',
+    kind: 'ECDSA',
+    chain: 0,
+  },
+  { label: 'RC2-128 + two-key 3DES', file: RC2_128_2DES_EC256, password: 'secret', subject: 'Ravi Kumar', issuer: 'Ravi Kumar', kind: 'ECDSA', chain: 0 },
+  { label: 'RC4-40 + RC4-128', file: RC4_EC256, password: 'secret', subject: 'Ravi Kumar', issuer: 'Ravi Kumar', kind: 'ECDSA', chain: 0 },
+  {
+    label: 'PBES2 AES-128 + PBES2 3DES with a SHA-512 MAC and an empty password',
+    file: EMPTY_PASSWORD_EC256,
+    password: '',
+    subject: 'Ravi Kumar',
+    issuer: 'Ravi Kumar',
+    kind: 'ECDSA',
+    chain: 0,
+  },
+] as const;
+
+describe('readIdentity', () => {
+  for (const c of CASES) {
+    it(`opens ${c.label}`, async () => {
+      const identity = await readIdentity(bytes(c.file), c.password);
+      expect(identity.subject).toBe(c.subject);
+      expect(identity.issuer).toBe(c.issuer);
+      expect(identity.privateKey.algorithm.name).toBe(c.kind);
+      expect(identity.privateKey.extractable).toBe(false);
+      expect(identity.privateKey.usages).toEqual(['sign']);
+      expect(identity.chain).toHaveLength(c.chain);
+      expect(identity.certificate[0]).toBe(0x30);
+      expect(identity.notBefore.getTime()).toBeLessThan(identity.notAfter.getTime());
+      expect(identity.expired).toBe(false);
+    });
+
+    it(`refuses ${c.label} with the wrong password`, async () => {
+      const error = await problem(readIdentity(bytes(c.file), c.password === '' ? 'nope' : `${c.password}x`));
+      expect(error.name).toBe('WrongPassword');
+      expect(error.message).toBe("That password didn't open the certificate.");
+    });
+  }
+
+  it('names the P-384 curve', async () => {
+    const identity = await readIdentity(bytes(AES_EC384), 'pässword');
+    expect((identity.privateKey.algorithm as EcKeyAlgorithm).namedCurve).toBe('P-384');
+  });
+
+  it('says plainly when the file is not a certificate', async () => {
+    const error = await problem(readIdentity(new TextEncoder().encode('%PDF-1.7 not a certificate'), 'x'));
+    expect(error.name).toBe('NotACertificate');
+    expect(error.message).toMatch(/^[A-Z].*\.$/);
+  });
+});
+
+describe('the old ciphers', () => {
+  it('RC2 meets the RFC 2268 test vector', () => {
+    // Key 00 x 8 at 63 effective bits encrypts eight zero bytes to eb b7 73 f9 93 27 8e ff.
+    const out = rc2CbcDecrypt(new Uint8Array(8), 63, new Uint8Array(8), new Uint8Array(Buffer.from('ebb773f993278eff', 'hex')));
+    expect(Array.from(out)).toEqual([0, 0, 0, 0, 0, 0, 0, 0]);
+  });
+});
