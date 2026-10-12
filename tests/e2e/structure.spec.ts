@@ -322,11 +322,11 @@ test('edit text: tap a line and change it, or find and replace everywhere', asyn
   await page.getByTestId('opt-find').fill('Monday');
   await page.getByTestId('opt-replace-with').fill('Tuesday');
   await page.getByTestId('find-replace').click();
-  await expect(page.getByTestId('find-replace-said')).toContainText('Changed on 2 lines');
+  await expect(page.getByTestId('find-replace-said')).toContainText('Changed in 2 places');
   await tapAt(page, [0.2, 0.092]);
   await page.getByTestId('opt-words').fill('Dear Ms Sharma,');
   await run(page);
-  await expect(page.getByTestId('result-detail')).toHaveText('3 lines changed');
+  await expect(page.getByTestId('result-detail')).toHaveText('3 changes made');
 });
 
 test('create a form finds the blanks on a printed form and makes them fillable', async ({ page }) => {

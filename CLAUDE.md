@@ -444,4 +444,12 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   count. Taking out removes the draw call; moving wraps it in a matrix that
   takes the old box to the new one; swapping draws a new picture, kept to its
   own shape, in the old box. Nothing else in the page's drawing is touched.
+- **2026-10-12** Edit text works cell by cell. pdf.js reports the gap
+  between table columns as a blank item stretched across it; `layout()` now
+  drops blank items, and `segmentsOf` cuts each line at column-sized gaps,
+  so changing one amount in a statement row repaints that amount only.
+  Figures keep their right edge (a text mark can be `align: 'right'`), find
+  and replace matches whole words and numbers ("5,000.00" is not inside
+  "15,000.00"), and the ink colour is read back from the blend small print
+  makes with the paper, so a black amount is not rewritten in grey.
 

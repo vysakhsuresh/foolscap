@@ -244,3 +244,40 @@ export function detectBlanks(layout: PageLayout, page: number): Array<{ kind: 't
   }
   return out;
 }
+
+/** One run of words on a line with no column-sized gap in it: a table cell, or a whole line of prose. */
+export interface TextSegment {
+  readonly text: string;
+  /** In points from the page's left; `baseline` from its top. */
+  readonly x0: number;
+  readonly x1: number;
+  readonly baseline: number;
+  readonly size: number;
+}
+
+/**
+ * A page's lines cut at the wide gaps between columns, so a statement row is
+ * its date, description, reference and amounts, each on its own, and a line
+ * of prose stays whole.
+ */
+export function segmentsOf(layout: PageLayout): TextSegment[] {
+  const out: TextSegment[] = [];
+  for (const line of linesOf(layout)) {
+    let current: { text: string; x0: number; x1: number; baseline: number; size: number } | null = null;
+    for (const { item } of line.pieces) {
+      const size = Math.max(item.height, 1);
+      const gap = current ? item.x - current.x1 : Infinity;
+      if (current && gap <= Math.max(current.size, size) * 0.9) {
+        if (gap > size * 0.15 && !current.text.endsWith(' ') && !item.str.startsWith(' ')) current.text += ' ';
+        current.text += item.str;
+        current.x1 = Math.max(current.x1, item.x + item.width);
+        current.size = Math.max(current.size, size);
+        continue;
+      }
+      if (current && current.text.trim() !== '') out.push({ ...current, text: current.text.trim() });
+      current = { text: item.str, x0: item.x, x1: item.x + item.width, baseline: item.y, size };
+    }
+    if (current && current.text.trim() !== '') out.push({ ...current, text: current.text.trim() });
+  }
+  return out;
+}

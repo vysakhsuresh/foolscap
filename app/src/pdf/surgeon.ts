@@ -719,7 +719,9 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
             lines.forEach((line, i) => {
               if (line.trim().length === 0) return;
               // Matches the editor's CSS: line-height 1.25, baseline 0.97 em below the line's top.
-              const [px, py] = view.toPage(vx, top - size * (0.97 + i * 1.25));
+              // Right-aligned text (a changed amount) keeps the area's right edge.
+              const lx = mark.align === 'right' ? vx + w - f.widthOfTextAtSize(line, size) : vx;
+              const [px, py] = view.toPage(lx, top - size * (0.97 + i * 1.25));
               page.drawText(line, { x: px, y: py, size, font: f, color: rgb(r, g, b), rotate: degrees(view.rotation) });
             });
             break;

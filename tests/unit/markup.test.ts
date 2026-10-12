@@ -135,13 +135,34 @@ describe('edit text', () => {
       { kind: 'text', area: { page: 0, x: 0.06, y: 0.1, w: 0.3, h: 0.15 }, text: 'Two', size: 0.1, color: [0.1, 0.1, 0.1] },
     ];
     const out = only(await getOp('edit-text').run([input], { marks }, h.ctx));
-    expect(out.detail).toBe('1 line changed');
+    expect(out.detail).toBe('1 change made');
     const bytes = new Uint8Array(await (await h.workspace.read(out.file)).arrayBuffer());
     const task = pdfjs.getDocument({ data: bytes.slice(), verbosity: 0 });
     const doc = await task.promise;
     try {
       const words = (await (await doc.getPage(1)).getTextContent()).items.map((i) => ('str' in i ? i.str : ''));
       expect(words).toContain('Two');
+    } finally {
+      await task.destroy();
+    }
+  });
+});
+
+describe('a changed amount', () => {
+  it('keeps to its right edge', async () => {
+    const h = harness();
+    const input = await h.workspace.put('Statement.pdf', await pagesPdf(1), 'pdf', { kind: 'picked' });
+    const marks: Mark[] = [{ kind: 'text', area: { page: 0, x: 0.5, y: 0.5, w: 0.3, h: 0.05 }, text: '7,999.00', size: 0.04, color: [0.1, 0.1, 0.1], align: 'right' }];
+    const out = only(await getOp('edit-text').run([input], { marks: [{ kind: 'fill', area: { page: 0, x: 0.5, y: 0.5, w: 0.3, h: 0.05 }, color: [1, 1, 1] }, ...marks] }, h.ctx));
+    const bytes = new Uint8Array(await (await h.workspace.read(out.file)).arrayBuffer());
+    const task = pdfjs.getDocument({ data: bytes.slice(), verbosity: 0 });
+    const doc = await task.promise;
+    try {
+      const page = await doc.getPage(1);
+      const viewport = page.getViewport({ scale: 1 });
+      const item = (await page.getTextContent()).items.find((i) => 'str' in i && i.str === '7,999.00') as { transform: number[]; width: number };
+      const right = item.transform[4]! + item.width;
+      expect(right / viewport.width).toBeCloseTo(0.8, 2);
     } finally {
       await task.destroy();
     }

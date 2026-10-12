@@ -2385,6 +2385,10 @@ select.input option {
   display: none;
 }
 
+.editor__item--edit-right {
+  justify-content: flex-end;
+}
+
 .editor__item--edit {
   font-family: Helvetica, Arial, sans-serif;
   font-size: calc(var(--size) * var(--page-w));

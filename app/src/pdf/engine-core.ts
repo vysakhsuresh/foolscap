@@ -255,7 +255,9 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
         }
         const items: LayoutItem[] = [];
         for (const item of content.items) {
-          if (!('str' in item) || item.str.length === 0) continue;
+          // pdf.js reports the gap between columns as a blank item stretched across
+          // it; dropped, so a gap stays a gap and a table row splits into its cells.
+          if (!('str' in item) || item.str.trim().length === 0) continue;
           const m = Util.transform(viewport.transform, item.transform);
           const [a = 0, b = 0, c = 0, d = 0, x = 0, y = 0] = m;
           // Left to right only: rotated and vertical text would scramble the lines.

@@ -334,7 +334,7 @@ export type Mark =
   /** A PNG (a signature, or text in a script the built-in font cannot draw) filling `area`. */
   | { readonly kind: 'image'; readonly area: Area; readonly png: Uint8Array }
   /** Lines of text whose first line's top is the area's top; `size` is a fraction of the page width. */
-  | { readonly kind: 'text'; readonly area: Area; readonly text: string; readonly size: number; readonly color: Rgb; readonly boxed?: boolean }
+  | { readonly kind: 'text'; readonly area: Area; readonly text: string; readonly size: number; readonly color: Rgb; readonly boxed?: boolean; readonly align?: 'left' | 'right' }
   /**
    * A see-through marker over `area`, multiplied so the words under it stay
    * dark; or, with `style`, a line under the words or through them.

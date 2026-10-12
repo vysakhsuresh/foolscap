@@ -11,7 +11,7 @@ import type { CreateFormParams, EditImagesParams, MarksParams, RemoveAreasParams
 import { measureLabel, type Area, type Mark, type PdfView, type Rgb } from '../pdf/types';
 import { el } from './dom';
 import { check, choices, field, note, select as selectField } from './fields';
-import { PATTERN_NAMES, detectBlanks, findOnPage, linesOf, splitWords, type Pattern } from '../pdf/find-text';
+import { PATTERN_NAMES, detectBlanks, findOnPage, segmentsOf, splitWords, type Pattern } from '../pdf/find-text';
 
 export type EditorMode = 'sign' | 'add-text' | 'mark-up' | 'remove-areas' | 'add-image' | 'edit-text' | 'create-form' | 'edit-images';
 
@@ -43,7 +43,7 @@ type Item =
   /** A fillable field to add, for Create form. */
   | { kind: 'field'; area: MutableArea; field: FieldKind; name: string; options: string[]; el: HTMLElement }
   /** A line of the page's own text, rewritten: painted over in `paper`, written again in `color`. */
-  | { kind: 'edit'; area: MutableArea; original: string; text: string; size: number; color: Rgb; paper: Rgb; baseline: number; el: HTMLElement }
+  | { kind: 'edit'; area: MutableArea; original: string; text: string; size: number; color: Rgb; paper: Rgb; baseline: number; align: 'left' | 'right'; el: HTMLElement }
   | { kind: 'ink'; page: number; points: number[]; width: number; color: Rgb; el: SVGPolylineElement }
   | {
       kind: 'line';
@@ -56,6 +56,9 @@ type Item =
       el: SVGGElement;
       label: HTMLElement | null;
     };
+
+/** An amount, a count or a date in figures: kept to its right edge when it is changed. */
+const NUMERIC = /^[-+(₹$]?\s?[\d,]*\.?\d+\)?(\s?(Cr|Dr|CR|DR))?$/;
 
 /** Drawn in the SVG layer, not as boxes: they can be undone, not moved. */
 type Vector = Extract<Item, { kind: 'ink' | 'line' }>;
@@ -75,6 +78,7 @@ const LINKABLE = /^(https?:\/\/|mailto:|tel:)\S+$/i;
 /** A line of a page's own text, for Edit text. Area and baseline in page fractions; size a fraction of the page width. */
 interface EditableLine {
   readonly text: string;
+  readonly align: 'left' | 'right';
   readonly area: MutableArea;
   readonly size: number;
   readonly baseline: number;
@@ -450,7 +454,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       case 'add-image':
         return chosen === null ? 'Choose a picture above, then tap the page where it goes.' : 'Tap the page to put the picture there. Drag it to move it; drag its corner to resize.';
       case 'edit-text':
-        return 'Tap a line of text to change it. The lines you can change are outlined.';
+        return 'Tap any words on the page to change them. Everything you can change is outlined, cell by cell in a table.';
       case 'create-form':
         return fieldKind?.value() === 'check' ? 'Tap the page where a tick box goes.' : 'Drag across the space where the answer goes.';
       case 'edit-images':
@@ -558,21 +562,18 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         if (!v) return [];
         const layout = await v.layout(index).catch(() => null);
         if (!layout) return [];
-        return linesOf(layout).flatMap((line): EditableLine[] => {
-          const first = line.pieces[0]?.item;
-          if (!first || line.text.trim() === '') return [];
-          let x0 = Infinity;
-          let x1 = -Infinity;
-          let size = 0;
-          for (const { item } of line.pieces) {
-            x0 = Math.min(x0, item.x);
-            x1 = Math.max(x1, item.x + item.width);
-            size = Math.max(size, item.height);
-          }
-          const baseline = first.y;
-          const top = baseline - size * 0.95;
-          const bottom = baseline + size * 0.28;
-          return [{ text: line.text, size: size / layout.width, baseline: baseline / layout.height, area: { page: index, x: x0 / layout.width, y: top / layout.height, w: (x1 - x0) / layout.width, h: (bottom - top) / layout.height } }];
+        // One editable piece per cell: a row of a table is never rewritten as one run of words.
+        return segmentsOf(layout).map((seg): EditableLine => {
+          const top = seg.baseline - seg.size * 0.95;
+          const bottom = seg.baseline + seg.size * 0.28;
+          return {
+            text: seg.text,
+            size: seg.size / layout.width,
+            baseline: seg.baseline / layout.height,
+            // Amounts line up on their right edge; a changed amount keeps to it.
+            align: NUMERIC.test(seg.text) ? 'right' : 'left',
+            area: { page: index, x: seg.x0 / layout.width, y: top / layout.height, w: (seg.x1 - seg.x0) / layout.width, h: (bottom - top) / layout.height },
+          };
         });
       })();
       pageLines.set(index, found);
@@ -614,15 +615,19 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     const data = context.getImageData(x0, y0, w, h).data;
     let best = 765;
     let ink: Rgb = fallback.ink;
-    for (let i = 0; i < data.length; i += 16) {
+    for (let i = 0; i < data.length; i += 4) {
       const sum = (data[i] ?? 255) + (data[i + 1] ?? 255) + (data[i + 2] ?? 255);
       if (sum < best) {
         best = sum;
         ink = [(data[i] ?? 0) / 255, (data[i + 1] ?? 0) / 255, (data[i + 2] ?? 0) / 255];
       }
     }
-    return { paper, ink };
+    return { paper, ink: trueInk(ink, paper) };
   }
+
+  /** Whether an edit already made is of this piece of text: the same line, the same place on it. */
+  const sameSpot = (item: Extract<Item, { kind: 'edit' }>, line: EditableLine) =>
+    Math.abs(item.baseline - line.baseline) < 0.002 && Math.abs(item.area.x + 0.004 - line.area.x) < 0.006;
 
   function makeEdit(line: EditableLine, text: string): Extract<Item, { kind: 'edit' }> {
     const pad = 0.004;
@@ -630,7 +635,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     const { paper, ink } = coloursAt(area);
     const box = boxElement('edit', 'Changed line');
     box.prepend(el('span', { class: 'editor__words' }));
-    return { kind: 'edit', area, original: line.text, text, size: line.size, color: ink, paper, baseline: line.baseline, el: box };
+    box.classList.toggle('editor__item--edit-right', line.align === 'right');
+    return { kind: 'edit', area, original: line.text, text, size: line.size, color: ink, paper, baseline: line.baseline, align: line.align, el: box };
   }
 
   function paintEdit(item: Extract<Item, { kind: 'edit' }>): void {
@@ -648,7 +654,6 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       return;
     }
     button.disabled = true;
-    const lower = needle.toLocaleLowerCase();
     const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     let lines = 0;
     const pages = new Set<number>();
@@ -656,11 +661,12 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       for (let index = 0; index < view.pageCount; index++) {
         say.textContent = `Looking through page ${index + 1} of ${view.pageCount}…`;
         for (const line of await linesFor(index)) {
-          if (!line.text.toLocaleLowerCase().includes(lower)) continue;
+          // Whole words and whole numbers only: "5,000.00" is not inside "15,000.00".
+          if (!new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu').test(line.text)) continue;
           // A line already changed is changed again, in place.
-          const existing = items.find((i): i is Extract<Item, { kind: 'edit' }> => i.kind === 'edit' && i.area.page === index && Math.abs(i.baseline - line.baseline) < 0.002);
+          const existing = items.find((i): i is Extract<Item, { kind: 'edit' }> => i.kind === 'edit' && i.area.page === index && sameSpot(i, line));
           const source = existing?.text ?? line.text;
-          const text = source.replace(new RegExp(escaped, 'gi'), replacement).replace(/ {2,}/g, ' ');
+          const text = source.replace(new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'giu'), () => replacement).replace(/ {2,}/g, ' ');
           if (existing) {
             existing.text = text;
             paintEdit(existing);
@@ -679,7 +685,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     placeAll();
     sync();
     onChange();
-    say.textContent = lines === 0 ? `“${needle}” isn’t in the text of this document.` : `Changed on ${lines} ${lines === 1 ? 'line' : 'lines'}, on ${pages.size} ${pages.size === 1 ? 'page' : 'pages'}. Each is outlined on its page; tap one to adjust it.`;
+    say.textContent = lines === 0 ? `“${needle}” isn’t in the text of this document.` : `Changed in ${lines} ${lines === 1 ? 'place' : 'places'}, on ${pages.size} ${pages.size === 1 ? 'page' : 'pages'}. Each is outlined on its page; tap one to adjust it.`;
   }
 
   function placeAll(): void {
@@ -1096,7 +1102,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       hint.textContent = lines.length === 0 ? 'This page has no text to change: it may be a scanned picture.' : 'Tap right on a line of text: the outlined ones can be changed.';
       return;
     }
-    const existing = items.find((i) => i.kind === 'edit' && i.area.page === page && Math.abs(i.baseline - line.baseline) < 0.002);
+    const existing = items.find((i) => i.kind === 'edit' && i.area.page === page && sameSpot(i, line));
     if (existing) {
       select(existing);
       textBox?.focus({ preventScroll: true });
@@ -1120,7 +1126,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     }
     if (mode === 'edit-text') {
       void linesFor(current).then((lines) => {
-        const next = lines.find((l) => !items.some((i) => i.kind === 'edit' && i.area.page === current && Math.abs(i.baseline - l.baseline) < 0.002));
+        const next = lines.find((l) => !items.some((i) => i.kind === 'edit' && i.area.page === current && sameSpot(i, l)));
         if (next) void editLineAt(next.area.x + next.area.w / 2, next.area.y + next.area.h / 2);
       });
       return;
@@ -1412,11 +1418,16 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
           const aspect = aspects.get(item.area.page) ?? pageAspect;
           const top = item.baseline - (0.97 * size) / aspect;
           const x = item.area.x + 0.004;
+          // The old words' own width, so a right-aligned amount keeps its right edge.
+          const w = Math.max(0.01, item.area.w - 0.008);
           if (WIN_ANSI.test(item.text)) {
-            out.push({ kind: 'text', area: { page: item.area.page, x, y: Math.max(0, top), w: Math.max(0.01, item.area.w), h: Math.max(0.01, item.area.h) }, text: item.text, size, color: item.color });
+            out.push({ kind: 'text', area: { page: item.area.page, x, y: Math.max(0, top), w, h: Math.max(0.01, item.area.h) }, text: item.text, size, color: item.color, ...(item.align === 'right' ? { align: 'right' as const } : {}) });
           } else {
             const picture = textPicture(item.text, size, item.color, pageWidthPx(), aspect);
-            if (picture) out.push({ kind: 'image', area: { page: item.area.page, x, y: Math.max(0, item.area.y), w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png });
+            if (picture) {
+              const px = item.align === 'right' ? Math.max(0, x + w - picture.w) : x;
+              out.push({ kind: 'image', area: { page: item.area.page, x: px, y: Math.max(0, item.area.y), w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png });
+            }
           }
           break;
         }
@@ -1640,5 +1651,19 @@ async function readPicture(file: File): Promise<{ bytes: Uint8Array; format: 'jp
   } finally {
     bitmap.close();
   }
+}
+
+/**
+ * Small print is thinner than a screen pixel, so its darkest pixel is ink
+ * blended with paper: grey where the words are black. A neutral grey is taken
+ * to be black; a colour is pushed back away from the paper to its full depth.
+ */
+export function trueInk(seen: Rgb, paper: Rgb): Rgb {
+  const lum = (c: Rgb) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  const spread = Math.max(...seen) - Math.min(...seen);
+  if (lum(paper) - lum(seen) < 0.15) return seen; // barely darker than the paper: leave it be
+  if (spread < 0.08) return lum(seen) < 0.2 ? seen : [0.08, 0.08, 0.1];
+  const k = 1.8;
+  return seen.map((v, i) => Math.min(1, Math.max(0, (paper[i] ?? 1) - ((paper[i] ?? 1) - v) * k))) as unknown as Rgb;
 }
 

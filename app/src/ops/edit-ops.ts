@@ -130,7 +130,7 @@ export const addImageOp = marksOp('add-image', 'Add image', 'with picture', 'Cho
 
 export const editTextOp = marksOp('edit-text', 'Edit text', 'edited', 'Tap a line of text and change it first.', (marks) => {
   const lines = marks.filter((m) => m.kind === 'fill').length;
-  return `${plural(lines, 'line')} changed${onPages(marks)}`;
+  return `${plural(lines, 'change')} made${onPages(marks)}`;
 });
 
 const FIELD_WORDS: Record<'text' | 'multiline' | 'check' | 'choice', [string, string]> = {

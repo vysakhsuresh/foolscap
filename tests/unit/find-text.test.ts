@@ -43,3 +43,36 @@ describe('finding private details', () => {
     expect((areas[0]!.y + areas[0]!.h) * 800).toBeGreaterThan(100 + 2);
   });
 });
+
+describe('cells for Edit text', () => {
+  it('cuts a statement row into its cells and keeps a line of prose whole', async () => {
+    const { segmentsOf } = await import('../../app/src/pdf/find-text');
+    const at = (str: string, x: number, y = 100) => ({ str, x, y, width: str.length * 4, height: 7.5, fontName: 'f' });
+    const layout: PageLayout = {
+      width: 595,
+      height: 842,
+      items: [
+        at('10/04/23', 38),
+        at('SIP-ICICI PRUDENTIAL BLUECHIP', 82),
+        at('410000009', 260),
+        at('10/04/23', 316),
+        at('5,000.00', 390),
+        at('1,06,506.54', 512),
+        at('The rent is', 50, 200),
+        at('due on the fifth.', 96, 200),
+      ],
+    };
+    expect(segmentsOf(layout).map((s) => s.text)).toEqual(['10/04/23', 'SIP-ICICI PRUDENTIAL BLUECHIP', '410000009', '10/04/23', '5,000.00', '1,06,506.54', 'The rent is due on the fifth.']);
+  });
+});
+
+describe('the colour of small print', () => {
+  it('takes a blended grey to be black, and deepens a pale colour', async () => {
+    const { trueInk } = await import('../../app/src/ui/page-editor');
+    expect(trueInk([0.55, 0.55, 0.56], [1, 1, 1])).toEqual([0.08, 0.08, 0.1]);
+    expect(trueInk([0.1, 0.1, 0.1], [1, 1, 1])).toEqual([0.1, 0.1, 0.1]);
+    const blue = trueInk([0.55, 0.65, 0.9], [1, 1, 1]);
+    expect(blue[0]).toBeLessThan(0.55);
+    expect(blue[2]).toBeGreaterThan(blue[0]);
+  });
+});
