@@ -6,7 +6,7 @@
  */
 import { serveWorkspace } from '../files/workspace-protocol';
 import type { FoolscapFile, Workspace } from '../files/types';
-import { getOp } from '../ops';
+import { opMeta } from '../ops/meta';
 import { ArityError, OpCancelled, type Outcome, type Progress } from '../ops/op';
 import { toolById, type ToolId } from '../ops/tools';
 import { arityProblem, type FromWorker, type ToWorker } from './protocol';
@@ -210,7 +210,7 @@ export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean
   return {
     ready,
     run<P>(tool: ToolId, inputs: readonly FoolscapFile[], params: P, opts?: RunOptions): JobHandle {
-      const problem = arityProblem(getOp(tool).arity, toolById(tool).title, inputs.length);
+      const problem = arityProblem(opMeta(tool).arity, toolById(tool).title, inputs.length);
       if (problem !== null) throw new ArityError(problem);
       let resolve!: Job['resolve'];
       let reject!: Job['reject'];

@@ -15,7 +15,7 @@ import { checkOcrParams, type OcrParams } from './ocr-params';
 import { checkCancelled, type CompressParams, type NoParams, type OcrReader, type OcrWord, type Op, type OpContext, type Outcome, type PdfToImagesParams } from './op';
 import { PAGES_HELP } from './pages-ops';
 
-async function openView(ctx: OpContext, input: FoolscapFile): Promise<PdfView> {
+export async function openView(ctx: OpContext, input: FoolscapFile): Promise<PdfView> {
   const engine = await ctx.engine();
   return engine.open(await ctx.workspace.read(input), { ...passwordFor(ctx, input), signal: ctx.signal });
 }
@@ -491,10 +491,10 @@ export const ocrOp: Op<OcrParams> = {
 };
 
 /** A PNG's own width and height, from its header. */
-function pngWidth(png: Uint8Array): number | null {
+export function pngWidth(png: Uint8Array): number | null {
   return png.length >= 24 ? new DataView(png.buffer, png.byteOffset).getUint32(16) : null;
 }
 
-function pngHeight(png: Uint8Array): number | null {
+export function pngHeight(png: Uint8Array): number | null {
   return png.length >= 24 ? new DataView(png.buffer, png.byteOffset).getUint32(20) : null;
 }

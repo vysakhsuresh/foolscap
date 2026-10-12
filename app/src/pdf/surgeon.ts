@@ -55,6 +55,10 @@ import {
 import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './common';
 import { zlibSync } from 'fflate';
 import { pngFromIdat, pngFromPixels } from './png';
+import { signDetached } from '../sign/cms';
+import { readIdentity } from '../sign/identity';
+import { signPdf } from './sign-pdf';
+import { layoutFlow } from './surgeon-flow';
 import {
   PdfError,
   type Box,
@@ -84,6 +88,31 @@ const documents = new WeakMap<PdfDoc, PDFDocument>();
 
 export function createSurgeon(): PdfSurgeon {
   return {
+    layoutFlow: (flow, paint) => layoutFlow(flow, paint),
+
+    async signWithCertificate(pdf, certificate, password, opts) {
+      const identity = await readIdentity(certificate, password);
+      if (identity.expired) return { ok: false, expired: identity.notAfter };
+      const probe = await this.open(pdf.slice());
+      const pages = probe.pageCount;
+      probe.close();
+      const date = new Date();
+      const reason = opts.reason?.trim();
+      const bytes = await signPdf(
+        pdf,
+        {
+          page: pages - 1,
+          name: identity.subject,
+          date,
+          ...(reason ? { reason } : {}),
+          // Bottom right of the last page, where a signature is looked for.
+          ...(opts.visible ? { area: { x: 0.52, y: 0.84, w: 0.42, h: 0.1 } } : {}),
+        },
+        (data) => signDetached(identity, data, date),
+      );
+      return { ok: true, bytes, subject: identity.subject, issuer: identity.issuer };
+    },
+
     async create() {
       const doc = await PDFDocument.create({ updateMetadata: false });
       return wrap(doc, undefined, false);

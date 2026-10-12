@@ -15,6 +15,12 @@ const TYPES: Record<string, { mime: string; description: string }> = {
   '.png': { mime: 'image/png', description: 'PNG image' },
   '.jp2': { mime: 'image/jp2', description: 'JPEG 2000 image' },
   '.txt': { mime: 'text/plain', description: 'Text' },
+  '.docx': { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', description: 'Word document' },
+  '.xlsx': { mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', description: 'Excel spreadsheet' },
+  '.pptx': { mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', description: 'PowerPoint deck' },
+  '.epub': { mime: 'application/epub+zip', description: 'EPUB e-book' },
+  '.html': { mime: 'text/html', description: 'Web page' },
+  '.csv': { mime: 'text/csv', description: 'Spreadsheet text' },
 };
 
 export function typeOf(name: string): { ext: string; mime: string; description: string } {

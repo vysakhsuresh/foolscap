@@ -78,3 +78,15 @@ describe('site/config.ts', () => {
     if (config.SITE_ORIGIN !== null) expect(config.SITE_ORIGIN).toMatch(/^https:\/\/[^/]+$/);
   });
 });
+
+describe('the page-side op table', () => {
+  it('matches every op: arity, and what the worker loads at start', async () => {
+    const { OP_IDS, getOp } = await import('../../app/src/ops');
+    const { OP_META } = await import('../../app/src/ops/meta');
+    expect(Object.keys(OP_META).sort()).toEqual([...OP_IDS].sort());
+    for (const id of OP_IDS) {
+      const op = getOp(id);
+      expect(OP_META[id], id).toEqual({ arity: op.arity, ...(op.engine ? { engine: true } : {}), ...(op.ocr ? { ocr: true } : {}) });
+    }
+  });
+});

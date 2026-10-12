@@ -10,7 +10,7 @@
  */
 import { createDocumentStore, createExporter, createWorkspace, type FoolscapFile, type Workspace } from '../files';
 import { JobCrashed, createJobRunner, type JobHandle, type JobRunner } from '../jobs';
-import { getOp } from '../ops';
+import { opMeta } from '../ops/meta';
 import { ArityError, OpCancelled, type MergeParams, type Outcome } from '../ops/op';
 import { LIVE_TOOLS, toolById, toolPath, type ToolId } from '../ops/tools';
 import { PdfError, type PdfEngine, type PdfView } from '../pdf/types';
@@ -66,9 +66,9 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   const tool = toolById(id);
   const several = tool.input !== 'one-pdf';
   // A viewer (Read) has no Op: it takes one file and shows it.
-  const arity = tool.viewer ? ({ kind: 'one' } as const) : getOp(id).arity;
+  const arity = tool.viewer ? ({ kind: 'one' } as const) : opMeta(id).arity;
   const takesImages = tool.input === 'images' || tool.input === 'camera';
-  const noun = takesImages ? 'image' : 'PDF';
+  const noun = takesImages ? 'image' : tool.input === 'office' ? 'file' : 'PDF';
 
   // ---- Static parts of the page below the drop zone ----
   const notice = el('div', { class: 'notice', attrs: { role: 'status', 'aria-live': 'polite' } });
@@ -241,7 +241,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       while (entries.length > 0) await removeEntry(0);
       files = files.slice(0, 1);
     }
-    const store = createDocumentStore(ws, takesImages ? 'image' : tool.input === 'pdf-and-files' ? 'any' : 'pdf');
+    const store = createDocumentStore(ws, takesImages ? 'image' : tool.input === 'pdf-and-files' || tool.input === 'office' ? 'any' : 'pdf');
     const results = await store.import(files);
     const problems: string[] = [];
     const added: Entry[] = [];
@@ -396,8 +396,8 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   ws = workspace;
   document.body.dataset['storageBackend'] = workspace.backend;
   const jobRunner = createJobRunner(workspace, {
-    engine: !tool.viewer && getOp(id).engine === true,
-    ocr: !tool.viewer && getOp(id).ocr === true,
+    engine: !tool.viewer && opMeta(id).engine === true,
+    ocr: !tool.viewer && opMeta(id).ocr === true,
   });
   runner = jobRunner;
 

@@ -377,6 +377,15 @@ export interface BookmarksParams {
   readonly items: readonly import('../pdf/types').OutlineItem[];
 }
 
+export interface PdfToWordParams {
+  /** Read the words in scanned pages too (slower; the text reader is fetched from this site once). */
+  readonly scans: boolean;
+}
+
+export interface PdfToEpubParams extends PdfToWordParams {
+  readonly format: 'epub' | 'html';
+}
+
 export interface DigitalSignParams {
   /** The .pfx / .p12 file's bytes. Never stored; gone when the run ends. */
   readonly certificate: Uint8Array;

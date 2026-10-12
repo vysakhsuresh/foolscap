@@ -15,6 +15,7 @@ import {
   PasswordException,
   PasswordResponses,
   RenderingCancelledException,
+  Util,
   VerbosityLevel,
   type PDFDocumentLoadingTask,
   type PDFDocumentProxy,
@@ -23,7 +24,7 @@ import {
 } from 'pdfjs-dist';
 import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './common';
 import { PDFJS_ASSETS } from './pdfjs-version';
-import { PdfError, type FormField, type OutlineItem, type PageInfo, type PdfEngine, type PdfView } from './types';
+import { PdfError, type FormField, type LayoutItem, type OutlineItem, type PageInfo, type PdfEngine, type PdfView } from './types';
 
 interface RawOutline {
   readonly title?: unknown;
@@ -224,6 +225,54 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
           if (item.hasEOL) out += '\n';
         }
         return out.replace(/[ \t]+\n/g, '\n').trimEnd();
+      } catch (error) {
+        throw toRenderError(error);
+      } finally {
+        page.cleanup();
+      }
+    },
+
+    async layout(index) {
+      const page = await pageAt(index);
+      try {
+        const viewport = page.getViewport({ scale: 1 });
+        const content = await page.getTextContent();
+        // The fonts' real names ("ABCDEF+Arial-BoldMT") say bold and italic;
+        // they are known once the page's drawing instructions have been read.
+        const names = new Map<string, string>();
+        try {
+          await page.getOperatorList();
+          for (const item of content.items) {
+            if (!('fontName' in item) || names.has(item.fontName)) continue;
+            const font: unknown = page.commonObjs.has(item.fontName) ? page.commonObjs.get(item.fontName) : null;
+            const name = font !== null && typeof font === 'object' && 'name' in font && typeof font.name === 'string' ? font.name : '';
+            names.set(item.fontName, name);
+          }
+        } catch {
+          // Without the names, everything reads as regular weight. The words are what matter.
+        }
+        const items: LayoutItem[] = [];
+        for (const item of content.items) {
+          if (!('str' in item) || item.str.length === 0) continue;
+          const m = Util.transform(viewport.transform, item.transform);
+          const [a = 0, b = 0, c = 0, d = 0, x = 0, y = 0] = m;
+          // Left to right only: rotated and vertical text would scramble the lines.
+          if (a <= 0 || Math.abs(b) > a * 0.1) continue;
+          const real = names.get(item.fontName) ?? '';
+          const style = content.styles[item.fontName]?.fontFamily;
+          items.push({
+            str: item.str,
+            x,
+            y,
+            width: item.width,
+            height: Math.hypot(c, d) || item.height,
+            fontName: real || item.fontName,
+            bold: /bold|black|heavy|semibold|demi/i.test(real),
+            italic: /italic|oblique/i.test(real),
+            family: style === 'monospace' || /mono|courier|consol/i.test(real) ? 'mono' : style === 'serif' || /times|serif|georgia|garamond|cambria/i.test(real) ? 'serif' : 'sans',
+          });
+        }
+        return { width: viewport.width, height: viewport.height, items };
       } catch (error) {
         throw toRenderError(error);
       } finally {

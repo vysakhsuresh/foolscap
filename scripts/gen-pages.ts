@@ -116,6 +116,13 @@ function dropZone(tool: ToolMeta): { title: string; hint: string; accept: string
       return { title: 'Drop your photos here, or tap to pick them', hint: 'JPEG, PNG, WebP or GIF. They stay on this device.', accept: 'image/*', multiple: true };
     case 'camera':
       return { title: 'Take a photo of each page, or pick photos', hint: 'One photo per page, in order. They stay on this device.', accept: 'image/*', multiple: true };
+    case 'office':
+      return {
+        title: 'Drop Word or Excel files here, or tap to pick them',
+        hint: '.docx and .xlsx. They stay on this device.',
+        accept: '.docx,.xlsx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        multiple: true,
+      };
     case 'pdf-and-files':
       return { title: 'Drop the PDF, then the files to go inside it', hint: 'Any kind of file. They stay on this device.', accept: '', multiple: true };
     case 'several-pdfs':

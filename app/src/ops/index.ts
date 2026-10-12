@@ -4,6 +4,7 @@ import { headerFooterOp, pageNumbersOp, watermarkOp } from './mark-ops';
 import { addTextOp, fillFormOp, markUpOp, removeAreasOp, signOp } from './edit-ops';
 import { digitalSignOp } from './certify-ops';
 import { mergeOp } from './merge';
+import { officeToPdfOp, pdfToEpubOp, pdfToExcelOp, pdfToPowerPointOp, pdfToWordOp } from './office-ops';
 import type { Op } from './op';
 import { organiseOp } from './organise';
 import { cropOp, extractPagesOp, insertPagesOp, nUpOp, splitBySizeOp } from './pages-ops';
@@ -53,6 +54,11 @@ const OPS: Partial<Record<ToolId, Op<never>>> = {
   attachments: attachmentsOp,
   bookmarks: bookmarksOp,
   'digital-sign': digitalSignOp,
+  'pdf-to-word': pdfToWordOp,
+  'pdf-to-excel': pdfToExcelOp,
+  'pdf-to-powerpoint': pdfToPowerPointOp,
+  'pdf-to-epub': pdfToEpubOp,
+  'office-to-pdf': officeToPdfOp,
 };
 
 export function getOp(id: ToolId): Op {

@@ -144,6 +144,14 @@ export interface PdfView {
    * newlines. Empty for a scan: there is no text, only a picture of it.
    */
   text(index: number): Promise<string>;
+  /**
+   * The words on a page with where they sit, as a reader sees the page
+   * (rotation applied, origin top-left, y down to the baseline), each with its
+   * size and, where the font's name says so, bold or italic. What converting
+   * to Word and Excel works from. Text that does not run left to right
+   * (rotated or vertical) is left out.
+   */
+  layout(index: number): Promise<PageLayout>;
   /** The document's own table of contents (bookmarks), with the page each entry opens. Empty when it has none. */
   outline(): Promise<readonly OutlineItem[]>;
   /** The document's fillable fields, in page order. Empty when it has none. */
@@ -170,7 +178,37 @@ export interface PdfSurgeon {
    * caller that holds the input keeps a second copy alive. Drop it.
    */
   open(data: Uint8Array, opts?: { password?: string }): Promise<PdfDoc>;
+  /**
+   * Lays a flowing document (from a Word or Excel file) out on pages as a new
+   * PDF. `paint` draws a line the PDF fonts cannot, as a picture; without it
+   * such letters become "?".
+   */
+  layoutFlow(flow: import('../convert/model').FlowDocument, paint: LinePainter | null): Promise<{ bytes: Uint8Array; pages: number }>;
+  /**
+   * Opens a .pfx/.p12 with its password and signs `pdf` with it, as an
+   * incremental update. Throws CertificateError (sign/errors.ts) for the
+   * certificate's own problems, in words that can be shown.
+   */
+  signWithCertificate(pdf: Uint8Array, certificate: Uint8Array, password: string, opts: CertificateSignOptions): Promise<CertificateSignResult>;
 }
+
+/** Draws one line of text as a PNG, `scale` pixels per point. Null when it cannot. */
+export type LinePainter = (
+  text: string,
+  style: { readonly size: number; readonly bold: boolean; readonly italic: boolean; readonly family: 'sans' | 'serif' | 'mono'; readonly color: readonly [number, number, number] },
+  scale: number,
+) => Promise<{ png: Uint8Array; width: number; height: number } | null>;
+
+export interface CertificateSignOptions {
+  /** Show the signature at the foot of the last page; otherwise it is invisible. */
+  readonly visible: boolean;
+  readonly reason?: string;
+}
+
+export type CertificateSignResult =
+  | { readonly ok: true; readonly bytes: Uint8Array; readonly subject: string; readonly issuer: string }
+  /** The certificate ran out before today; nothing was signed. */
+  | { readonly ok: false; readonly expired: Date };
 
 /** A rectangle in PDF points, origin bottom-left, as the PDF stores it (before /Rotate). */
 export interface Box {
@@ -297,6 +335,25 @@ export type Mark =
   | { readonly kind: 'highlight'; readonly area: Area; readonly color: Rgb }
   /** A pen stroke: x,y pairs in page fractions; `width` a fraction of the page width. */
   | { readonly kind: 'ink'; readonly page: number; readonly points: readonly number[]; readonly width: number; readonly color: Rgb };
+
+/** One piece of text on a page, in points from the page's top-left; `y` is the baseline. */
+export interface LayoutItem {
+  readonly str: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly fontName: string;
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly family?: 'sans' | 'serif' | 'mono';
+}
+
+export interface PageLayout {
+  readonly width: number;
+  readonly height: number;
+  readonly items: readonly LayoutItem[];
+}
 
 /** One entry in a document's table of contents. `page` is null when its target cannot be found. */
 export interface OutlineItem {

@@ -10,6 +10,8 @@ import type {
   AttachmentsParams,
   BackgroundParams,
   DigitalSignParams,
+  PdfToEpubParams,
+  PdfToWordParams,
   PageLabelsParams,
   CompressParams,
   PdfToImagesParams,
@@ -541,6 +543,57 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         problem: () => (reading ? 'Reading the certificate…' : certificate === null ? 'Choose your certificate file (.pfx or .p12).' : null),
       };
     }
+
+    case 'pdf-to-word':
+    case 'pdf-to-excel': {
+      const scans = check('scans', 'Read scanned pages too', true, onChange, 'Pages that are photos of paper are read with the text reader, fetched from this site the first time. Slower.');
+      const word = id === 'pdf-to-word';
+      return {
+        root: group([
+          scans.root,
+          note(
+            word
+              ? 'Headings, paragraphs, lists and tables are worked out from where the words sit, so a tidy PDF comes out tidy. Pictures stay in the PDF for now. Fonts become their nearest Word font.'
+              : 'Rows and columns are worked out from where the words line up: bank statements, invoices and price lists come out as real tables, amounts as numbers.',
+          ),
+        ]),
+        params: (): PdfToWordParams => ({ scans: scans.checked() }),
+        problem: () => null,
+      };
+    }
+
+    case 'pdf-to-epub': {
+      const format = choices<PdfToEpubParams['format']>(
+        'format',
+        'Make',
+        [
+          { value: 'epub', title: 'EPUB e-book', hint: 'For Kindle, Apple Books, Google Play Books: the text reflows to fit the screen.' },
+          { value: 'html', title: 'A web page', hint: 'One .html file that opens in any browser.' },
+        ],
+        'epub',
+        onChange,
+      );
+      const scans = check('scans', 'Read scanned pages too', false, onChange, 'Slower; the text reader is fetched from this site the first time.');
+      return {
+        root: group([format.root, scans.root, note('Chapters start at each heading. Page layout gives way to text that fits any screen.')]),
+        params: (): PdfToEpubParams => ({ format: format.value(), scans: scans.checked() }),
+        problem: () => null,
+      };
+    }
+
+    case 'office-to-pdf':
+      return {
+        root: note('Headings, lists, tables, links and pictures are laid out on A4, with the words kept as real text. Wide spreadsheets go on sideways pages. Fonts become the nearest of Helvetica, Times or Courier; Malayalam, Hindi and other scripts are drawn by your browser. Headers, footers and footnotes are left out for now.'),
+        params: () => ({}),
+        problem: () => null,
+      };
+
+    case 'pdf-to-powerpoint':
+      return {
+        root: note('Each page becomes a slide that looks exactly like it, and its words go in the speaker notes. Slides are pictures, so editing means adding over them.'),
+        params: () => ({}),
+        problem: () => null,
+      };
 
     case 'extract-images':
       return {

@@ -9,7 +9,7 @@
  * The ids are URLs (`/tools/<id>/`) and the keys the SEO pages are generated
  * from. Never rename one once it has shipped.
  *
- * `group` exists because a flat list of thirty-two tools stops being a menu
+ * `group` exists because a flat list of thirty-seven tools stops being a menu
  * and becomes a wall. The groups are by what someone is trying to do, not by
  * which library implements them.
  */
@@ -46,10 +46,15 @@ export type ToolId =
   | 'page-labels'
   | 'attachments'
   | 'bookmarks'
-  | 'digital-sign';
+  | 'digital-sign'
+  | 'pdf-to-word'
+  | 'pdf-to-excel'
+  | 'pdf-to-powerpoint'
+  | 'pdf-to-epub'
+  | 'office-to-pdf';
 
-/** 'pdf-and-files': a PDF first, then files of any kind (Attachments). */
-export type InputKind = 'one-pdf' | 'several-pdfs' | 'images' | 'camera' | 'pdf-and-files';
+/** 'pdf-and-files': a PDF first, then files of any kind (Attachments). 'office': Word and Excel files. */
+export type InputKind = 'one-pdf' | 'several-pdfs' | 'images' | 'camera' | 'pdf-and-files' | 'office';
 
 export type GroupId = 'read' | 'pages' | 'mark' | 'convert' | 'protect';
 
@@ -70,7 +75,7 @@ export interface ToolMeta {
 /**
  * The five families. Each owns one colour (tokens.css), so a page and a card
  * say which family they belong to before you read a word, and the home page
- * reads as five calm groups rather than thirty-two loud cards.
+ * reads as five calm groups rather than thirty-seven loud cards.
  * Order here is the order on screen.
  */
 export const GROUPS: ReadonlyArray<{ readonly id: GroupId; readonly title: string; readonly blurb: string }> = [
@@ -115,6 +120,11 @@ export const KEYWORDS: Partial<Record<ToolId, string>> = {
   attachments: 'attach embed files inside portfolio take out',
   bookmarks: 'outline contents chapters table of contents navigation split chapters',
   'digital-sign': 'certificate pfx p12 dsc digital signature class 3 esign validate pki',
+  'pdf-to-word': 'docx doc word convert editable office ocr scan',
+  'pdf-to-excel': 'xlsx xls excel spreadsheet table bank statement convert csv',
+  'pdf-to-powerpoint': 'pptx ppt powerpoint slides presentation convert',
+  'pdf-to-epub': 'epub ebook kindle html web page reflow convert',
+  'office-to-pdf': 'word excel docx xlsx doc xls convert to pdf office',
 };
 
 export const TOOLS: readonly ToolMeta[] = [
@@ -129,6 +139,11 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'split-by-size', title: 'Split by size', summary: 'Parts that fit a 5, 10 or 25 MB email limit', action: 'Split into parts that fit', input: 'one-pdf', group: 'pages', status: 'live' },
 
   { id: 'compress', title: 'Compress', summary: 'Make a PDF smaller, and say so when it cannot', action: 'Compress it', input: 'several-pdfs', group: 'convert', status: 'live' },
+  { id: 'pdf-to-word', title: 'PDF to Word', summary: 'An editable .docx with headings, lists and tables, even from a scan', action: 'Make a Word file', input: 'several-pdfs', group: 'convert', status: 'live' },
+  { id: 'pdf-to-excel', title: 'PDF to Excel', summary: 'Tables and statements into a spreadsheet you can add up', action: 'Make a spreadsheet', input: 'several-pdfs', group: 'convert', status: 'live' },
+  { id: 'pdf-to-powerpoint', title: 'PDF to PowerPoint', summary: 'One slide per page, words in the speaker notes', action: 'Make the slides', input: 'several-pdfs', group: 'convert', status: 'live' },
+  { id: 'pdf-to-epub', title: 'PDF to EPUB or web page', summary: 'Text that reflows on a phone or e-reader', action: 'Make the e-book', input: 'several-pdfs', group: 'convert', status: 'live' },
+  { id: 'office-to-pdf', title: 'Word or Excel to PDF', summary: 'A .docx or .xlsx laid out as a PDF, words still selectable', action: 'Make the PDF', input: 'office', group: 'convert', status: 'live' },
   { id: 'images-to-pdf', title: 'Images to PDF', summary: 'Turn photos and scans into one PDF', action: 'Make a PDF', input: 'images', group: 'convert', status: 'live' },
   { id: 'pdf-to-images', title: 'PDF to images', summary: 'Save every page as a PNG or JPEG', action: 'Save as images', input: 'one-pdf', group: 'convert', status: 'live' },
   { id: 'n-up', title: 'Pages per sheet', summary: '2-up or 4-up for printing', action: 'Lay it out', input: 'several-pdfs', group: 'convert', status: 'live' },
@@ -201,6 +216,11 @@ export const SEARCH_NAMES: Record<ToolId, string> = {
   attachments: 'Attach files to PDF or extract attachments',
   bookmarks: 'Edit PDF bookmarks',
   'digital-sign': 'Digitally sign PDF with a certificate',
+  'pdf-to-word': 'PDF to Word',
+  'pdf-to-excel': 'PDF to Excel',
+  'pdf-to-powerpoint': 'PDF to PowerPoint',
+  'pdf-to-epub': 'PDF to EPUB and HTML',
+  'office-to-pdf': 'Word and Excel to PDF',
 };
 
 export const toolPath = (id: ToolId): string => `${import.meta.env.BASE_URL}tools/${id}/`;

@@ -253,9 +253,11 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
    attachments (in and out), a bookmarks editor, split at chapters, clean
    hidden data, restrict without a password, Bates numbering, replace pages,
    compress to a size, and print and read aloud in Read. 31 live.
-   **You are here.** Next: the mark-up kit (shapes, notes, stamps, links),
-   converters (Word, Excel, PowerPoint, EPUB), text editing and redact by
-   search, certificate signatures, more OCR languages, the offline app.
+2e. ✅ Converters: PDF to Word (scanned pages read with OCR), Excel,
+   PowerPoint, EPUB or a web page; Word or Excel to PDF. Digital signature
+   with the person's own .pfx. 37 live. **You are here.** Next: the mark-up
+   kit (shapes, notes, stamps, links), text editing and redact by search,
+   forms, the offline app.
 3. The reader, deeper: re-rendering zoom, find, outline, night mode, resume.
 4. Complex-script text drawn as real text (harfbuzzjs). Until then Add text
    puts Malayalam, Hindi and the like in as a picture of the words, shaped
@@ -379,4 +381,14 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   DocumentStore" is not bent. An expired certificate is refused with its
   date rather than producing a signature every reader marks invalid. 0BSD
   (tslib, already shipped through pdf-lib) is allowed as a BSD form.
+- **2026-10-12** Converters. PDF to Word and Excel infer paragraphs,
+  headings, lists and tables from where pdf.js says each word sits
+  (`PdfView.layout`, `convert/text-layout.ts`); a scanned page is read with
+  the OCR reader when asked. Word or Excel to PDF lays the document out with
+  the PDF's own fonts so words stay selectable, and has the browser draw any
+  line those fonts cannot (Malayalam, Hindi) as a picture rather than a box.
+  The page no longer imports the ops at all: `ops/meta.ts` holds each tool's
+  arity and worker flags, a unit test keeps it equal to the ops, and every
+  pdf-lib and pkijs path goes through `PdfSurgeon`, so a tool page's first
+  script stays under 60 KB and carries no PDF or crypto library.
 
