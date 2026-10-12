@@ -8,7 +8,11 @@ import type { PdfView } from '../pdf';
 import { PageSelection } from '../pdf/page-selection';
 import { baseName, failed, forEachPdf, megabytes, ordinal, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import { canDecode, shrink } from './images';
-import { checkCancelled, type CompressParams, type NoParams, type OcrReader, type Op, type OpContext, type Outcome, type PdfToImagesParams } from './op';
+import { allLatin, languageName, PRELOADED_LANGUAGE } from '../ocr/languages';
+import { readsLanguages } from '../ocr/reader';
+import { documentText } from '../ocr/text';
+import { checkOcrParams, type OcrParams } from './ocr-params';
+import { checkCancelled, type CompressParams, type NoParams, type OcrReader, type OcrWord, type Op, type OpContext, type Outcome, type PdfToImagesParams } from './op';
 import { PAGES_HELP } from './pages-ops';
 
 async function openView(ctx: OpContext, input: FoolscapFile): Promise<PdfView> {
@@ -321,13 +325,42 @@ const OCR_DPI = 300;
 /** A page with this many characters of its own text is searchable already. */
 const HAS_TEXT = 40;
 
-export const ocrOp: Op<NoParams> = {
+/** "Malayalam", "Malayalam and Hindi", "Malayalam, Hindi and Tamil". */
+function namesOf(codes: readonly string[]): string {
+  const names = codes.map(languageName);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1] ?? ''}` : (names[0] ?? '');
+}
+
+const onlyEnglish = (languages: readonly string[]) => languages.length === 1 && languages[0] === PRELOADED_LANGUAGE;
+
+/**
+ * Make searchable. Every page with no text of its own is drawn at 300 dpi
+ * and read in the languages picked; the words go back in as invisible text
+ * over the pictures, so the pages look exactly the same.
+ *
+ * The invisible layer is written with the PDF's built-in Helvetica, which
+ * has Latin letters only (WinAnsi). Words in other scripts cannot go into it
+ * as they are, and a layer of empty boxes would be worse than none, so when
+ * a picked language is not written in Latin letters every word read also
+ * comes out as a .txt beside the PDF, and the detail says which holds what.
+ * If no word at all fitted the layer, the PDF would come out unchanged, so
+ * only the text file is saved.
+ */
+export const ocrOp: Op<OcrParams> = {
   tool: 'ocr',
   arity: { kind: 'each' },
   engine: true,
   ocr: true,
-  title: () => 'Make searchable',
-  async run(inputs, _params, ctx) {
+  title: (params) => {
+    const checked = checkOcrParams(params);
+    return checked.ok && !onlyEnglish(checked.languages) ? `Make searchable (${namesOf(checked.languages)})` : 'Make searchable';
+  },
+  async run(inputs, params, ctx) {
+    const checked = checkOcrParams(params);
+    if (!checked.ok) return inputs.map((input) => refused([input], checked.reason));
+    const { languages } = checked;
+    const latin = allLatin(languages);
+    const otherScripts = languages.filter((code) => !allLatin([code]));
     const outcomes: Outcome[] = [];
     let reader: OcrReader | null = null;
     try {
@@ -336,11 +369,30 @@ export const ocrOp: Op<NoParams> = {
       reader = null;
     }
     if (reader === null) return inputs.map((input) => refused([input], "The text reader couldn't start in this browser."));
+    // A language other than English is fetched from this site the first time it is picked.
+    if (readsLanguages(reader)) {
+      const fetching: string[] = [];
+      try {
+        await reader.use(languages, (code) => {
+          fetching.push(code);
+          ctx.progress({ done: 0, total: 0, label: `Getting the ${languageName(code)} reader (first time only)…` });
+        });
+      } catch {
+        checkCancelled(ctx.signal);
+        const missing = fetching[fetching.length - 1];
+        const what = missing === undefined ? namesOf(languages) : languageName(missing);
+        return inputs.map((input) =>
+          refused([input], `The ${what} reader couldn't be downloaded. It comes from this site the first time you pick it; check the connection and try again.`),
+        );
+      }
+    } else if (!onlyEnglish(languages)) {
+      return inputs.map((input) => refused([input], 'Only English can be read in this browser.'));
+    }
     for (const [f, input] of inputs.entries()) {
       checkCancelled(ctx.signal);
       const which = inputs.length > 1 ? ` of the ${ordinal(f + 1)} file` : '';
       // First, read: draw every page that has no text of its own and find the words in it.
-      const found = new Map<number, Awaited<ReturnType<typeof reader.read>>>();
+      const found = new Map<number, OcrWord[]>();
       let pageCount = 0;
       let alreadyText = 0;
       try {
@@ -379,6 +431,9 @@ export const ocrOp: Op<NoParams> = {
         outcomes.push(refused([input], 'No words could be read in this file. If it is a photo, try Scan first for a straighter, sharper page.'));
         continue;
       }
+      let read = 0;
+      for (const list of found.values()) read += list.length;
+      const pages = plural(found.size, 'page');
       // Then, write: the words go in as invisible text over the pictures.
       ctx.progress({ done: pageCount, total: pageCount, label: 'Writing the file…' });
       let doc;
@@ -389,9 +444,26 @@ export const ocrOp: Op<NoParams> = {
         continue;
       }
       try {
-        let words = 0;
-        for (const [index, list] of found) words += doc.addTextLayer(index, list);
+        let placed = 0;
+        for (const [index, list] of found) placed += doc.addTextLayer(index, list);
+        const text = latin ? null : new TextEncoder().encode(documentText(found, pageCount));
+        const textName = `${baseName(input.name)} (text).txt`;
+        if (text !== null && placed === 0) {
+          outcomes.push(
+            await store(
+              ctx,
+              'ocr',
+              [input],
+              textName,
+              text,
+              `${plural(read, 'word')} read on ${pages}, saved as text you can search and copy. A PDF can't hold ${namesOf(otherScripts)} letters as searchable text here yet, so the PDF is left as it was`,
+              'text',
+            ),
+          );
+          continue;
+        }
         const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+        const lock = relocked ? ', still locked with the same password' : '';
         outcomes.push(
           await store(
             ctx,
@@ -399,9 +471,14 @@ export const ocrOp: Op<NoParams> = {
             [input],
             `${baseName(input.name)} (searchable).pdf`,
             bytes,
-            `${plural(words, 'word')} read on ${plural(found.size, 'page')}. You can now search, select and copy them${relocked ? ', still locked with the same password' : ''}`,
+            text === null
+              ? `${plural(placed, 'word')} read on ${pages}. You can now search, select and copy them${lock}`
+              : `${plural(read, 'word')} read on ${pages}. The PDF can search only the ${placed} in Latin letters${lock}; every word is in the text file`,
           ),
         );
+        if (text !== null) {
+          outcomes.push(await store(ctx, 'ocr', [input], textName, text, `All ${plural(read, 'word')}, page by page, as text you can search and copy`, 'text'));
+        }
       } catch (error) {
         outcomes.push(failed(error, [input]));
       } finally {
