@@ -35,8 +35,8 @@ describe('tools.ts', () => {
     expect(live).toEqual(expect.arrayContaining(['merge', 'split', 'organise']));
   });
 
-  it('every live tool has an Op, and every Op belongs to a live tool', () => {
-    expect([...OP_IDS].sort()).toEqual(LIVE_TOOLS.map((t) => t.id).sort());
+  it('every live tool has an Op, and every Op belongs to a live tool (a viewer has none)', () => {
+    expect([...OP_IDS].sort()).toEqual(LIVE_TOOLS.filter((t) => t.viewer !== true).map((t) => t.id).sort());
   });
 
   it('every live tool has an HTML entry whose body names it', () => {

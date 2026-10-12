@@ -82,7 +82,7 @@ export class PdfError extends Error {
  * page, `GlobalWorkerOptions.workerSrc` is the URL of `./pdfjs-worker.ts`,
  * a two-line wrapper that installs `./shims.ts` and then imports
  * `pdfjs-dist/build/pdf.worker.min.mjs` — a worker's globals are its own, so
- * the page's shims cannot reach it — and the default factories are fine. Inside a worker (later stages) it also
+ * the page's shims cannot reach it — and the default factories are fine. Inside the op worker (engine-worker.ts) it also
  * needs `disableFontFace: true`, a canvas factory returning an
  * `OffscreenCanvas`, and `worker: new PDFWorker({ port })`, because pdf.js
  * otherwise reaches for `document` and `window`. Nothing imports
@@ -124,6 +124,30 @@ export interface PdfView {
    * pdf.js does not cache 600 pages of decoded scans.
    */
   render(index: number, opts: { width: number; signal?: AbortSignal }): Promise<ImageBitmap>;
+  /**
+   * Renders like `render` and returns the picture as PNG or JPEG bytes, for
+   * "PDF to images". `quality` is JPEG's, 0 to 1 (default 0.9).
+   */
+  encode(
+    index: number,
+    opts: {
+      width: number;
+      format: 'png' | 'jpeg';
+      quality?: number;
+      signal?: AbortSignal;
+      /** Filled solid black after drawing, for Remove areas: `page` is ignored. */
+      cover?: readonly Area[];
+    },
+  ): Promise<Uint8Array>;
+  /**
+   * The page's text in reading order as pdf.js finds it, lines ended by
+   * newlines. Empty for a scan: there is no text, only a picture of it.
+   */
+  text(index: number): Promise<string>;
+  /** The document's own table of contents (bookmarks), with the page each entry opens. Empty when it has none. */
+  outline(): Promise<readonly OutlineItem[]>;
+  /** The document's fillable fields, in page order. Empty when it has none. */
+  fields(): Promise<readonly FormField[]>;
   /** Awaits pdf.js destroy: frees page caches, decoded images and fonts. The UI calls it when a grid unmounts. */
   close(): Promise<void>;
 }
@@ -207,6 +231,68 @@ export interface ExtractedImage {
   readonly height: number;
 }
 
+/**
+ * A rectangle on a page as a reader sees it (after the page's own rotation),
+ * in fractions of the page's width and height, measured from the top-left.
+ * Fractions rather than points so the editor on the page and the surgeon in
+ * the worker never have to agree on a scale.
+ */
+export interface Area {
+  readonly page: number;
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** 0 to 1 each. */
+export type Rgb = readonly [number, number, number];
+
+/** Something drawn onto a page by Sign, Add text or Mark up. */
+export type Mark =
+  /** A PNG (a signature, or text in a script the built-in font cannot draw) filling `area`. */
+  | { readonly kind: 'image'; readonly area: Area; readonly png: Uint8Array }
+  /** Lines of text whose first line's top is the area's top; `size` is a fraction of the page width. */
+  | { readonly kind: 'text'; readonly area: Area; readonly text: string; readonly size: number; readonly color: Rgb }
+  /** A see-through marker over `area`, multiplied so the words under it stay dark. */
+  | { readonly kind: 'highlight'; readonly area: Area; readonly color: Rgb }
+  /** A pen stroke: x,y pairs in page fractions; `width` a fraction of the page width. */
+  | { readonly kind: 'ink'; readonly page: number; readonly points: readonly number[]; readonly width: number; readonly color: Rgb };
+
+/** One entry in a document's table of contents. `page` is null when its target cannot be found. */
+export interface OutlineItem {
+  readonly title: string;
+  readonly page: number | null;
+  readonly items: readonly OutlineItem[];
+}
+
+/** A form field as the page shows it to fill in. */
+export type FormField =
+  | { readonly kind: 'text'; readonly name: string; readonly value: string; readonly multiline: boolean; readonly page: number }
+  | { readonly kind: 'check'; readonly name: string; readonly checked: boolean; readonly page: number }
+  | { readonly kind: 'choice'; readonly name: string; readonly value: string; readonly options: readonly string[]; readonly page: number };
+
+/** What to put in a form: by field name, text for text and choices, true or false for checkboxes. */
+export type FormValues = Readonly<Record<string, string | boolean>>;
+
+/** A photo Compress made: always JPEG, three channels. */
+export interface RecompressedImage {
+  readonly bytes: Uint8Array;
+  readonly width: number;
+  readonly height: number;
+}
+
+export interface CompressReport {
+  /** Photos that could be re-encoded. */
+  readonly photos: number;
+  /** Of those, how many came out smaller and were swapped in. */
+  readonly replaced: number;
+  /** Objects nothing pointed at. */
+  readonly dropped: number;
+  /** Streams that were stored uncompressed. */
+  readonly deflated: number;
+}
+
 export interface PdfDoc {
   readonly pageCount: number;
   /** Whether the file this was opened from was encrypted (with or without a password to open it). */
@@ -242,6 +328,29 @@ export interface PdfDoc {
   ): Promise<void>;
   /** The images embedded in the document, each once, and how many could not be turned into a file. */
   images(): { readonly images: readonly ExtractedImage[]; readonly skipped: number };
+  /**
+   * Makes the document smaller in place: re-encodes photos through
+   * `recompress` (null keeps the original), drops objects nothing points at,
+   * and deflates streams stored uncompressed. Save afterwards.
+   */
+  /** Draws marks onto their pages, upright as the reader sees each page. */
+  drawMarks(marks: readonly Mark[]): Promise<void>;
+  /**
+   * Replaces a page with a picture of it: contents, resources and annotations
+   * all go, and the page becomes one image the size it was shown. This is
+   * what makes Remove areas a removal rather than a cover.
+   */
+  replaceWithImage(index: number, jpeg: Uint8Array): Promise<void>;
+  /**
+   * Puts values into the form. `seal` flattens every field into the page so
+   * the answers can no longer be changed. Throws PdfError 'unsupported-text'
+   * for letters the form's font cannot draw.
+   */
+  fillForm(values: FormValues, seal: boolean): void;
+  compress(
+    recompress: (image: ExtractedImage) => Promise<RecompressedImage | null>,
+    signal?: AbortSignal,
+  ): Promise<CompressReport>;
   info(): DocInfo;
   /** Sets the fields given; an empty string removes that field. */
   setInfo(info: DocInfo): void;

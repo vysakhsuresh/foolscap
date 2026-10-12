@@ -376,7 +376,7 @@ describe('helpers', () => {
   });
 
   it('getOp throws a plain Error for a tool that is not ready', () => {
-    expect(() => getOp('compress')).toThrow(Error);
-    expect(() => getOp('compress')).toThrow("Compress isn't ready yet.");
+    expect(() => getOp('ocr')).toThrow(Error);
+    expect(() => getOp('ocr')).toThrow("Make searchable isn't ready yet.");
   });
 });

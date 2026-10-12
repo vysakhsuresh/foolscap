@@ -10,7 +10,13 @@ import type { ToolId } from '../ops/tools';
 import { PdfError, type PdfErrorCode } from '../pdf/types';
 
 export type ToWorker =
-  | { readonly type: 'init'; readonly backend: 'opfs' | 'memory'; readonly port?: MessagePort }
+  | {
+      readonly type: 'init';
+      readonly backend: 'opfs' | 'memory';
+      readonly port?: MessagePort;
+      /** Load pdf.js in the worker before answering, so a tool that draws pages works offline from the start. */
+      readonly engine?: boolean;
+    }
   | {
       readonly type: 'run';
       readonly jobId: string;

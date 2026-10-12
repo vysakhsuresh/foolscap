@@ -1,0 +1,366 @@
+/**
+ * Read: the document, page after page, the way a reader shows it. Pages are
+ * drawn as they scroll into view and let go when they scroll far away, so a
+ * 600-page file reads on a cheap phone. Zoom re-draws rather than stretches,
+ * so text stays sharp. Find reads each page's words once and remembers them.
+ *
+ * "Then…" hands the open file to any tool: read it, then sign it.
+ */
+import { LIVE_TOOLS, type ToolId } from '../ops/tools';
+import type { OutlineItem, PdfView } from '../pdf/types';
+import { el } from './dom';
+
+export interface Reader {
+  readonly root: HTMLElement;
+  /** Takes ownership of `view`; closes it on `destroy()` or the next `load()`. */
+  load(view: PdfView): Promise<void>;
+  params(): unknown;
+  problem(): string | null;
+  destroy(): Promise<void>;
+}
+
+interface Slot {
+  readonly index: number;
+  readonly root: HTMLElement;
+  readonly canvas: HTMLCanvasElement;
+  aspect: number;
+  /** The width it was last drawn at, in CSS pixels; 0 when not drawn. */
+  drawnAt: number;
+  near: boolean;
+}
+
+const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3];
+const MAX_DPR = 2;
+
+export function createReader(handoff: ((target: ToolId) => void) | null): Reader {
+  let view: PdfView | null = null;
+  let slots: Slot[] = [];
+  let zoom = 1;
+  let observer: IntersectionObserver | null = null;
+  let abort = new AbortController();
+  const texts = new Map<number, string>();
+  let hits: number[] = [];
+  let hit = -1;
+  let drawing = 0;
+  const queue: Slot[] = [];
+
+  // ---- The bar ----
+  const contentsButton = el('button', { class: 'button button--ghost button--small', testid: 'reader-outline-toggle', text: 'Contents', attrs: { type: 'button', 'aria-expanded': 'false' } });
+  const zoomOut = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-zoom-out', text: '−', attrs: { type: 'button', 'aria-label': 'Zoom out' } });
+  const zoomLabel = el('button', { class: 'button button--ghost button--small reader__zoom', testid: 'reader-zoom', text: '100%', attrs: { type: 'button', 'aria-label': 'Fit the width' } });
+  const zoomIn = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-zoom-in', text: '+', attrs: { type: 'button', 'aria-label': 'Zoom in' } });
+  const where = el('span', { class: 'reader__where', testid: 'reader-where', attrs: { 'aria-live': 'polite' } });
+  const night = el('button', { class: 'button button--ghost button--small', testid: 'reader-night', text: 'Night', attrs: { type: 'button', 'aria-pressed': 'false' } });
+  const find = el('input', { class: 'input reader__find', testid: 'reader-find', attrs: { type: 'search', placeholder: 'Find in the document', 'aria-label': 'Find in the document', enterkeyhint: 'search' } });
+  const findPrev = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-find-prev', text: '‹', attrs: { type: 'button', 'aria-label': 'Previous match' } });
+  const findNext = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-find-next', text: '›', attrs: { type: 'button', 'aria-label': 'Next match' } });
+  const findCount = el('span', { class: 'reader__count', testid: 'reader-find-count', attrs: { 'aria-live': 'polite' } });
+
+  const thenMenu = el('div', { class: 'then__menu reader__then-menu', attrs: { role: 'menu' } });
+  thenMenu.hidden = true;
+  const thenButton = el('button', { class: 'button button--small', testid: 'reader-then', text: 'Then…', attrs: { type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false' } });
+  if (handoff) {
+    for (const t of LIVE_TOOLS.filter((t) => t.input === 'one-pdf' || t.input === 'several-pdfs').filter((t) => t.id !== 'read')) {
+      thenMenu.append(
+        el('button', { testid: `then-${t.id}`, attrs: { type: 'button', role: 'menuitem' }, on: { click: () => handoff(t.id) } }, [t.title, el('span', { attrs: { 'aria-hidden': 'true' }, text: '→' })]),
+      );
+    }
+    thenButton.addEventListener('click', () => {
+      thenMenu.hidden = !thenMenu.hidden;
+      thenButton.setAttribute('aria-expanded', String(!thenMenu.hidden));
+    });
+  }
+  const then = handoff ? el('div', { class: 'then reader__then' }, [thenButton, thenMenu]) : null;
+
+  const bar = el('div', { class: 'reader__bar', testid: 'reader-bar' }, [
+    el('div', { class: 'reader__group' }, [contentsButton, zoomOut, zoomLabel, zoomIn, night, then]),
+    el('div', { class: 'reader__group reader__group--find' }, [find, findPrev, findNext, findCount]),
+  ]);
+  const outline = el('nav', { class: 'reader__outline', testid: 'reader-outline', attrs: { 'aria-label': 'Contents' } });
+  outline.hidden = true;
+  const pages = el('div', { class: 'reader__pages', testid: 'reader-pages' });
+  const root = el('section', { class: 'reader', testid: 'reader', attrs: { 'aria-label': 'The document' } }, [bar, outline, where, pages]);
+  root.hidden = true;
+
+  // ---- Sizing and drawing ----
+
+  const baseWidth = (): number => Math.min(Math.max(240, pages.clientWidth || root.clientWidth || 320), 900);
+  const widthNow = (): number => Math.round(baseWidth() * zoom);
+
+  function size(slot: Slot): void {
+    const w = widthNow();
+    slot.root.style.setProperty('width', `${w}px`);
+    slot.root.style.setProperty('height', `${Math.round(w * slot.aspect)}px`);
+  }
+
+  function pump(): void {
+    while (drawing < 2 && queue.length > 0) {
+      const slot = queue.shift();
+      if (!slot || !slot.near || slot.drawnAt === widthNow()) continue;
+      drawing++;
+      void draw(slot).finally(() => {
+        drawing--;
+        pump();
+      });
+    }
+  }
+
+  async function draw(slot: Slot): Promise<void> {
+    if (!view) return;
+    const signal = abort.signal;
+    try {
+      const info = await view.page(slot.index);
+      const sideways = info.rotation === 90 || info.rotation === 270;
+      const aspect = (sideways ? info.width : info.height) / (sideways ? info.height : info.width);
+      if (Math.abs(aspect - slot.aspect) > 0.001) {
+        slot.aspect = aspect;
+        size(slot);
+      }
+      const w = widthNow();
+      const dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
+      const bitmap = await view.render(slot.index, { width: Math.round(w * dpr), signal });
+      if (signal.aborted || !slot.near) {
+        bitmap.close();
+        return;
+      }
+      slot.canvas.width = bitmap.width;
+      slot.canvas.height = bitmap.height;
+      slot.canvas.getContext('2d')?.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      slot.drawnAt = w;
+      slot.root.dataset['drawn'] = 'true';
+    } catch {
+      // A page that will not draw stays a blank sheet with its number on it.
+    }
+  }
+
+  function forget(slot: Slot): void {
+    slot.canvas.width = 0;
+    slot.canvas.height = 0;
+    slot.drawnAt = 0;
+    delete slot.root.dataset['drawn'];
+  }
+
+  function setZoom(next: number): void {
+    const anchor = currentPage();
+    zoom = next;
+    zoomLabel.textContent = `${Math.round(zoom * 100)}%`;
+    zoomOut.disabled = zoom <= (ZOOMS[0] ?? 0.5);
+    zoomIn.disabled = zoom >= (ZOOMS[ZOOMS.length - 1] ?? 3);
+    root.dataset['zoomed'] = zoom > 1 ? 'true' : 'false';
+    for (const slot of slots) size(slot);
+    slots[anchor]?.root.scrollIntoView({ block: 'start' });
+    for (const slot of slots) if (slot.near) queue.push(slot);
+    pump();
+  }
+
+  function currentPage(): number {
+    const mid = window.innerHeight / 3;
+    let best = 0;
+    for (const slot of slots) {
+      if (!slot.near) continue;
+      const r = slot.root.getBoundingClientRect();
+      if (r.top <= mid) best = slot.index;
+    }
+    return best;
+  }
+
+  function updateWhere(): void {
+    if (!view) return;
+    where.textContent = `Page ${currentPage() + 1} of ${view.pageCount}`;
+  }
+
+  // ---- Contents ----
+
+  function outlineList(items: readonly OutlineItem[]): HTMLElement {
+    return el(
+      'ul',
+      {},
+      items.map((item) =>
+        el('li', {}, [
+          item.page === null
+            ? el('span', { class: 'reader__entry reader__entry--dead', text: item.title })
+            : el('button', {
+                class: 'reader__entry',
+                testid: 'reader-entry',
+                attrs: { type: 'button' },
+                on: {
+                  click: () => {
+                    if (item.page !== null) goTo(item.page);
+                    if (window.innerWidth < 720) toggleOutline(false);
+                  },
+                },
+              }, [el('span', { text: item.title }), el('span', { class: 'reader__entry-page', text: String(item.page + 1) })]),
+          item.items.length > 0 ? outlineList(item.items) : null,
+        ]),
+      ),
+    );
+  }
+
+  function toggleOutline(open = outline.hidden): void {
+    outline.hidden = !open;
+    contentsButton.setAttribute('aria-expanded', String(open));
+  }
+
+  function goTo(index: number): void {
+    slots[index]?.root.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  // ---- Find ----
+
+  async function search(): Promise<void> {
+    const query = find.value.trim().toLocaleLowerCase();
+    for (const slot of slots) slot.root.classList.remove('is-hit', 'is-current');
+    hits = [];
+    hit = -1;
+    if (!view || query.length === 0) {
+      findCount.textContent = '';
+      return;
+    }
+    const v = view;
+    let matches = 0;
+    for (let i = 0; i < v.pageCount; i++) {
+      if (find.value.trim().toLocaleLowerCase() !== query || view !== v) return; // typed again, or closed
+      if (i % 20 === 0) findCount.textContent = `Searching… page ${i + 1} of ${v.pageCount}`;
+      let text = texts.get(i);
+      if (text === undefined) {
+        try {
+          text = (await v.text(i)).replace(/\s+/g, ' ').toLocaleLowerCase();
+        } catch {
+          text = '';
+        }
+        texts.set(i, text);
+      }
+      let from = 0;
+      let here = 0;
+      for (;;) {
+        const at = text.indexOf(query, from);
+        if (at < 0) break;
+        here++;
+        from = at + query.length;
+      }
+      if (here > 0) {
+        hits.push(i);
+        matches += here;
+        slots[i]?.root.classList.add('is-hit');
+      }
+    }
+    findCount.textContent =
+      matches === 0 ? 'Not found' : `${matches} ${matches === 1 ? 'match' : 'matches'} on ${hits.length} ${hits.length === 1 ? 'page' : 'pages'}`;
+    if (hits.length > 0) step(1);
+  }
+
+  function step(by: number): void {
+    if (hits.length === 0) return;
+    slots[hits[hit] ?? -1]?.root.classList.remove('is-current');
+    hit = (hit + by + hits.length) % hits.length;
+    const index = hits[hit] ?? 0;
+    slots[index]?.root.classList.add('is-current');
+    goTo(index);
+  }
+
+  let findTimer: ReturnType<typeof setTimeout> | null = null;
+  find.addEventListener('input', () => {
+    if (findTimer !== null) clearTimeout(findTimer);
+    findTimer = setTimeout(() => void search(), 300);
+  });
+  find.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      if (hits.length > 0) step(ev.shiftKey ? -1 : 1);
+      else void search();
+    }
+  });
+  findNext.addEventListener('click', () => step(1));
+  findPrev.addEventListener('click', () => step(-1));
+
+  zoomIn.addEventListener('click', () => setZoom(ZOOMS.find((z) => z > zoom + 0.001) ?? zoom));
+  zoomOut.addEventListener('click', () => setZoom([...ZOOMS].reverse().find((z) => z < zoom - 0.001) ?? zoom));
+  zoomLabel.addEventListener('click', () => setZoom(1));
+  night.addEventListener('click', () => {
+    const on = !root.classList.contains('reader--night');
+    root.classList.toggle('reader--night', on);
+    night.setAttribute('aria-pressed', String(on));
+  });
+  contentsButton.addEventListener('click', () => toggleOutline());
+
+  const onScroll = () => updateWhere();
+  let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+  const onResize = () => {
+    if (resizeTimer !== null) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => setZoom(zoom), 200);
+  };
+
+  async function teardown(): Promise<void> {
+    abort.abort();
+    abort = new AbortController();
+    observer?.disconnect();
+    observer = null;
+    queue.length = 0;
+    for (const slot of slots) forget(slot);
+    slots = [];
+    texts.clear();
+    hits = [];
+    pages.replaceChildren();
+    outline.replaceChildren();
+    window.removeEventListener('scroll', onScroll);
+    window.removeEventListener('resize', onResize);
+    const v = view;
+    view = null;
+    await v?.close();
+  }
+
+  return {
+    root,
+    async load(next) {
+      await teardown();
+      view = next;
+      root.hidden = false;
+      find.value = '';
+      findCount.textContent = '';
+      const first = await next.page(0).catch(() => null);
+      const sideways = first !== null && (first.rotation === 90 || first.rotation === 270);
+      const aspect = first ? (sideways ? first.width : first.height) / (sideways ? first.height : first.width) : Math.SQRT2;
+      // Pages far off screen are let go; near ones are drawn, two at a time.
+      observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            const slot = slots[Number((entry.target as HTMLElement).dataset['page'])];
+            if (!slot) continue;
+            slot.near = entry.isIntersecting;
+            if (slot.near) queue.push(slot);
+            else forget(slot);
+          }
+          pump();
+          updateWhere();
+        },
+        { rootMargin: '150% 0px' },
+      );
+      for (let i = 0; i < next.pageCount; i++) {
+        const canvas = el('canvas', { class: 'reader__canvas', attrs: { 'aria-hidden': 'true' } });
+        const slotRoot = el('div', { class: 'reader__page', testid: 'reader-page', attrs: { 'data-page': String(i), role: 'img', 'aria-label': `Page ${i + 1}` } }, [
+          canvas,
+          el('span', { class: 'reader__number', text: String(i + 1) }),
+        ]);
+        const slot: Slot = { index: i, root: slotRoot, canvas, aspect, drawnAt: 0, near: false };
+        slots.push(slot);
+        pages.append(slotRoot);
+        size(slot);
+        observer.observe(slotRoot);
+      }
+      setZoom(1);
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onResize);
+      const items = await next.outline().catch(() => [] as readonly OutlineItem[]);
+      contentsButton.hidden = items.length === 0;
+      if (items.length > 0) outline.append(outlineList(items));
+      updateWhere();
+    },
+    params: () => ({}),
+    problem: () => null,
+    destroy: () => {
+      root.hidden = true;
+      return teardown();
+    },
+  };
+}

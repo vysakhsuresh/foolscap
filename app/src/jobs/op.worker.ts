@@ -19,11 +19,18 @@ let current: { readonly jobId: string; readonly controller: AbortController } | 
 
 // Memoised for the worker's life: the pdf.js chunk is imported once, and only when a tool rasterises.
 let enginePromise: Promise<PdfEngine> | null = null;
-const engine = (): Promise<PdfEngine> => (enginePromise ??= import('../pdf/engine').then((m) => m.createEngine()));
+const engine = (): Promise<PdfEngine> =>
+  (enginePromise ??= import('../pdf/engine-worker').then(async (m) => {
+    const created = m.createEngine();
+    await created.ready;
+    return created;
+  }));
 
 async function init(message: Extract<ToWorker, { type: 'init' }>): Promise<void> {
   workspace = createWorkerWorkspace(message.backend, scope.navigator, message.port);
   await workspace.ready;
+  // A failure here is the op's to report, in words, when it asks for the engine.
+  if (message.engine === true) await engine().catch(() => undefined);
   post({ type: 'inited' });
 }
 

@@ -11,12 +11,17 @@ test('every live tool runs with the network gone, and makes no request', async (
   const merge = await context.newPage();
   const split = await context.newPage();
   const organise = await context.newPage();
+  // Two that draw and read pages with pdf.js inside the op worker.
+  const images = await context.newPage();
+  const text = await context.newPage();
   await openTool(merge, 'merge');
   await openTool(split, 'split');
   await openTool(organise, 'organise');
+  await openTool(images, 'pdf-to-images');
+  await openTool(text, 'extract-text');
 
   await context.setOffline(true);
-  const requests = [merge, split, organise].flatMap((page) => recordRequests(page));
+  const requests = [merge, split, organise, images, text].flatMap((page) => recordRequests(page));
 
   await upload(merge, [
     { name: 'a.pdf', bytes: await pagesPdf(2) },
@@ -37,6 +42,14 @@ test('every live tool runs with the network gone, and makes no request', async (
   await organise.locator('[data-testid="page-tile"][data-source="0"]').getByTestId('page-rotate').click();
   await run(organise);
   await expect(organise.getByTestId('result-item')).toHaveAttribute('data-pages', '3');
+
+  await upload(images, [{ name: 'e.pdf', bytes: await pagesPdf(2) }]);
+  await run(images);
+  await expect(images.getByTestId('result-item')).toHaveCount(2);
+
+  await upload(text, [{ name: 'f.pdf', bytes: await pagesPdf(2) }]);
+  await run(text);
+  await expect(text.getByTestId('result-item')).toHaveCount(1);
 
   expect(requests, 'no request of any kind may follow data-ready').toEqual([]);
 });

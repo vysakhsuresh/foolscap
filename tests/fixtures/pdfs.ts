@@ -7,7 +7,7 @@
  * back. See README.md beside this file for what the fixtures deliberately do
  * not contain.
  */
-import { PDFDocument, StandardFonts, degrees, rgb } from '@cantoo/pdf-lib';
+import { PDFDocument, PDFHexString, PDFName, StandardFonts, degrees, rgb } from '@cantoo/pdf-lib';
 import { zlibSync } from 'fflate';
 
 export type Bytes = Uint8Array<ArrayBuffer>;
@@ -187,5 +187,87 @@ export async function imagesPdf(): Promise<Bytes> {
   one.drawImage(jpeg, { x: 0, y: 0, width: 50, height: 50 });
   one.drawImage(png, { x: 60, y: 0, width: 50, height: 50 });
   doc.addPage([200, 200]).drawImage(jpeg, { x: 0, y: 0, width: 50, height: 50 });
+  return fresh(await doc.save());
+}
+
+/**
+ * A file with fat to lose and no photos: a page whose drawing instructions
+ * are stored uncompressed, and 300 KB of objects nothing points at (what
+ * incremental saves leave behind). Its words are "Quarterly figures" on every line.
+ */
+export async function bloatedPdf(): Promise<Bytes> {
+  const doc = await PDFDocument.create({ updateMetadata: false });
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const page = doc.addPage([400, 400]);
+  page.drawText('Quarterly figures', { x: 20, y: 360, size: 14, font });
+  let ops = '';
+  for (let i = 0; i < 400; i++) ops += `0 0 1 rg ${i % 380} ${i % 300} 10 10 re f\n`;
+  const raw = doc.context.stream(ops);
+  page.node.addContentStream(doc.context.register(raw));
+  for (let i = 0; i < 3; i++) doc.context.register(doc.context.stream(new Uint8Array(100_000).fill(65 + i)));
+  return fresh(await doc.save({ useObjectStreams: false }));
+}
+
+/** A photo-like picture (a gradient with grain) stored losslessly: what Compress is for. */
+export async function photoPdf(size = 1200): Promise<Bytes> {
+  const pixels = new Uint8Array(size * size * 3);
+  const grain = new Uint8Array(pixels.length);
+  for (let i = 0; i < grain.length; i += 65536) crypto.getRandomValues(grain.subarray(i, i + 65536));
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const at = (y * size + x) * 3;
+      pixels[at] = Math.min(255, ((x * 200) / size + (grain[at]! & 15)) | 0);
+      pixels[at + 1] = Math.min(255, ((y * 180) / size + (grain[at + 1]! & 15)) | 0);
+      pixels[at + 2] = Math.min(255, (120 + (grain[at + 2]! & 15)) | 0);
+    }
+  }
+  const doc = await PDFDocument.create({ updateMetadata: false });
+  const page = doc.addPage([400, 400]);
+  const image = doc.context.stream(zlibSync(pixels), {
+    Type: 'XObject',
+    Subtype: 'Image',
+    Width: size,
+    Height: size,
+    ColorSpace: 'DeviceRGB',
+    BitsPerComponent: 8,
+    Filter: 'FlateDecode',
+  });
+  const ref = doc.context.register(image);
+  page.node.setXObject(PDFName.of('Photo'), ref);
+  page.node.addContentStream(doc.context.register(doc.context.stream('q 400 0 0 400 0 0 cm /Photo Do Q')));
+  return fresh(await doc.save());
+}
+
+/** A one-page form: a name, a multi-line address, an "agree" box, a city dropdown and a yes/no choice. */
+export async function formPdf(): Promise<Bytes> {
+  const doc = await PDFDocument.create({ updateMetadata: false });
+  const page = doc.addPage([400, 400]);
+  const form = doc.getForm();
+  form.createTextField('name').addToPage(page, { x: 20, y: 340, width: 200, height: 24 });
+  const address = form.createTextField('address');
+  address.enableMultiline();
+  address.addToPage(page, { x: 20, y: 260, width: 200, height: 60 });
+  form.createCheckBox('agree').addToPage(page, { x: 20, y: 220, width: 18, height: 18 });
+  const city = form.createDropdown('city');
+  city.addOptions(['Kochi', 'Chennai', 'Dubai']);
+  city.addToPage(page, { x: 20, y: 180, width: 120, height: 24 });
+  const member = form.createRadioGroup('member');
+  member.addOptionToPage('yes', page, { x: 20, y: 140, width: 18, height: 18 });
+  member.addOptionToPage('no', page, { x: 60, y: 140, width: 18, height: 18 });
+  return fresh(await doc.save());
+}
+
+/** Pages from `pagesPdf`, with a table of contents: "Introduction" → page 1, "Terms" → page 3. */
+export async function outlinedPdf(n = 4): Promise<Bytes> {
+  const doc = await PDFDocument.load(await pagesPdf(n), { updateMetadata: false });
+  const { context } = doc;
+  const pages = doc.getPages();
+  const outlines = context.nextRef();
+  const one = context.nextRef();
+  const two = context.nextRef();
+  context.assign(one, context.obj({ Title: PDFHexString.fromText('Introduction'), Parent: outlines, Next: two, Dest: [pages[0]!.ref, 'Fit'] }));
+  context.assign(two, context.obj({ Title: PDFHexString.fromText('Terms'), Parent: outlines, Prev: one, Dest: [pages[2]!.ref, 'Fit'] }));
+  context.assign(outlines, context.obj({ Type: 'Outlines', First: one, Last: two, Count: 2 }));
+  doc.catalog.set(PDFName.of('Outlines'), outlines);
   return fresh(await doc.save());
 }

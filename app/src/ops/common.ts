@@ -143,3 +143,14 @@ export async function forEachPdf(
   ctx.progress({ done: inputs.length, total: inputs.length, label: 'Done' });
   return outcomes;
 }
+
+/**
+ * Saves an edited document. A file that needed a password to open still
+ * needs it afterwards: the same one, now AES-256. `relocked` says whether it was.
+ */
+export async function saveKeepingLock(ctx: OpContext, doc: PdfDoc, input: FoolscapFile): Promise<{ bytes: Uint8Array; relocked: boolean }> {
+  const password = ctx.passwords.get(input.id);
+  const relocked = doc.wasEncrypted && password !== undefined && password.length > 0;
+  const bytes = await doc.save(relocked ? { encrypt: { userPassword: password, allowPrinting: true, allowCopying: true } } : undefined);
+  return { bytes, relocked };
+}

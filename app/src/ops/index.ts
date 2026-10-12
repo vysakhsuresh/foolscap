@@ -1,11 +1,13 @@
 /** The only public surface of the ops: the shape, the registry, and a lookup. */
 import { extractImagesOp, imagesToPdfOp } from './convert-ops';
 import { headerFooterOp, pageNumbersOp, watermarkOp } from './mark-ops';
+import { addTextOp, fillFormOp, markUpOp, removeAreasOp, signOp } from './edit-ops';
 import { mergeOp } from './merge';
 import type { Op } from './op';
 import { organiseOp } from './organise';
 import { cropOp, extractPagesOp, insertPagesOp, nUpOp, splitBySizeOp } from './pages-ops';
 import { addPasswordOp, documentDetailsOp, removePasswordOp } from './protect-ops';
+import { compressOp, extractTextOp, pdfToImagesOp } from './render-ops';
 import { splitOp } from './split';
 import { toolById, type ToolId } from './tools';
 
@@ -33,6 +35,14 @@ const OPS: Partial<Record<ToolId, Op<never>>> = {
   'add-password': addPasswordOp,
   'remove-password': removePasswordOp,
   'document-details': documentDetailsOp,
+  compress: compressOp,
+  'pdf-to-images': pdfToImagesOp,
+  'extract-text': extractTextOp,
+  sign: signOp,
+  'add-text': addTextOp,
+  'mark-up': markUpOp,
+  'remove-areas': removeAreasOp,
+  'fill-form': fillFormOp,
 };
 
 export function getOp(id: ToolId): Op {

@@ -25,7 +25,7 @@ export type Origin =
   | { readonly kind: 'picked' }
   | { readonly kind: 'derived'; readonly tool: ToolId; readonly from: readonly string[] };
 
-export type FileKind = 'pdf' | 'image';
+export type FileKind = 'pdf' | 'image' | 'text';
 
 /**
  * A document inside Foolscap. Plain data: it crosses postMessage to the

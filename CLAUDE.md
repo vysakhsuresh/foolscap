@@ -226,13 +226,15 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
 2. ✅ Thirteen more, no drawing needed: extract or remove pages, insert
    pages, crop, split by size, images to PDF, pages per sheet, extract
    images, watermark, page numbers, header and footer, add and remove a
-   password, document details. 16 live. **You are here.**
-2b. PDF to images and extract text: pdf.js inside the op worker (the recipe
-   is on `PdfEngine` in pdf/types.ts).
+   password, document details. 16 live.
+2b. ✅ pdf.js inside the op worker (`pdf/engine-worker.ts`): PDF to images,
+   extract text, compress. Then the page editor: sign, add text, mark up,
+   remove areas, and fill in a form. 24 live. **You are here.**
 3. The reader: re-rendering zoom, find, outline, night mode, resume.
-4. Stamping: watermark, page numbers, header/footer, sign, mark up, add
-   text, remove areas. Complex-script text needs shaping (harfbuzzjs).
-5. The hard three: compress, passwords, OCR (tesseract.js, lazy-loaded).
+4. Complex-script text drawn as real text (harfbuzzjs). Until then Add text
+   puts Malayalam, Hindi and the like in as a picture of the words, shaped
+   by the browser.
+5. Scan, and OCR (tesseract.js, lazy-loaded).
 6. The design pass, as a system.
 7. SEO: one fast page per tool × intent, generated from `tools.ts`.
 8. PWA: install, offline, share target, file handler. The service worker
@@ -292,3 +294,13 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   showing ads needs the home page's CSP opened to Google's ad scripts, which
   waits on the owner's explicit decision. Tool and privacy pages keep the
   strict policy regardless.
+- **2026-10-13** pdf.js now also runs inside the op worker, for the tools that
+  draw or read pages. It gets an OffscreenCanvas factory, a no-op filter
+  factory, fonts drawn as paths, and its own worker passed in as a port; a
+  tool whose op sets `engine: true` has the worker load it before the page
+  reports ready, so the offline proof still holds. Everything an edit tool
+  places is stored as fractions of the page as the reader sees it, so the
+  editor and the surgeon never agree on a scale, only on a corner.
+- **2026-10-13** Remove areas rasterises each marked page at 200 dpi with the
+  areas painted black, then swaps the page for that picture: contents,
+  resources and annotations go. That is the honest version of redaction.

@@ -13,19 +13,24 @@ import { JobCrashed, createJobRunner, type JobHandle, type JobRunner } from '../
 import { getOp } from '../ops';
 import { ArityError, OpCancelled, type MergeParams, type Outcome } from '../ops/op';
 import { LIVE_TOOLS, toolById, toolPath, type ToolId } from '../ops/tools';
-import { PdfError, type PdfEngine } from '../pdf/types';
+import { PdfError, type PdfEngine, type PdfView } from '../pdf/types';
 import { HANDOFF_KEY } from '../site/config';
 import { devlog } from '../ui/devlog';
 import { el } from '../ui/dom';
 import { bindDropZone } from '../ui/drop-zone';
 import { renderFileList, type Entry } from '../ui/file-list';
+import { createFormPanel } from '../ui/form-panel';
+import { createPageEditor, type EditorMode } from '../ui/page-editor';
 import { createPageGrid, type PageGrid } from '../ui/page-grid';
+import { createReader } from '../ui/reader';
 import { createProgress } from '../ui/progress';
 import { TOO_LARGE, renderResult } from '../ui/result';
 import { mountShell } from '../ui/shell';
 import { createToolOptions, type ToolOptions } from '../ui/tool-options';
 
 mountShell();
+
+const EDITORS: ReadonlySet<ToolId> = new Set<ToolId>(['sign', 'add-text', 'mark-up', 'remove-areas']);
 
 const toolId = document.body.dataset['tool'] as ToolId | undefined;
 const meta = toolId && LIVE_TOOLS.some((t) => t.id === toolId) ? toolById(toolId) : null;
@@ -61,7 +66,8 @@ function takeHandoff(): string[] {
 async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HTMLInputElement): Promise<void> {
   const tool = toolById(id);
   const several = tool.input !== 'one-pdf';
-  const arity = getOp(id).arity;
+  // A viewer (Read) has no Op: it takes one file and shows it.
+  const arity = tool.viewer ? ({ kind: 'one' } as const) : getOp(id).arity;
   const noun = tool.input === 'images' ? 'image' : 'PDF';
 
   // ---- Static parts of the page below the drop zone ----
@@ -86,9 +92,28 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   // ---- Tool-specific options ----
   let grid: PageGrid | null = null;
   let options: ToolOptions | null = null;
+  // A panel that needs the document itself: the page editor, or the form.
+  let panel: { root: HTMLElement; load(view: PdfView): Promise<void>; params(): unknown; problem(): string | null; destroy(): Promise<void> } | null = null;
   if (id === 'organise') {
     grid = createPageGrid(() => refresh());
     optionsSlot.append(grid.root);
+  } else if (EDITORS.has(id)) {
+    panel = createPageEditor(id as EditorMode, () => refresh());
+    optionsSlot.append(panel.root);
+  } else if (id === 'read') {
+    panel = createReader((target) => {
+      const file = entries[0]?.file;
+      if (!file || ws?.backend !== 'opfs') {
+        say('This browser cannot pass the file along. Open the tool you want and pick the file there.', 'error');
+        return;
+      }
+      handoff(target, [file]);
+    });
+    optionsSlot.append(panel.root);
+    runArea.hidden = true;
+  } else if (id === 'fill-form') {
+    panel = createFormPanel(() => refresh());
+    optionsSlot.append(panel.root);
   } else {
     options = createToolOptions(id, () => refresh());
     if (options) optionsSlot.append(options.root);
@@ -113,6 +138,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     }
     if (arity.kind === 'one' && n !== 1) return `${tool.title} works on one file at a time.`;
     if (grid && grid.count() === 0) return 'Every page is deleted. Restore at least one.';
+    if (panel && n === 1 && entries[0]?.pages !== undefined) return panel.problem() ?? '';
     return options?.problem(n) ?? '';
   }
 
@@ -145,6 +171,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     entries.splice(index, 1);
     refresh();
     if (grid && entries.length === 0) await grid.destroy();
+    if (panel && entries.length === 0) await panel.destroy();
     await ws.remove(entry.file).catch(() => undefined);
   }
 
@@ -159,6 +186,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       delete entry.error;
       delete entry.errorCode;
       if (grid && entries[0] === entry) await grid.load(view);
+      else if (panel && entries[0] === entry) await panel.load(view);
       else await view.close();
     } catch (error) {
       if (error instanceof PdfError) {
@@ -228,7 +256,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       case 'organise':
         return grid?.params() ?? { pages: [] };
       default:
-        return options?.params() ?? {};
+        return panel?.params() ?? options?.params() ?? {};
     }
   }
 
@@ -256,8 +284,9 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       say('This browser would not let the files travel to the next tool. Save them, then open it yourself.', 'error');
       return;
     }
-    // The grid holds a pdf.js document; let it go before the page does.
+    // The grid and the editor hold a pdf.js document; let it go before the page does.
     void grid?.destroy();
+    void panel?.destroy();
     location.href = toolPath(target);
   }
 
@@ -267,6 +296,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     entries.length = 0;
     refresh();
     await grid?.destroy();
+    await panel?.destroy();
     await ws?.clear();
     zone.focus();
   }
@@ -340,7 +370,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   const workspace = await createWorkspace();
   ws = workspace;
   document.body.dataset['storageBackend'] = workspace.backend;
-  const jobRunner = createJobRunner(workspace);
+  const jobRunner = createJobRunner(workspace, { engine: !tool.viewer && getOp(id).engine === true });
   runner = jobRunner;
 
   // Nothing stays behind from a previous visit, except the files a "Then…" just handed over.
@@ -355,7 +385,10 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   }
   refresh();
 
-  window.addEventListener('pagehide', () => void grid?.destroy());
+  window.addEventListener('pagehide', () => {
+    void grid?.destroy();
+    void panel?.destroy();
+  });
 
   try {
     await Promise.all([workspace.ready, jobRunner.ready, enginePromise.then((e) => e.ready)]);

@@ -86,3 +86,40 @@ export async function reencode(blob: Blob, as: 'jpeg' | 'png'): Promise<Uint8Arr
     bitmap.close();
   }
 }
+
+/**
+ * Decodes a photo and re-encodes it as JPEG no longer than `maxSide` on its
+ * long edge, for Compress. Null when the browser cannot read it.
+ */
+export async function shrink(
+  bytes: Uint8Array,
+  type: 'image/jpeg' | 'image/png',
+  maxSide: number,
+  quality: number,
+): Promise<{ bytes: Uint8Array; width: number; height: number } | null> {
+  let bitmap: ImageBitmap;
+  try {
+    // 'none': the pixels are what the PDF stores, already the right way up.
+    bitmap = await createImageBitmap(new Blob([bytes as Uint8Array<ArrayBuffer>], { type }), { imageOrientation: 'none' });
+  } catch {
+    return null;
+  }
+  try {
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = new OffscreenCanvas(width, height);
+    const context = canvas.getContext('2d');
+    if (context === null) return null;
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(bitmap, 0, 0, width, height);
+    const out = await canvas.convertToBlob({ type: 'image/jpeg', quality });
+    canvas.width = 0;
+    canvas.height = 0;
+    return { bytes: new Uint8Array(await out.arrayBuffer()), width, height };
+  } finally {
+    bitmap.close();
+  }
+}

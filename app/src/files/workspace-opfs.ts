@@ -91,7 +91,7 @@ function isMeta(value: unknown): value is Meta {
   return (
     typeof m['name'] === 'string' &&
     typeof m['size'] === 'number' &&
-    (m['kind'] === 'pdf' || m['kind'] === 'image') &&
+    (m['kind'] === 'pdf' || m['kind'] === 'image' || m['kind'] === 'text') &&
     typeof m['origin'] === 'object' &&
     m['origin'] !== null &&
     typeof m['added'] === 'number'

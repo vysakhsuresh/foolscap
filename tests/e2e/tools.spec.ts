@@ -4,7 +4,7 @@
  * check what comes out. One test per tool, so a failure names the tool.
  */
 import { expect, test, type Page } from '@playwright/test';
-import { TINY_JPEG, encryptedPdf, heavyPdf, imagesPdf, noisePng, pagesPdf, pdfInfo } from '../fixtures/pdfs';
+import { TINY_JPEG, encryptedPdf, heavyPdf, imagesPdf, formPdf, noisePng, outlinedPdf, pagesPdf, pdfInfo, photoPdf } from '../fixtures/pdfs';
 import { downloadFrom, openTool, run, useDownloads } from './helpers';
 
 test.beforeEach(async ({ context }) => {
@@ -182,4 +182,195 @@ test('the home finder narrows the tools as you type', async ({ page }) => {
   await expect(page.locator('[data-finder-empty]')).toBeVisible();
   await search.fill('');
   await expect(page.getByTestId('tool-card-merge')).toBeVisible();
+});
+
+test('compress shrinks a photo stored losslessly, and the result still opens', async ({ page }) => {
+  await openTool(page, 'compress');
+  const bytes = await photoPdf(1200);
+  await pick(page, [{ name: 'Brochure.pdf', bytes }]);
+  const items = await results(page);
+  await expect(items).toHaveCount(1);
+  await expect(page.getByTestId('result-detail')).toContainText('1 photo made lighter');
+  const size = Number(await items.first().getAttribute('data-size'));
+  expect(size).toBeLessThan(bytes.length / 2);
+  await expect(items.first()).toHaveAttribute('data-pages', '1');
+});
+
+test('compress says so when a file cannot get smaller', async ({ page }) => {
+  await openTool(page, 'compress');
+  await pick(page, [{ name: 'Small.pdf', bytes: await pagesPdf(2) }]);
+  await run(page);
+  await expect(page.getByTestId('failure-item')).toContainText('already about as small');
+});
+
+test('PDF to images saves the pages typed, as PNGs that hand on to Images to PDF', async ({ page }) => {
+  await openTool(page, 'pdf-to-images');
+  await pick(page, [{ name: 'Lease.pdf', bytes: await pagesPdf(4) }]);
+  await page.getByTestId('opt-pages').fill('2-3');
+  await page.getByTestId('opt-dpi-72').check();
+  const items = await results(page);
+  await expect(items).toHaveCount(2);
+  await expect(page.getByTestId('result-detail').first()).toContainText('Page 2 as a 72 dpi PNG');
+  const { bytes, name } = await downloadFrom(page, page.getByTestId('save-button').first());
+  expect(name).toBe('Lease page 2.png');
+  expect([...bytes.subarray(1, 4)].map((c) => String.fromCharCode(c)).join('')).toBe('PNG');
+  // 310 points wide at 72 dpi is 310 pixels.
+  expect(new DataView(bytes.buffer, bytes.byteOffset).getUint32(16)).toBe(310);
+  await page.getByTestId('then-menu').click();
+  await expect(page.getByTestId('then-images-to-pdf')).toBeVisible();
+});
+
+test('PDF to images makes JPEGs too', async ({ page }) => {
+  await openTool(page, 'pdf-to-images');
+  await pick(page, [{ name: 'Lease.pdf', bytes: await pagesPdf(1) }]);
+  await page.getByTestId('opt-format-jpeg').check();
+  await results(page);
+  const { bytes, name } = await downloadFrom(page, page.getByTestId('save-button').first());
+  expect(name).toBe('Lease page 1.jpg');
+  expect([bytes[0], bytes[1]]).toEqual([0xff, 0xd8]);
+});
+
+test('extract text writes the words to a .txt', async ({ page }) => {
+  await openTool(page, 'extract-text');
+  await pick(page, [{ name: 'Lease.pdf', bytes: await pagesPdf(2) }]);
+  const items = await results(page);
+  await expect(items).toHaveCount(1);
+  const { bytes, name } = await downloadFrom(page, page.getByTestId('save-button'));
+  expect(name).toBe('Lease.txt');
+  const text = new TextDecoder().decode(bytes);
+  expect(text).toContain('--- Page 2 ---');
+  await expect(page.getByTestId('then-menu')).toHaveCount(0);
+});
+
+// ---- The page editor tools: drawn with a real pointer ----
+
+async function dragOn(page: Page, target: string, from: [number, number], to: [number, number]): Promise<void> {
+  await page.getByTestId(target).evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  const box = await page.getByTestId(target).boundingBox();
+  if (!box) throw new Error(`${target} is not on screen`);
+  await page.mouse.move(box.x + box.width * from[0], box.y + box.height * from[1]);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * to[0], box.y + box.height * to[1], { steps: 8 });
+  await page.mouse.up();
+}
+
+async function tapOn(page: Page, target: string, at: [number, number]): Promise<void> {
+  await page.getByTestId(target).evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  const box = await page.getByTestId(target).boundingBox();
+  if (!box) throw new Error(`${target} is not on screen`);
+  await page.mouse.click(box.x + box.width * at[0], box.y + box.height * at[1]);
+}
+
+test('sign: draw a signature, tap the page, and it is placed there', async ({ page }) => {
+  await openTool(page, 'sign');
+  await pick(page, [{ name: 'Lease.pdf', bytes: await pagesPdf(2) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 2');
+  await expect(page.getByTestId('run-button')).toBeDisabled();
+  await dragOn(page, 'signature-pad', [0.2, 0.6], [0.8, 0.4]);
+  await page.getByTestId('editor-next').click();
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 2 of 2');
+  await tapOn(page, 'editor-layer', [0.7, 0.85]);
+  await expect(page.getByTestId('editor-item')).toHaveCount(1);
+  const items = await results(page);
+  await expect(items.first()).toHaveAttribute('data-pages', '2');
+  await expect(page.getByTestId('result-detail')).toHaveText('Signed on page 2');
+});
+
+test('add text: tap the page and type, in English or Malayalam', async ({ page }) => {
+  await openTool(page, 'add-text');
+  await pick(page, [{ name: 'Form.pdf', bytes: await pagesPdf(1) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+  await page.getByTestId('opt-text').fill('Anjali Menon');
+  await tapOn(page, 'editor-layer', [0.2, 0.3]);
+  await page.getByTestId('opt-text').fill('Kochi');
+  await expect(page.getByTestId('editor-item')).toHaveText(/Kochi/);
+  await page.getByTestId('opt-text').fill('ക്ഷണം');
+  await tapOn(page, 'editor-layer', [0.2, 0.6]);
+  await expect(page.getByTestId('editor-item')).toHaveCount(2);
+  await results(page);
+  await expect(page.getByTestId('result-detail')).toHaveText('2 pieces of text added');
+});
+
+test('mark up: highlight and draw, and undo takes the last one back', async ({ page }) => {
+  await openTool(page, 'mark-up');
+  await pick(page, [{ name: 'Notes.pdf', bytes: await pagesPdf(1) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+  await dragOn(page, 'editor-layer', [0.1, 0.2], [0.6, 0.25]);
+  await page.getByTestId('opt-tool-pen').check();
+  await dragOn(page, 'editor-layer', [0.1, 0.5], [0.7, 0.7]);
+  await dragOn(page, 'editor-layer', [0.1, 0.8], [0.7, 0.9]);
+  await page.getByTestId('editor-undo').click();
+  await results(page);
+  await expect(page.getByTestId('result-detail')).toHaveText('1 highlight and 1 pen stroke');
+});
+
+test('remove areas turns the marked pages into pictures, so no text is left on them', async ({ page }) => {
+  await openTool(page, 'remove-areas');
+  await pick(page, [{ name: 'Statement.pdf', bytes: await pagesPdf(2) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 2');
+  await dragOn(page, 'editor-layer', [0.02, 0.05], [0.5, 0.35]);
+  await page.getByTestId('editor-next').click();
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 2 of 2');
+  await dragOn(page, 'editor-layer', [0.02, 0.05], [0.5, 0.35]);
+  const items = await results(page);
+  await expect(items.first()).toHaveAttribute('data-pages', '2');
+  await expect(page.getByTestId('result-detail')).toContainText('2 areas removed. 2 pages are now pictures');
+  if ((await page.getByTestId('then-menu').count()) === 0) return; // memory backend: no handoff
+  // The proof: hand the result to Extract text, which finds no words left at all.
+  await page.getByTestId('then-menu').click();
+  await page.getByTestId('then-extract-text').click();
+  await expect(page.getByTestId('file-item')).toHaveCount(1);
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await run(page);
+  await expect(page.getByTestId('failure-item')).toContainText('probably a scan');
+});
+
+test('fill in a form: the fields are listed, filled, and the answers saved', async ({ page }) => {
+  await openTool(page, 'fill-form');
+  await pick(page, [{ name: 'Application.pdf', bytes: await formPdf() }]);
+  await expect(page.getByTestId('form-field-name')).toBeVisible();
+  await page.getByTestId('form-field-name').fill('Anjali Menon');
+  await page.getByTestId('form-field-agree').check();
+  await page.getByTestId('form-field-city').selectOption('Dubai');
+  await results(page);
+  await expect(page.getByTestId('result-detail')).toHaveText('3 answers, still editable');
+});
+
+test('fill in a form says so when a PDF has no fields', async ({ page }) => {
+  await openTool(page, 'fill-form');
+  await pick(page, [{ name: 'Plain.pdf', bytes: await pagesPdf(1) }]);
+  await expect(page.getByTestId('form-none')).toBeVisible();
+  await expect(page.getByTestId('run-button')).toBeDisabled();
+});
+
+// ---- Read ----
+
+test('read: every page, contents, find, zoom, night, and Then… to another tool', async ({ page }) => {
+  await openTool(page, 'read');
+  await expect(page.getByTestId('run-button')).toBeHidden();
+  await pick(page, [{ name: 'Lease.pdf', bytes: await outlinedPdf(6) }]);
+  await expect(page.getByTestId('reader-page')).toHaveCount(6);
+  await expect(page.locator('[data-testid="reader-page"][data-drawn="true"]').first()).toBeVisible();
+  await expect(page.getByTestId('reader-where')).toHaveText('Page 1 of 6');
+
+  await page.getByTestId('reader-outline-toggle').click();
+  await expect(page.getByTestId('reader-entry')).toHaveCount(2);
+  await page.getByTestId('reader-entry').nth(1).click();
+  await expect(page.getByTestId('reader-where')).toHaveText('Page 3 of 6');
+
+  // Each page carries its own number as its text; "5" is on page 5 only.
+  await page.getByTestId('reader-find').fill('5');
+  await expect(page.getByTestId('reader-find-count')).toHaveText('1 match on 1 page');
+  await expect(page.locator('[data-testid="reader-page"].is-current')).toHaveAttribute('data-page', '4');
+
+  await page.getByTestId('reader-zoom-in').click();
+  await expect(page.getByTestId('reader-zoom')).toHaveText('125%');
+  await page.getByTestId('reader-night').click();
+  await expect(page.getByTestId('reader')).toHaveClass(/reader--night/);
+
+  if (!(await page.getByTestId('reader-then').isVisible())) return;
+  await page.getByTestId('reader-then').click();
+  await page.getByTestId('then-split').click();
+  await expect(page).toHaveURL(/\/tools\/split\/$/);
+  await expect(page.getByTestId('file-item')).toHaveCount(1);
 });

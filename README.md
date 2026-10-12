@@ -10,18 +10,26 @@ Android app. `CLAUDE.md` is the brief and the rules; read it first.
 
 ## What is live
 
-Sixteen tools, in five families:
+Twenty-four tools, in five families:
 
 | Family | Tools |
 |---|---|
 | Pages | Merge · Split · Organise pages · Extract or remove pages · Insert pages · Crop pages · Split by size |
-| Convert and print | Images to PDF · Pages per sheet · Extract images |
-| Mark up | Watermark · Page numbers · Header and footer |
-| Protect | Add a password · Remove a password · Document details |
+| Convert and print | Compress · Images to PDF · PDF to images · Pages per sheet · Extract images |
+| Mark up | Watermark · Page numbers · Sign · Mark up · Add text · Fill in a form · Header and footer |
+| Protect | Add a password · Remove a password · Remove areas · Document details |
+| Read | Extract text |
 
-Eleven more are listed on the home page as "Soon": compress, PDF to images,
-sign, mark up, add text, fill in a form, remove areas, read, scan, make
-searchable, extract text.
+Three more are listed on the home page as "Soon": read, scan, make
+searchable.
+
+Sign, Add text, Mark up and Remove areas share one page editor
+(`ui/page-editor.ts`): the page drawn large, tap to place, drag to draw or
+move. **Remove areas** really removes: each marked page is redrawn as a
+picture with the marked parts painted out, so the hidden words are not in the
+file at all. **Compress** shrinks oversized photos, drops objects nothing
+uses and packs uncompressed streams, and says so when a file cannot get
+smaller. A file that needed a password to open keeps the same password.
 
 Every result has **Save**, **Save all** (a folder, or one ZIP), **Share** (on
 phones that can share files — straight into WhatsApp) and **Then…**, which

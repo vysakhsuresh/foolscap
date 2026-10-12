@@ -19,7 +19,7 @@
  * params, outcomes - is plain structured-clonable data.
  */
 import type { FoolscapFile, Workspace } from '../files/types';
-import type { Anchor, PdfEngine, PdfErrorCode, PdfSurgeon } from '../pdf/types';
+import type { Anchor, Area, FormValues, Mark, PdfEngine, PdfErrorCode, PdfSurgeon } from '../pdf/types';
 import type { ToolId } from './tools';
 
 /**
@@ -112,6 +112,12 @@ export interface OpContext {
 export interface Op<P = unknown> {
   readonly tool: ToolId;
   readonly arity: Arity;
+  /**
+   * True for ops that draw or read pages through `ctx.engine()`. The tool page
+   * then has the worker load pdf.js at start, before it reports ready, so the
+   * tool works with the network gone.
+   */
+  readonly engine?: true;
   /** What this run is called, including its settings: "Split every 3 pages". */
   title(params: P): string;
   /**
@@ -263,4 +269,31 @@ export type DocumentDetailsParams =
     };
 
 /** Tools that take no settings. */
+export interface CompressParams {
+  readonly level: 'light' | 'balanced' | 'strong';
+}
+
+export interface PdfToImagesParams {
+  readonly format: 'png' | 'jpeg';
+  /** Pixels per inch: 72 for a screen, 150 for sharing, 300 for print. */
+  readonly dpi: 72 | 150 | 300;
+  /** "1-3, 7"; empty means every page. */
+  readonly pages: string;
+}
+
+/** Sign, Add text and Mark up: what to draw, where. */
+export interface MarksParams {
+  readonly marks: readonly Mark[];
+}
+
+export interface RemoveAreasParams {
+  readonly areas: readonly Area[];
+}
+
+export interface FillFormParams {
+  readonly values: FormValues;
+  /** Flatten the answers into the page so they can no longer be changed. */
+  readonly seal: boolean;
+}
+
 export type NoParams = Record<string, never>;

@@ -57,6 +57,8 @@ export interface ToolMeta {
   readonly group: GroupId;
   /** `live` tools have a page and an Op. `soon` tools are listed, greyed, honest. */
   readonly status: 'live' | 'soon';
+  /** A tool that shows a document rather than making a file (Read): it has a page, and no Op. */
+  readonly viewer?: true;
 }
 
 /**
@@ -113,29 +115,29 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'crop', title: 'Crop pages', summary: 'Trim the margins, or fit every page to A4 or Letter', action: 'Crop it', input: 'several-pdfs', group: 'pages', status: 'live' },
   { id: 'split-by-size', title: 'Split by size', summary: 'Parts that fit a 5, 10 or 25 MB email limit', action: 'Split into parts that fit', input: 'one-pdf', group: 'pages', status: 'live' },
 
-  { id: 'compress', title: 'Compress', summary: 'Make a PDF smaller, and say so when it cannot', action: 'Compress it', input: 'several-pdfs', group: 'convert', status: 'soon' },
+  { id: 'compress', title: 'Compress', summary: 'Make a PDF smaller, and say so when it cannot', action: 'Compress it', input: 'several-pdfs', group: 'convert', status: 'live' },
   { id: 'images-to-pdf', title: 'Images to PDF', summary: 'Turn photos and scans into one PDF', action: 'Make a PDF', input: 'images', group: 'convert', status: 'live' },
-  { id: 'pdf-to-images', title: 'PDF to images', summary: 'Save every page as a PNG or JPEG', action: 'Save as images', input: 'one-pdf', group: 'convert', status: 'soon' },
+  { id: 'pdf-to-images', title: 'PDF to images', summary: 'Save every page as a PNG or JPEG', action: 'Save as images', input: 'one-pdf', group: 'convert', status: 'live' },
   { id: 'n-up', title: 'Pages per sheet', summary: '2-up or 4-up for printing', action: 'Lay it out', input: 'several-pdfs', group: 'convert', status: 'live' },
   { id: 'extract-images', title: 'Extract images', summary: 'Pull out the embedded originals, not re-rendered pages', action: 'Pull the images out', input: 'one-pdf', group: 'convert', status: 'live' },
 
   { id: 'watermark', title: 'Watermark', summary: 'Stamp DRAFT or a name across every page', action: 'Add the watermark', input: 'several-pdfs', group: 'mark', status: 'live' },
   { id: 'page-numbers', title: 'Page numbers', summary: 'Number the pages, and skip a cover if you like', action: 'Add the numbers', input: 'several-pdfs', group: 'mark', status: 'live' },
-  { id: 'sign', title: 'Sign', summary: 'Draw your signature and place it on the page', action: 'Place the signature', input: 'one-pdf', group: 'mark', status: 'soon' },
-  { id: 'mark-up', title: 'Mark up', summary: 'Highlight a line or draw on a page', action: 'Save the marks', input: 'one-pdf', group: 'mark', status: 'soon' },
-  { id: 'add-text', title: 'Add text', summary: 'Tap a page and write on it', action: 'Write it on', input: 'one-pdf', group: 'mark', status: 'soon' },
-  { id: 'fill-form', title: 'Fill in a form', summary: 'Type into a real PDF form and seal the answers', action: 'Fill it in', input: 'one-pdf', group: 'mark', status: 'soon' },
+  { id: 'sign', title: 'Sign', summary: 'Draw your signature and place it on the page', action: 'Place the signature', input: 'one-pdf', group: 'mark', status: 'live' },
+  { id: 'mark-up', title: 'Mark up', summary: 'Highlight a line or draw on a page', action: 'Save the marks', input: 'one-pdf', group: 'mark', status: 'live' },
+  { id: 'add-text', title: 'Add text', summary: 'Tap a page and write on it', action: 'Write it on', input: 'one-pdf', group: 'mark', status: 'live' },
+  { id: 'fill-form', title: 'Fill in a form', summary: 'Type into a real PDF form and seal the answers', action: 'Fill it in', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'header-footer', title: 'Header and footer', summary: 'A line along the top or bottom of every page', action: 'Add them', input: 'several-pdfs', group: 'mark', status: 'live' },
 
   { id: 'add-password', title: 'Add a password', summary: 'Lock a PDF with AES-256', action: 'Lock it', input: 'several-pdfs', group: 'protect', status: 'live' },
   { id: 'remove-password', title: 'Remove a password', summary: 'Unlock a PDF whose password you know', action: 'Unlock it', input: 'several-pdfs', group: 'protect', status: 'live' },
-  { id: 'remove-areas', title: 'Remove areas', summary: 'Genuinely remove what you mark, not a black box over it', action: 'Remove them', input: 'one-pdf', group: 'protect', status: 'soon' },
+  { id: 'remove-areas', title: 'Remove areas', summary: 'Genuinely remove what you mark, not a black box over it', action: 'Remove them', input: 'one-pdf', group: 'protect', status: 'live' },
   { id: 'document-details', title: 'Document details', summary: 'Edit or strip the title, author and hidden metadata', action: 'Save the details', input: 'several-pdfs', group: 'protect', status: 'live' },
 
-  { id: 'read', title: 'Read', summary: 'Open a document, then hand it to any tool', action: 'Open it', input: 'one-pdf', group: 'read', status: 'soon' },
+  { id: 'read', title: 'Read', summary: 'Open a document, then hand it to any tool', action: 'Open it', input: 'one-pdf', group: 'read', status: 'live', viewer: true },
   { id: 'scan', title: 'Scan a document', summary: 'Photograph pages and straighten them', action: 'Scan', input: 'camera', group: 'read', status: 'soon' },
   { id: 'ocr', title: 'Make searchable', summary: 'Read the text in a scan so you can search and copy it', action: 'Make it searchable', input: 'several-pdfs', group: 'read', status: 'soon' },
-  { id: 'extract-text', title: 'Extract text', summary: 'Pull the words out of a PDF as plain text', action: 'Extract the text', input: 'one-pdf', group: 'read', status: 'soon' },
+  { id: 'extract-text', title: 'Extract text', summary: 'Pull the words out of a PDF as plain text', action: 'Extract the text', input: 'several-pdfs', group: 'read', status: 'live' },
 ];
 
 export const toolById = (id: ToolId): ToolMeta => {

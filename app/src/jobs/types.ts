@@ -9,7 +9,8 @@
  *
  * Lifecycle. `createJobRunner()` creates the worker at page load, never on
  * first use, so a page that reports itself ready can run a job with the
- * network gone; `ready` resolves once the worker has answered. One worker
+ * network gone; `ready` resolves once the worker has answered (and, for a
+ * tool whose op draws pages, once pdf.js has loaded in it). One worker
  * serves the page's jobs in turn and drops every reference when a job ends
  * so pdf-lib's memory can be collected. `cancel()` aborts `ctx.signal` and,
  * if the op has not returned within ~500 ms, terminates the worker — pdf-lib

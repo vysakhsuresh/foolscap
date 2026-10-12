@@ -9,7 +9,24 @@
  * touching the objects (so nothing is cloned).
  */
 import {
+  BlendMode,
   EncryptedPDFError,
+  LineCapStyle,
+  LineJoinStyle,
+  PDFCheckBox,
+  PDFDropdown,
+  PDFOptionList,
+  PDFRadioGroup,
+  PDFTextField,
+  lineTo,
+  moveTo,
+  popGraphicsState,
+  pushGraphicsState,
+  setLineCap,
+  setLineJoin,
+  setLineWidth,
+  setStrokingRgbColor,
+  stroke,
   PDFArray,
   PDFDict,
   PDFDocument,
@@ -26,16 +43,19 @@ import {
   type PDFPage,
 } from '@cantoo/pdf-lib';
 import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './common';
+import { zlibSync } from 'fflate';
 import { pngFromIdat, pngFromPixels } from './png';
 import {
   PdfError,
   type Box,
   type DocInfo,
   type DocInfoField,
+  type CompressReport,
   type ExtractedImage,
   type PageInfo,
   type PdfDoc,
   type PdfSurgeon,
+  type RecompressedImage,
   type Rotation,
   type TextStamp,
 } from './types';
@@ -158,6 +178,21 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
     return f;
   };
 
+  /**
+   * pdf-lib does not refuse a character its font lacks: it draws an empty
+   * box. Check every one against what the font can really draw.
+   */
+  const assertDrawable = (f: PDFFont, text: string): void => {
+    drawable ??= new Set(f.getCharacterSet());
+    const missing = [...text].some((ch) => ch !== '\n' && !drawable?.has(ch.codePointAt(0) ?? 0));
+    if (missing) {
+      throw new PdfError(
+        'This text has letters the built-in font cannot draw yet, such as Malayalam, Hindi, Arabic or emoji. Use English letters and numbers for now.',
+        'unsupported-text',
+      );
+    }
+  };
+
   const live = (): PDFDocument => {
     if (doc === null) throw new Error('This document has been closed.');
     return doc;
@@ -194,16 +229,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const f = font(stamp.bold === true);
       const text = stamp.text.replace(/[\r\n\t]+/g, ' ').trim();
       if (text.length === 0) return;
-      // pdf-lib does not refuse a character its font lacks: it draws an
-      // empty box. Check every one against what the font can really draw.
-      drawable ??= new Set(f.getCharacterSet());
-      const missing = [...text].some((ch) => !drawable?.has(ch.codePointAt(0) ?? 0));
-      if (missing) {
-        throw new PdfError(
-          'This text has letters the built-in font cannot draw yet, such as Malayalam, Hindi, Arabic or emoji. Use English letters and numbers for now.',
-          'unsupported-text',
-        );
-      }
+      assertDrawable(f, text);
       const width = f.widthOfTextAtSize(text, stamp.size);
       const capHeight = f.heightAtSize(stamp.size, { descender: false });
       const view = viewOf(page);
@@ -299,7 +325,141 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
     },
 
     images() {
-      return extractImages(live());
+      const { images, skipped } = extractImages(live());
+      return { images, skipped };
+    },
+
+    async drawMarks(marks) {
+      const d = live();
+      for (const mark of marks) {
+        const page = pageAt(mark.kind === 'ink' ? mark.page : mark.area.page);
+        const view = viewOf(page);
+        const W = view.width;
+        const H = view.height;
+        if (mark.kind === 'ink') {
+          const points: Array<[number, number]> = [];
+          for (let i = 0; i + 1 < mark.points.length; i += 2) {
+            points.push(view.toPage((mark.points[i] ?? 0) * W, (1 - (mark.points[i + 1] ?? 0)) * H));
+          }
+          const first = points[0];
+          if (first === undefined) continue;
+          const [r, g, b] = mark.color;
+          page.pushOperators(
+            pushGraphicsState(),
+            setStrokingRgbColor(r, g, b),
+            setLineWidth(mark.width * W),
+            setLineCap(LineCapStyle.Round),
+            setLineJoin(LineJoinStyle.Round),
+            moveTo(first[0], first[1]),
+            // One point is a dot: a zero-length line with round caps.
+            ...(points.length === 1 ? [lineTo(first[0], first[1])] : points.slice(1).map(([x, y]) => lineTo(x, y))),
+            stroke(),
+            popGraphicsState(),
+          );
+          continue;
+        }
+        const { area } = mark;
+        // The area's bottom-left, in the view's points (origin bottom-left).
+        const vx = area.x * W;
+        const vy = (1 - area.y - area.h) * H;
+        const w = area.w * W;
+        const h = area.h * H;
+        switch (mark.kind) {
+          case 'image': {
+            const image = await d.embedPng(mark.png);
+            const [px, py] = view.toPage(vx, vy);
+            page.drawImage(image, { x: px, y: py, width: w, height: h, rotate: degrees(view.rotation) });
+            break;
+          }
+          case 'highlight': {
+            const [x1, y1] = view.toPage(vx, vy);
+            const [x2, y2] = view.toPage(vx + w, vy + h);
+            const [r, g, b] = mark.color;
+            page.drawRectangle({
+              x: Math.min(x1, x2),
+              y: Math.min(y1, y2),
+              width: Math.abs(x2 - x1),
+              height: Math.abs(y2 - y1),
+              color: rgb(r, g, b),
+              opacity: 0.45,
+              blendMode: BlendMode.Multiply,
+            });
+            break;
+          }
+          case 'text': {
+            const f = font(false);
+            const lines = mark.text.replace(/\r\n?/g, '\n').replace(/\t/g, ' ').split('\n');
+            assertDrawable(f, lines.join(''));
+            const size = mark.size * W;
+            const top = (1 - area.y) * H;
+            const [r, g, b] = mark.color;
+            lines.forEach((line, i) => {
+              if (line.trim().length === 0) return;
+              // Matches the editor's CSS: line-height 1.25, baseline 0.97 em below the line's top.
+              const [px, py] = view.toPage(vx, top - size * (0.97 + i * 1.25));
+              page.drawText(line, { x: px, y: py, size, font: f, color: rgb(r, g, b), rotate: degrees(view.rotation) });
+            });
+            break;
+          }
+        }
+      }
+    },
+
+    async replaceWithImage(index, jpeg) {
+      const d = live();
+      const page = pageAt(index);
+      const view = viewOf(page);
+      const image = await d.embedJpg(jpeg);
+      const node = page.node;
+      // Normalise first, so pdf-lib does not later wrap the new contents in the old ones.
+      node.normalize();
+      const { context } = d;
+      node.set(PDFName.of('Contents'), context.obj([]));
+      node.set(PDFName.of('Resources'), context.obj({ Font: {}, XObject: {}, ExtGState: {} }));
+      node.set(PDFName.of('Annots'), context.obj([]));
+      for (const key of ['CropBox', 'BleedBox', 'TrimBox', 'ArtBox', 'Thumb', 'PieceInfo', 'Group']) node.delete(PDFName.of(key));
+      page.setRotation(degrees(0));
+      page.setMediaBox(0, 0, view.width, view.height);
+      page.drawImage(image, { x: 0, y: 0, width: view.width, height: view.height });
+    },
+
+    fillForm(values, seal) {
+      const d = live();
+      const form = d.getForm();
+      const f = font(false);
+      for (const [name, value] of Object.entries(values)) {
+        const field = form.getFieldMaybe(name);
+        if (field === undefined) continue;
+        if (field instanceof PDFTextField) {
+          const text = typeof value === 'string' ? value : '';
+          assertDrawable(f, text.replace(/\n/g, ''));
+          field.setText(text.length > 0 ? text : undefined);
+        } else if (field instanceof PDFCheckBox) {
+          if (value === true) field.check();
+          else field.uncheck();
+        } else if (field instanceof PDFRadioGroup) {
+          if (typeof value === 'string' && field.getOptions().includes(value)) field.select(value);
+          else if (value === '') field.clear();
+        } else if (field instanceof PDFDropdown || field instanceof PDFOptionList) {
+          if (typeof value === 'string' && value.length > 0) {
+            const options = field.getOptions();
+            if (options.includes(value)) field.select(value);
+          } else if (value === '') {
+            field.clear();
+          }
+        }
+      }
+      try {
+        form.updateFieldAppearances(f);
+        if (seal) form.flatten({ updateFieldAppearances: false });
+      } catch (error) {
+        if (error instanceof PdfError) throw error;
+        throw new PdfError("This form couldn't be filled. Its fields may be built in a way this tool can't change yet.", 'unknown', { cause: error });
+      }
+    },
+
+    async compress(recompress, signal) {
+      return compressDocument(live(), recompress, signal);
     },
 
     info() {
@@ -554,11 +714,25 @@ function tileCentres(view: PageView, width: number, size: number): Array<[number
  * 8-bit RGB and grey pixels become PNG. Anything else (CMYK pixels, indexed
  * colour, masks, 16-bit, TIFF predictors) is counted as skipped, not guessed.
  */
-function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: number } {
+/** An image found in the document, with the stream it came from, for Compress to replace. */
+interface FoundImage {
+  readonly image: ExtractedImage;
+  readonly ref: PDFRef | undefined;
+  readonly stream: PDFRawStream;
+  /** Undefined for a JPEG in a colour space a browser cannot be trusted to decode (CMYK, Lab, indexed). */
+  readonly channels: 1 | 3 | undefined;
+}
+
+function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: number; found: FoundImage[] } {
   const { context } = doc;
   const seen = new Set<string>();
   const images: ExtractedImage[] = [];
+  const found: FoundImage[] = [];
   let skipped = 0;
+  const push = (image: ExtractedImage, stream: PDFRawStream, ref: PDFRef | undefined, channels: 1 | 3 | undefined): void => {
+    images.push(image);
+    found.push({ image, ref, stream, channels });
+  };
 
   const name = (value: unknown): string | undefined => (value instanceof PDFName ? value.decodeText() : undefined);
   const num = (dict: PDFDict, key: string): number | undefined => {
@@ -579,7 +753,7 @@ function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: n
     return undefined;
   };
 
-  const take = (stream: PDFRawStream, page: number): void => {
+  const take = (stream: PDFRawStream, page: number, ref: PDFRef | undefined): void => {
     const dict = stream.dict;
     const width = num(dict, 'Width') ?? 0;
     const height = num(dict, 'Height') ?? 0;
@@ -596,11 +770,11 @@ function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: n
       return;
     }
     if (only === 'DCTDecode') {
-      images.push({ page, bytes: stream.getContents(), ext: 'jpg', width, height });
+      push({ page, bytes: stream.getContents(), ext: 'jpg', width, height }, stream, ref, channelsOf(dict));
       return;
     }
     if (only === 'JPXDecode') {
-      images.push({ page, bytes: stream.getContents(), ext: 'jp2', width, height });
+      push({ page, bytes: stream.getContents(), ext: 'jp2', width, height }, stream, ref, undefined);
       return;
     }
     const channels = channelsOf(dict);
@@ -619,7 +793,7 @@ function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: n
           skipped++;
           return;
         }
-        images.push({ page, bytes: pngFromIdat({ width, height, channels }, stream.getContents()), ext: 'png', width, height });
+        push({ page, bytes: pngFromIdat({ width, height, channels }, stream.getContents()), ext: 'png', width, height }, stream, ref, channels);
         return;
       }
       if (predictor !== 1) {
@@ -633,7 +807,7 @@ function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: n
     const pixels = filters.length === 0 ? stream.getContents() : decodePDFRawStream(stream).decode();
     const png = pngFromPixels({ width, height, channels }, pixels);
     if (png === null) skipped++;
-    else images.push({ page, bytes: png, ext: 'png', width, height });
+    else push({ page, bytes: png, ext: 'png', width, height }, stream, ref, channels);
   };
 
   const walk = (resources: PDFDict | undefined, page: number, depth: number): void => {
@@ -651,7 +825,7 @@ function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: n
       const subtype = name(stream.dict.lookup(PDFName.of('Subtype')));
       if (subtype === 'Image') {
         try {
-          take(stream, page);
+          take(stream, page, value instanceof PDFRef ? value : undefined);
         } catch {
           skipped++;
         }
@@ -663,5 +837,100 @@ function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: n
   };
 
   doc.getPages().forEach((page, index) => walk(page.node.Resources(), index, 0));
-  return { images, skipped };
+  return { images, skipped, found };
+}
+
+/**
+ * Makes a document smaller in the three ways that matter and are safe:
+ *
+ * 1. Photos stored bigger or finer than a screen or printer needs are
+ *    re-encoded as JPEG by `recompress` (the op's, which owns the decoding),
+ *    and swapped in only when the new one is smaller. A photo with a colour
+ *    key mask or a /Decode array is left alone: lossy pixels would break both.
+ * 2. Objects nothing points at — earlier versions left by incremental saves,
+ *    the shells of unpacked object streams — are dropped.
+ * 3. Streams stored with no compression at all are deflated.
+ */
+async function compressDocument(
+  doc: PDFDocument,
+  recompress: (image: ExtractedImage) => Promise<RecompressedImage | null>,
+  signal: AbortSignal | undefined,
+): Promise<CompressReport> {
+  const { context } = doc;
+  const { found } = extractImages(doc);
+  let photos = 0;
+  let replaced = 0;
+  for (const { image, ref, stream, channels } of found) {
+    if (signal?.aborted) break;
+    if (ref === undefined || channels === undefined || image.ext === 'jp2') continue;
+    const dict = stream.dict;
+    if (dict.has(PDFName.of('Decode')) || dict.lookup(PDFName.of('Mask')) instanceof PDFArray) continue;
+    photos++;
+    const next = await recompress(image);
+    if (next === null || next.bytes.length >= stream.getContents().length * 0.9) continue;
+    const entries: Record<string, unknown> = {
+      Type: 'XObject',
+      Subtype: 'Image',
+      Width: next.width,
+      Height: next.height,
+      ColorSpace: 'DeviceRGB',
+      BitsPerComponent: 8,
+      Filter: 'DCTDecode',
+    };
+    const replacement = context.stream(next.bytes, entries as never);
+    // A soft mask, an intent or an alternate rides across as it was: none of them depends on the pixels' size.
+    for (const key of ['SMask', 'Intent', 'Interpolate', 'Alternates', 'OC', 'Metadata', 'StructParent']) {
+      const value = dict.get(PDFName.of(key));
+      if (value !== undefined) replacement.dict.set(PDFName.of(key), value);
+    }
+    context.assign(ref, replacement);
+    replaced++;
+  }
+
+  // Everything reachable from the trailer stays; everything else goes.
+  const reachable = new Set<string>();
+  const stack: unknown[] = [context.trailerInfo.Root, context.trailerInfo.Info, context.trailerInfo.Encrypt];
+  while (stack.length > 0) {
+    const value = stack.pop();
+    if (value instanceof PDFRef) {
+      const key = value.toString();
+      if (reachable.has(key)) continue;
+      reachable.add(key);
+      stack.push(context.lookup(value));
+    } else if (value instanceof PDFDict) {
+      for (const [, v] of value.entries()) stack.push(v);
+    } else if (value instanceof PDFArray) {
+      stack.push(...value.asArray());
+    } else if (value !== null && typeof value === 'object' && 'dict' in value && value.dict instanceof PDFDict) {
+      stack.push(value.dict);
+    }
+  }
+  let dropped = 0;
+  for (const [ref] of context.enumerateIndirectObjects()) {
+    if (!reachable.has(ref.toString())) {
+      context.delete(ref);
+      dropped++;
+    }
+  }
+
+  let deflated = 0;
+  for (const [ref, object] of context.enumerateIndirectObjects()) {
+    if (!(object instanceof PDFRawStream)) continue;
+    const dict = object.dict;
+    if (dict.has(PDFName.of('Filter'))) continue;
+    const type = dict.lookup(PDFName.of('Type'));
+    // XMP metadata is meant to be readable without a PDF library; leave it plain.
+    if (type instanceof PDFName && type.decodeText() === 'Metadata') continue;
+    const contents = object.getContents();
+    if (contents.length < 256) continue;
+    const packed = zlibSync(contents, { level: 9 });
+    if (packed.length >= contents.length * 0.9) continue;
+    const next = PDFRawStream.of(dict.clone(context), packed);
+    next.dict.set(PDFName.of('Filter'), PDFName.of('FlateDecode'));
+    next.dict.delete(PDFName.of('DecodeParms'));
+    context.assign(ref, next);
+    deflated++;
+  }
+
+  return { photos, replaced, dropped, deflated };
 }

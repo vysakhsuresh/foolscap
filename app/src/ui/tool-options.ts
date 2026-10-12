@@ -7,6 +7,8 @@
  */
 import type {
   AddPasswordParams,
+  CompressParams,
+  PdfToImagesParams,
   CropParams,
   DocumentDetailsParams,
   ExtractPagesParams,
@@ -330,6 +332,68 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
     case 'extract-images':
       return {
         root: note('Every photo and picture in the file, saved exactly as it is stored: no re-compression, no loss.'),
+        params: () => ({}),
+        problem: () => null,
+      };
+
+    case 'compress': {
+      const level = choices<CompressParams['level']>(
+        'level',
+        'How hard to squeeze',
+        [
+          { value: 'light', title: 'Light', hint: 'Photos stay print-sharp. Smallest change.' },
+          { value: 'balanced', title: 'Balanced', hint: 'Sharp on any screen, fine to print. Usually half the size or less.' },
+          { value: 'strong', title: 'Strong', hint: 'For email limits. Photos get softer.' },
+        ],
+        'balanced',
+        onChange,
+      );
+      return {
+        root: group([level.root, note('Text and drawings are never touched, so they stay crisp. If a file cannot get smaller, it says so rather than handing back a copy.')]),
+        params: (): CompressParams => ({ level: level.value() }),
+        problem: () => null,
+      };
+    }
+
+    case 'pdf-to-images': {
+      const format = choices<PdfToImagesParams['format']>(
+        'format',
+        'Format',
+        [
+          { value: 'png', title: 'PNG' },
+          { value: 'jpeg', title: 'JPEG' },
+        ],
+        'png',
+        onChange,
+        'pills',
+      );
+      const dpi = choices<'72' | '150' | '300'>(
+        'dpi',
+        'Sharpness',
+        [
+          { value: '72', title: 'Screen' },
+          { value: '150', title: 'Sharing' },
+          { value: '300', title: 'Print' },
+        ],
+        '150',
+        onChange,
+        'pills',
+      );
+      const pages = field('pages', { label: 'Pages', placeholder: 'All pages', hint: 'Leave empty for every page, or type 1-3, 7.' }, onChange);
+      return {
+        root: group([format.root, dpi.root, pages.root]),
+        params: (): PdfToImagesParams => ({
+          format: format.value(),
+          dpi: Number(dpi.value()) as PdfToImagesParams['dpi'],
+          pages: pages.value(),
+        }),
+        problem: () => null,
+      };
+    }
+
+    case 'extract-text':
+      return {
+        root: note('The words as plain text, page by page, ready to copy or search. A scan has pictures of words, not words: make it searchable first.'),
         params: () => ({}),
         problem: () => null,
       };

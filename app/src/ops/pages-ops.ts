@@ -23,7 +23,7 @@ export const PAPER: Record<Paper, { readonly width: number; readonly height: num
   letter: { width: 612, height: 792, label: 'Letter' },
 };
 
-const PAGES_HELP = 'Type the pages, like 1-3, 7, 12-';
+export const PAGES_HELP = 'Type the pages, like 1-3, 7, 12-';
 
 async function openOne(ctx: Parameters<Op['run']>[2], input: FoolscapFile): Promise<PdfDoc> {
   return ctx.surgeon.open(await readInput(ctx, input), passwordFor(ctx, input));
