@@ -25,7 +25,9 @@ night mode, print, read aloud (with a voice on the device only), and Then…
 to any tool. **Scan** finds the sheet of paper in each
 photo, lets you drag its corners right, straightens it and cleans it up
 (colour, grey, or black and white that survives a shadow). **Make
-searchable** reads a scan's words with Tesseract and lays them invisibly over
+searchable** reads a scan's words with Tesseract (English, and twenty more
+languages from Malayalam and Hindi to Arabic and Japanese, each fetched from
+this site only when picked) and lays them invisibly over
 the page, so it can be searched and copied and still looks the same.
 
 Sign, Add text, Mark up and Remove areas share one page editor
@@ -148,7 +150,7 @@ carry canonical URLs.
 | `fflate` | MIT |
 | Lucide icons (`lucide-static`) | ISC (`licenses/lucide-ISC.txt`) |
 | `tesseract.js`, `tesseract.js-core` | Apache-2.0 (licences copied next to them in `/tesseract/`) |
-| Tesseract English model (`@tesseract.js-data/eng`, tessdata best_int) | Apache-2.0 |
+| Tesseract language models (`@tesseract.js-data/*`, tessdata best_int: English, plus 20 fetched only when picked) | Apache-2.0 (packaged as MIT) |
 | Space Grotesk | OFL (`app/public/fonts/OFL-*.txt`) |
 
 Never MuPDF, PyMuPDF, iText or Ghostscript: all AGPL.

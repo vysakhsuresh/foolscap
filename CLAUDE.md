@@ -258,8 +258,9 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
 4. Complex-script text drawn as real text (harfbuzzjs). Until then Add text
    puts Malayalam, Hindi and the like in as a picture of the words, shaped
    by the browser.
-5. More OCR languages (Malayalam, Hindi, Tamil), each a model fetched only
-   when asked for.
+5. ✅ More OCR languages: twenty, each a model fetched from this site only
+   when picked. Non-Latin words also come out as a .txt until the text
+   layer gets a glyphless font.
 6. The design pass, as a system.
 7. SEO: one fast page per tool × intent, generated from `tools.ts`.
 8. PWA: install, offline, share target, file handler. The service worker

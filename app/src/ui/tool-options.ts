@@ -26,6 +26,7 @@ import type {
 } from '../ops/op';
 import type { ToolId } from '../ops/tools';
 import { check, choices, field, group, note, select } from './fields';
+import { createOcrOptions } from './ocr-options';
 import { createSplitOptions } from './split-options';
 
 export interface ToolOptions {
@@ -575,11 +576,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
     }
 
     case 'ocr':
-      return {
-        root: note('Reads the words in scanned pages and lays them invisibly over the pictures, so you can search, select and copy them. The pages look exactly the same. English for now; pages that already have text are left alone.'),
-        params: () => ({}),
-        problem: () => null,
-      };
+      return createOcrOptions(onChange);
 
     case 'extract-text':
       return {
