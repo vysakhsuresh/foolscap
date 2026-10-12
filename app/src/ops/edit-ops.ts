@@ -274,7 +274,9 @@ function fillForm(inputs: readonly FoolscapFile[], params: FillFormParams, ctx: 
   return withOne(inputs, ctx, async (doc, input) => {
       if (Object.keys(params.values).length === 0 && !params.seal) return refused([input], 'Nothing was changed. Type your answers first.');
       const filled = Object.values(params.values).filter((v) => v !== '' && v !== false).length;
-      doc.fillForm(params.values, params.seal);
+      const matched = doc.fillForm(params.values, params.seal);
+      // Answers saved from another form fit nothing here; saying "5 answers" would be untrue.
+      if (matched === 0 && !params.seal) return refused([input], 'None of these answers fit a box in this PDF. They may be from a different form.');
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
       const sealed = params.seal ? ', sealed so the answers can no longer be changed' : ', still editable';
       return store(ctx, 'fill-form', [input], `${baseName(input.name)} (filled).pdf`, bytes, `${plural(filled, 'answer')}${sealed}${relocked ? LOCKED : ''}`);

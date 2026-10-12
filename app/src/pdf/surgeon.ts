@@ -36,12 +36,15 @@ import {
   setStrokingRgbColor,
   stroke,
   PDFArray,
+  PDFContentStream,
   PDFDict,
   PDFDocument,
   PDFHexString,
   PDFInvalidObject,
   PDFName,
   PDFNumber,
+  PDFObjectCopier,
+  PDFPage,
   PDFRawStream,
   PDFRef,
   PDFString,
@@ -50,7 +53,7 @@ import {
   degrees,
   rgb,
   type PDFFont,
-  type PDFPage,
+  drawPage as drawPageOperators,
 } from '@cantoo/pdf-lib';
 import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './common';
 import { zlibSync } from 'fflate';
@@ -291,6 +294,20 @@ function repairPageTree(doc: PDFDocument): number {
   return lost;
 }
 
+/**
+ * A JPEG or PNG into the document. pdf-lib's own errors for a picture it
+ * cannot read ("SOI not found", "Invalid PNG") would surface as the file
+ * being unreadable, when it is the picture that is.
+ */
+async function embedPicture(doc: PDFDocument, bytes: Uint8Array, kind: 'jpeg' | 'png') {
+  try {
+    return kind === 'jpeg' ? await doc.embedJpg(bytes) : await doc.embedPng(bytes);
+  } catch (error) {
+    if (isMemoryFailure(error)) throw tooLarge(bytes.byteLength, error);
+    throw new PdfError("That picture couldn't be read. Save it as a JPEG or PNG and try again.", 'unknown', { cause: error });
+  }
+}
+
 function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted: boolean, missingPages = 0): PdfDoc {
   let doc: PDFDocument | null = initial;
   const fonts = new Map<'regular' | 'bold', PDFFont>();
@@ -298,6 +315,55 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
   /** Annotations on pages Remove areas turned into pictures; non-empty means save() finishes the job. */
   const removedWidgets = new Set<string>();
   let replaced = false;
+  /** One object copier per source document, so what its pages share is copied into this one once. */
+  const copiers = new WeakMap<PDFDocument, PDFObjectCopier>();
+  const copierFrom = (from: PDFDocument): PDFObjectCopier => {
+    let copier = copiers.get(from);
+    if (copier === undefined) {
+      copier = PDFObjectCopier.for(from.context, live().context);
+      copiers.set(from, copier);
+    }
+    return copier;
+  };
+
+  /**
+   * A page of another document as a form XObject in this one: its drawing
+   * instructions as they are, its resources through the shared copier.
+   * pdf-lib's own embedPage makes a new copier for every page, so on a
+   * sheet of four (or a whole document fitted to A4) a picture the pages
+   * share went in once per page: a 150 KB file came out at 12 MB.
+   */
+  const embedPageOnce = (page: PDFPage, box: { x: number; y: number; width: number; height: number }): PDFRef => {
+    const target = live();
+    const context = target.context;
+    const resources = page.node.Resources();
+    const copied = resources === undefined ? context.obj({}) : page.doc === target ? resources : copierFrom(page.doc).copy(resources);
+    const contents = page.node.Contents();
+    const streams = contents instanceof PDFArray ? contents.asArray() : contents === undefined ? [] : [contents];
+    const parts: Uint8Array[] = [];
+    for (const item of streams) {
+      const stream = item instanceof PDFRef ? page.doc.context.lookup(item) : item;
+      if (stream instanceof PDFRawStream) parts.push(decodePDFRawStream(stream).decode());
+      else if (stream instanceof PDFContentStream) parts.push(stream.getUnencodedContents());
+    }
+    const joined = new Uint8Array(parts.reduce((n, p) => n + p.length + 1, 0));
+    let at = 0;
+    for (const p of parts) {
+      joined.set(p, at);
+      joined[at + p.length] = 0x0a;
+      at += p.length + 1;
+    }
+    const form = context.flateStream(joined, {
+      Type: 'XObject',
+      Subtype: 'Form',
+      FormType: 1,
+      BBox: [box.x, box.y, box.x + box.width, box.y + box.height],
+      // The box's corner at the origin, as pdf-lib's embedder places it.
+      Matrix: [1, 0, 0, 1, -box.x, -box.y],
+      Resources: copied,
+    });
+    return context.register(form);
+  };
 
   const font = (bold: boolean): PDFFont => {
     const key = bold ? 'bold' : 'regular';
@@ -409,12 +475,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
           if (from === undefined) throw new Error('The source document is not open.');
           const page = from.getPage(index);
           const crop = page.getCropBox();
-          const embedded = await target.embedPage(page, {
-            left: crop.x,
-            bottom: crop.y,
-            right: crop.x + crop.width,
-            top: crop.y + crop.height,
-          });
+          const xobject = embedPageOnce(page, crop);
           const rotation = normaliseRotation(page.getRotation().angle);
           const sideways = rotation === 90 || rotation === 270;
           const seenWidth = sideways ? crop.height : crop.width;
@@ -434,7 +495,8 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
             270: [tx + w, ty],
           };
           const [ox, oy] = origin[rotation];
-          sheet.drawPage(embedded, { x: ox, y: oy, xScale: scale, yScale: scale, rotate: degrees(-rotation) });
+          const name = sheet.node.newXObject('EmbeddedPdfPage', xobject);
+          sheet.pushOperators(...drawPageOperators(name, { x: ox, y: oy, xScale: scale, yScale: scale, rotate: degrees(-rotation), xSkew: degrees(0), ySkew: degrees(0) }));
         }
       } catch (error) {
         if (isMemoryFailure(error)) throw tooLarge(byteLength, error);
@@ -444,7 +506,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
 
     async addImagePage(image, paper, margin) {
       const target = live();
-      const embedded = image.kind === 'jpeg' ? await target.embedJpg(image.bytes) : await target.embedPng(image.bytes);
+      const embedded = await embedPicture(target, image.bytes, image.kind);
       const { width: iw, height: ih } = embedded;
       let pw: number;
       let ph: number;
@@ -649,13 +711,13 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         };
         switch (mark.kind) {
           case 'image': {
-            const image = await d.embedPng(mark.png);
+            const image = await embedPicture(d, mark.png, 'png');
             const [px, py] = view.toPage(vx, vy);
             page.drawImage(image, { x: px, y: py, width: w, height: h, rotate: degrees(view.rotation) });
             break;
           }
           case 'picture': {
-            const image = mark.format === 'jpeg' ? await d.embedJpg(mark.bytes) : await d.embedPng(mark.bytes);
+            const image = await embedPicture(d, mark.bytes, mark.format);
             const [px, py] = view.toPage(vx, vy);
             page.drawImage(image, { x: px, y: py, width: w, height: h, rotate: degrees(view.rotation) });
             break;
@@ -957,7 +1019,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
           continue;
         }
         // Replace: the new picture fills the old one's box, kept to its own shape and centred.
-        const image = edit.format === 'jpeg' ? await d.embedJpg(edit.bytes) : await d.embedPng(edit.bytes);
+        const image = await embedPicture(d, edit.bytes, edit.format);
         const name = nameFor();
         if (xobjects instanceof PDFDict) xobjects.set(PDFName.of(name), image.ref);
         else if (resources) resources.set(PDFName.of('XObject'), context.obj({ [name]: image.ref }));
@@ -1026,9 +1088,11 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const d = live();
       const form = d.getForm();
       const f = font(false);
+      let matched = 0;
       for (const [name, value] of Object.entries(values)) {
         const field = form.getFieldMaybe(name);
         if (field === undefined) continue;
+        matched++;
         if (field instanceof PDFTextField) {
           const text = typeof value === 'string' ? value : '';
           assertDrawable(f, text.replace(/\n/g, ''));
@@ -1059,6 +1123,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         if (error instanceof PdfError) throw error;
         throw new PdfError("This form couldn't be filled. Its fields may be built in a way this tool can't change yet.", 'unknown', { cause: error });
       }
+      return matched;
     },
 
     async compress(recompress, signal) {
@@ -1134,12 +1199,19 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         }
       }
       try {
-        // copyPages clones every object a page reaches into this document's
+        // The copier clones every object a page reaches into this document's
         // context, including when source === this: the copies get fresh refs
         // and the tree is untouched until addPage, so order and repeats are
-        // exactly as asked and the source is never modified.
-        const copies = await target.copyPages(from, [...indices]);
-        for (const copy of copies) target.addPage(copy);
+        // exactly as asked and the source is never modified. One copier per
+        // source for this document's whole life, so a logo or a font that
+        // every page shares is copied once, not once per batch of pages.
+        await from.flush();
+        const copier = copierFrom(from);
+        const pages = from.getPages();
+        for (const index of indices) {
+          const node = copier.copy(pages[index]!.node);
+          target.addPage(PDFPage.of(node, target.context.register(node), target));
+        }
       } catch (error) {
         if (isMemoryFailure(error)) throw tooLarge(byteLength, error);
         throw error;

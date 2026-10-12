@@ -545,7 +545,8 @@ export interface PdfDoc {
    * the answers can no longer be changed. Throws PdfError 'unsupported-text'
    * for letters the form's font cannot draw.
    */
-  fillForm(values: FormValues, seal: boolean): void;
+  /** Returns how many of `values` named a field this form has. */
+  fillForm(values: FormValues, seal: boolean): number;
   /** Adds new fillable fields; names already taken get a number. Returns the names given. */
   addFields(fields: readonly NewField[]): string[];
   /**

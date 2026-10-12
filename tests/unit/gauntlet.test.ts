@@ -177,6 +177,7 @@ function imageCases(): Case[] {
     { name: 'photos', files: [img('Receipt.jpg', fixtures.jpeg!), img('Page.png', paperPhotoPng(240, 320)), img('Tiny.jpg', TINY_JPEG)] },
     { name: 'zero-byte image', files: [img('Empty.jpg', new Uint8Array(0), true)] },
     { name: 'text named .jpg', files: [img('Note.jpg', textBytes(), true)] },
+    { name: 'a JPEG cut short', files: [img('Broken.jpg', Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0xff, 0xdb]), true)] },
     { name: 'a PDF among photos', files: [img('Receipt.jpg', fixtures.jpeg!), img('Lease.jpg', fixtures.good!, true), img('ഫോട്ടോ 🏠.png', noisePng(40))] },
   ];
 }
@@ -263,6 +264,8 @@ async function run(tool: ToolId, given: readonly Input[], timeout: number, param
 const RAW =
   /undefined|\bnull\b|\[object|Error\b|Cannot read|is not a function|is not defined|not iterable|Invalid object ref|Expected|out of range|\bat \S+ \(|pdf-?lib|pdf\.js|pdfjs|PDF(Dict|Ref|Name|Array|Stream)|xref|trailer|Page index|\bobj\b|\b0x[0-9a-f]+/i;
 const RAW_CASED = /\bNaN\b/;
+/** What common.ts and the engine say when the error was not one anybody planned for. */
+const CATCH_ALL = /^This file couldn't be read\. Add it again|^This page couldn't be drawn\.$|^Something went wrong/;
 
 async function check(tool: ToolId, r: Run, label: string): Promise<void> {
   const where = `${tool} / ${label}`;
@@ -298,9 +301,14 @@ async function check(tool: ToolId, r: Run, label: string): Promise<void> {
     }
   }
 
+  const good = new Set(inputs.filter((_, i) => !given[i]!.bad).map((input) => input.id));
   for (const outcome of outcomes) {
     if (outcome.kind !== 'produced') {
       const reason = outcome.reason;
+      // The catch-all answers mean something threw that nobody expected: on a file that is fine, that is a bug.
+      if (outcome.inputIds.length > 0 && outcome.inputIds.every((id) => good.has(id))) {
+        expect(reason, `${where}: a readable file got the catch-all answer`).not.toMatch(CATCH_ALL);
+      }
       expect(typeof reason, where).toBe('string');
       expect(reason.trim().length, `${where}: empty reason`).toBeGreaterThan(8);
       expect(reason, `${where}: raw message`).not.toMatch(RAW);
@@ -750,6 +758,91 @@ describe('the gauntlet, pictures moved on turned pages', () => {
           if (wrong) throw new Error(wrong);
         });
       }
+    }
+    expect(problems.join('\n')).toBe('');
+  }, 120_000);
+});
+
+/** The box around everything drawn on a page as seen (anything not white), in fractions. */
+async function inkBox(bytes: Uint8Array, index: number): Promise<Frac & { aspect: number }> {
+  const p = await seen(bytes, index);
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (let y = 0; y < p.height; y++) {
+    for (let x = 0; x < p.width; x++) {
+      const k = (y * p.width + x) * 4;
+      if (p.data[k]! + p.data[k + 1]! + p.data[k + 2]! > 720) continue;
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x + 1);
+      y1 = Math.max(y1, y + 1);
+    }
+  }
+  return { x: x0 / p.width, y: y0 / p.height, w: (x1 - x0) / p.width, h: (y1 - y0) / p.height, aspect: p.width / p.height };
+}
+
+describe('the gauntlet, pages put on other paper', () => {
+  it('crop to A4 keeps each page the way up a reader sees it, whatever its /Rotate or box', async () => {
+    const problems: string[] = [];
+    for (const [name, bytes] of [
+      ['rotated', fixtures.rotated!],
+      ['offset', fixtures.offset!],
+      ['mixed', fixtures.mixed!],
+    ] as const) {
+      const n = await pageCountOf({ name, bytes });
+      const r = await run('crop', [pdf(`${name}.pdf`, bytes)], TIMEOUT, { mode: 'paper', paper: 'a4' });
+      const made = r.outcomes[0];
+      if (made?.kind !== 'produced') {
+        problems.push(`${name}: ${JSON.stringify(r.outcomes)}`);
+        continue;
+      }
+      const after = await r.bytesOf(made.file);
+      for (let page = 0; page < n; page++) {
+        await attempt(problems, `${name} page ${page + 1}`, async () => {
+          const source = await inkBox(bytes, page);
+          const sheet = await inkBox(after, page);
+          // Where the page sits on the sheet: scaled to fit, centred.
+          const fit = Math.min(1, source.aspect / sheet.aspect);
+          const fw = fit;
+          const fh = sheet.aspect / source.aspect * fit;
+          const fx = (1 - fw) / 2;
+          const fy = (1 - fh) / 2;
+          const want = { x: fx + source.x * fw, y: fy + source.y * fh, w: source.w * fw, h: source.h * fh };
+          const off = Math.max(Math.abs(want.x - sheet.x), Math.abs(want.y - sheet.y), Math.abs(want.w - sheet.w), Math.abs(want.h - sheet.h));
+          if (off > 0.03) throw new Error(`drawn at ${JSON.stringify(round(sheet))}, expected ${JSON.stringify(round(want))}`);
+        });
+      }
+    }
+    expect(problems.join('\n')).toBe('');
+  }, 120_000);
+});
+
+describe('the gauntlet, what pages share is copied once', () => {
+  it('a logo on every page goes into the result once, whatever the tool', async () => {
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    const logo = await doc.embedPng(noisePng(200));
+    for (let i = 0; i < 100; i++) doc.addPage([300, 300]).drawImage(logo, { x: 0, y: 0, width: 50, height: 50 });
+    const letterhead = pdf('Letterhead.pdf', new Uint8Array(await doc.save()));
+    const partner = pdf('Cover.pdf', fixtures.good!);
+    const problems: string[] = [];
+    const tries: Array<[ToolId, unknown, Input[]]> = [
+      ['merge', {}, [letterhead, partner]],
+      ['insert-pages', { after: 50, what: 'blank', blankCount: 1 }, [letterhead]],
+      ['n-up', { perSheet: 4, paper: 'a4' }, [letterhead]],
+      ['crop', { mode: 'paper', paper: 'a4' }, [letterhead]],
+      ['organise', { pages: Array.from({ length: 100 }, (_, i) => ({ source: 99 - i, rotation: 0 })).slice(0, 60) }, [letterhead]],
+      ['extract-pages', { pages: '1-50', mode: 'keep' }, [letterhead]],
+    ];
+    for (const [tool, params, inputs] of tries) {
+      await attempt(problems, tool, async () => {
+        const r = await run(tool, inputs, TIMEOUT, params);
+        await check(tool, r, 'letterhead');
+        for (const o of r.outcomes) {
+          if (o.kind === 'produced' && o.file.size > letterhead.bytes.length * 1.5) throw new Error(`${o.file.size} bytes from ${letterhead.bytes.length}`);
+        }
+      });
     }
     expect(problems.join('\n')).toBe('');
   }, 120_000);
