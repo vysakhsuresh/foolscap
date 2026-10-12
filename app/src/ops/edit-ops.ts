@@ -179,16 +179,17 @@ export const editImagesOp: Op<EditImagesParams> = {
         if (!areaOk(e.area, doc.pageCount)) continue;
         byPage.set(e.area.page, [...(byPage.get(e.area.page) ?? []), e]);
       }
-      let done = 0;
-      for (const [page, edits] of byPage) done += await doc.editImages(page, edits);
-      if (done === 0) return refused([input], 'Those pictures could not be found in the page’s drawing, so nothing was changed. A picture inside a drawing or a scan cannot be edited on its own.');
-      const count = (action: string) => params.edits.filter((e) => e.action === action).length;
+      const done: Array<EditImagesParams['edits'][number]['action']> = [];
+      for (const [page, edits] of byPage) done.push(...(await doc.editImages(page, edits)));
+      if (done.length === 0) return refused([input], 'Those pictures could not be found in the page’s drawing, so nothing was changed. A picture inside a drawing or a scan cannot be edited on its own.');
+      // What was actually done, not what was asked: a picture that could not be found is counted below.
+      const count = (action: string) => done.filter((a) => a === action).length;
       const parts = [
         count('delete') > 0 ? `${plural(count('delete'), 'picture')} taken out` : '',
         count('move') > 0 ? `${plural(count('move'), 'picture')} moved` : '',
         count('replace') > 0 ? `${plural(count('replace'), 'picture')} replaced` : '',
       ].filter(Boolean);
-      const missed = params.edits.length - done;
+      const missed = params.edits.length - done.length;
       const detail = `${parts.join(', ')}${missed > 0 ? `; ${plural(missed, 'change')} could not be made` : ''}`;
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
       return store(ctx, 'edit-images', [input], `${baseName(input.name)} (pictures edited).pdf`, bytes, `${detail}${relocked ? LOCKED : ''}`);

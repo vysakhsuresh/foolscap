@@ -89,9 +89,18 @@ npm test           # typecheck, unit tests, then e2e against the built site
   end with a memory workspace, and the structural rules — the seam, where
   bytes may enter and leave, no `console.` in the app, no inline styles, the
   CSP's contents, no server, output sizes.
+- `tests/unit/gauntlet.test.ts`: every op in the registry over awkward
+  files — empty, not a PDF, damaged, cut short, locked (several kinds),
+  scans, turned and offset pages, forms, odd and long names, mixed batches —
+  checking it answers for every input in plain English, never throws or
+  hangs, never changes an input, and makes files that reopen.
+  `GAUNTLET_FULL=1` adds a 300-page file and the pdf.js corpus;
+  `GAUNTLET_PERF=1` prints the timings in `tests/PERFORMANCE.md`.
 - `tests/e2e/` (Playwright, Chromium, phone 360×780 and laptop 1280×860):
   each tool end to end with downloads inspected, the offline proof, the CSP
-  on every path, tap targets, overflow, the display font.
+  on every path, tap targets, overflow, the display font, awkward files
+  dropped on the tool pages, every sitemap page's search tags, and ads
+  loading on the real domain only, on the home page and guides only.
 
 Fixtures are generated at test time with pdf-lib; no binaries are committed.
 `tests/fixtures/README.md` explains why stage-1 fixtures avoid fonts and

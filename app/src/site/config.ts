@@ -66,3 +66,4 @@ export const AD_PAGE_CSP =
 
 /** A ready-made message for "Tell a friend": a plain wa.me link, nothing fetched until tapped. */
 export const SHARE_TEXT = 'Free PDF tools that never upload your files: merge, compress, sign, unlock, convert. Works offline too.';
+export const SHARE_URL = `https://wa.me/?text=${encodeURIComponent(`${SHARE_TEXT} ${SITE_ORIGIN ?? ''}/`.trim())}`;

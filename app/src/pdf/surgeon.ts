@@ -82,6 +82,7 @@ import {
   markPage,
   measureLabel,
   type ExtractedImage,
+  type ImageEdit,
   type PageInfo,
   type PdfDoc,
   type PdfSurgeon,
@@ -1007,7 +1008,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         const inter = iw * ih;
         return inter / (a.w * a.h + b.w * b.h - inter || 1);
       };
-      const splices: Array<{ start: number; end: number; text: string }> = [];
+      const splices: Array<{ start: number; end: number; text: string; action: ImageEdit['action'] }> = [];
       const used = new Set<number>();
       let fresh = 0;
       const nameFor = () => {
@@ -1033,7 +1034,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         if (call === undefined) continue;
         used.add(best);
         if (edit.action === 'delete') {
-          splices.push({ start: call.start, end: call.end, text: '' });
+          splices.push({ start: call.start, end: call.end, text: '', action: 'delete' });
           continue;
         }
         const [x0, y0, x1, y1] = call.box;
@@ -1050,7 +1051,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
           const back = invert(call.ctm);
           if (!back) continue;
           const local = multiply(multiply(call.ctm, shift), back);
-          splices.push({ start: call.start, end: call.end, text: `q ${cm(local)} /${call.name} Do Q` });
+          splices.push({ start: call.start, end: call.end, text: `q ${cm(local)} /${call.name} Do Q`, action: 'move' });
           continue;
         }
         // Replace: the new picture fills the old one's box, kept to its own shape and centred.
@@ -1062,9 +1063,10 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         const aspect = image.width / Math.max(1, image.height);
         const fx = aspect >= boxAspect ? 1 : aspect / boxAspect;
         const fy = aspect >= boxAspect ? boxAspect / aspect : 1;
-        splices.push({ start: call.start, end: call.end, text: `q ${cm([fx, 0, 0, fy, (1 - fx) / 2, (1 - fy) / 2])} /${name} Do Q` });
+        splices.push({ start: call.start, end: call.end, text: `q ${cm([fx, 0, 0, fy, (1 - fx) / 2, (1 - fy) / 2])} /${name} Do Q`, action: 'replace' });
       }
-      if (splices.length === 0) return 0;
+      if (splices.length === 0) return [];
+      const done = splices.map((s) => s.action);
       splices.sort((a, b) => b.start - a.start);
       let bytes = joined;
       for (const s of splices) {
@@ -1077,7 +1079,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       }
       page.node.set(PDFName.of('Contents'), context.register(context.flateStream(bytes)));
       dropUnreachable(context);
-      return splices.length;
+      return done;
     },
 
     makeArchival() {

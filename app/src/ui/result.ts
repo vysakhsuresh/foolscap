@@ -1,6 +1,7 @@
 import type { Exporter, FoolscapFile, SaveOutcome, ShareOutcome } from '../files/types';
 import type { Outcome } from '../ops/op';
 import { LIVE_TOOLS, type ToolId, type ToolMeta } from '../ops/tools';
+import { SHARE_URL } from '../site/config';
 import { el } from './dom';
 import { formatSize, plural } from './format';
 
@@ -166,6 +167,13 @@ export function renderResult(outcomes: readonly Outcome[], deps: ResultDeps): HT
     failures.length > 0 ? el('ul', { class: 'result__list' }, failures) : null,
     actions,
     status,
+    // A plain link: nothing is sent until it is tapped, and it carries the site's address, never the file.
+    files.length > 0
+      ? el('p', { class: 'result__tell' }, [
+          'Useful? ',
+          el('a', { testid: 'result-tell', text: 'Tell a friend on WhatsApp', attrs: { href: SHARE_URL, target: '_blank', rel: 'noopener' } }),
+        ])
+      : null,
   ]);
 
   // Share only where the browser can share files; the button appears once we know.

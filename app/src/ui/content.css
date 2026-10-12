@@ -208,3 +208,17 @@
   gap: var(--space-3);
   max-width: 28rem;
 }
+
+/* ---- After a result: tell a friend ---- */
+
+.result__tell {
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.result__tell a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--whatsapp);
+}

@@ -559,10 +559,10 @@ export interface PdfDoc {
   makeArchival(): ArchivalReport;
   /**
    * Takes out, moves or swaps pictures already on page `index`, each found by
-   * where it is drawn (`area`, as `PdfView.images` reports it). Returns how
-   * many were found and changed.
+   * where it is drawn (`area`, as `PdfView.images` reports it). Returns what
+   * was actually done, one entry per edit that found its picture.
    */
-  editImages(index: number, edits: readonly ImageEdit[]): Promise<number>;
+  editImages(index: number, edits: readonly ImageEdit[]): Promise<ReadonlyArray<ImageEdit['action']>>;
   compress(
     recompress: (image: ExtractedImage) => Promise<RecompressedImage | null>,
     signal?: AbortSignal,

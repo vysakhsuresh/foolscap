@@ -49,9 +49,9 @@ describe('edit pictures', () => {
       { area: found[0]!, action: 'delete' },
       { area: found[1]!, action: 'move', to: { page: 0, x: 0.5, y: 0.1, w: 0.4, h: 0.4 } },
     ]);
-    expect(done).toBe(2);
+    expect(done).toEqual(['delete', 'move']);
     const second = await doc.editImages(1, [{ area: { page: 1, x: 0, y: 0.75, w: 0.25, h: 0.25 }, action: 'replace', bytes: TINY_JPEG, format: 'jpeg' }]);
-    expect(second).toBe(1);
+    expect(second).toEqual(['replace']);
     const bytes = await doc.save();
     doc.close();
 

@@ -15,7 +15,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GROUPS, KEYWORDS, SEARCH_NAMES, TOOLS, type GroupId, type ToolMeta } from '../app/src/ops/tools.ts';
-import { ADSENSE, DESCRIPTION, HELP, MADE_BY, SHARE_TEXT, SITE_NAME, SITE_ORIGIN } from '../app/src/site/config.ts';
+import { ADSENSE, DESCRIPTION, HELP, MADE_BY, SHARE_URL, SITE_NAME, SITE_ORIGIN } from '../app/src/site/config.ts';
 import { GUIDES, type Guide } from '../app/src/site/guides.ts';
 import { TOOL_COPY } from '../app/src/site/tool-copy.ts';
 import { GROUP_ICONS, TOOL_ICONS } from '../app/src/ui/tool-icons.ts';
@@ -75,9 +75,9 @@ function header(current: Section): string {
   </header>`;
 }
 
-// "Tell a friend": a plain wa.me link with the site's address in it. Nothing
-// is fetched or sent until it is tapped, and it carries nothing from the page.
-const SHARE_URL = `https://wa.me/?text=${encodeURIComponent(`${SHARE_TEXT} ${SITE_ORIGIN ?? ''}/`.trim())}`;
+// "Tell a friend" (SHARE_URL): a plain wa.me link with the site's address in
+// it. Nothing is fetched or sent until it is tapped, and it carries nothing
+// from the page.
 
 const FOOTER = `<footer class="site-footer" data-testid="site-footer">
     <div class="wrap site-footer__row">
