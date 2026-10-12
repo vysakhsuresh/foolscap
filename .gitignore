@@ -12,3 +12,6 @@ app/public/pdfjs/
 
 # Copied from node_modules/tesseract.js* by scripts/copy-ocr-assets.mjs on predev/prebuild.
 app/public/tesseract/
+
+# Scratch copies of the repo made by helper agents; their work is merged through git.
+.claude/worktrees/
