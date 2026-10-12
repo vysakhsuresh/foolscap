@@ -24,7 +24,7 @@
  * `GAUNTLET_PERF=1` times every tool on a 40-page report and the 300-page
  * file and prints the table kept in tests/PERFORMANCE.md.
  */
-import { PDFDocument } from '@cantoo/pdf-lib';
+import { PDFDocument, degrees } from '@cantoo/pdf-lib';
 import { unzipSync } from 'fflate';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -42,6 +42,7 @@ import {
   docxBytes,
   mixedSizesPdf,
   offsetBoxPdf,
+  oldLockPdf,
   reportPdf,
   restrictedPdf,
   rotated,
@@ -110,6 +111,9 @@ beforeAll(async () => {
     scan: await scanPdf(),
     locked: await encryptedPdf(PASSWORD),
     restricted: await restrictedPdf(),
+    rc4: await oldLockPdf(PASSWORD, 'RC4-128'),
+    rc440: await oldLockPdf(PASSWORD, 'RC4-40'),
+    aes128: await oldLockPdf(PASSWORD, 'AES-128'),
     truncated: await truncatedPdf(),
     statement: (await bankStatementPdf([2024, 4], [2024, 6])).bytes,
     report: await reportPdf(6),
@@ -134,6 +138,10 @@ function pdfCases(): Case[] {
     { name: 'locked, wrong password', files: [pdf('Locked.pdf', f.locked!, { bad: true, code: 'wrong-password', password: 'coffee' })] },
     { name: 'locked, right password', files: [pdf('Locked.pdf', f.locked!, { password: PASSWORD })] },
     { name: 'owner-password only', files: [pdf('Restricted.pdf', f.restricted!)] },
+    { name: 'locked with RC4-128', files: [pdf('Old lock.pdf', f.rc4!, { password: PASSWORD })] },
+    { name: 'locked with RC4-40', files: [pdf('Older lock.pdf', f.rc440!, { password: PASSWORD })] },
+    { name: 'locked with AES-128', files: [pdf('AES lock.pdf', f.aes128!, { password: PASSWORD })] },
+    { name: 'RC4, wrong password', files: [pdf('Old lock.pdf', f.rc4!, { bad: true, code: 'wrong-password', password: 'coffee' })] },
     { name: 'scan (no text)', files: [pdf('Scan.pdf', f.scan!)] },
     { name: 'rotated pages', files: [pdf('Rotated.pdf', f.rotated!)] },
     { name: 'mixed page sizes', files: [pdf('Mixed.pdf', f.mixed!)] },
@@ -585,7 +593,7 @@ describe.skipIf(!PERF)('the gauntlet, timed', () => {
       }
       rows.push(`| ${tool} | ${times.join(' | ')} |`);
     }
-    const lines = ['| Tool | 40-page report (1.6 MB, photos) | 300 pages |', '|---|---|---|', ...rows];
+    const lines = ['| Tool | 40-page report (4 MB, 10 photos) | 300 pages (130 KB) |', '|---|---|---|', ...rows];
     process.stdout.write(`\n${lines.join('\n')}\n`);
   }, 3_600_000);
 });
@@ -834,6 +842,8 @@ describe('the gauntlet, what pages share is copied once', () => {
       ['crop', { mode: 'paper', paper: 'a4' }, [letterhead]],
       ['organise', { pages: Array.from({ length: 100 }, (_, i) => ({ source: 99 - i, rotation: 0 })).slice(0, 60) }, [letterhead]],
       ['extract-pages', { pages: '1-50', mode: 'keep' }, [letterhead]],
+      // Not a shared picture, but the same idea: two hundred copies of the words on every page, drawn once.
+      ['watermark', { text: 'CONFIDENTIAL', strength: 'light', layout: 'tiled' }, [letterhead]],
     ];
     for (const [tool, params, inputs] of tries) {
       await attempt(problems, tool, async () => {
@@ -846,4 +856,87 @@ describe('the gauntlet, what pages share is copied once', () => {
     }
     expect(problems.join('\n')).toBe('');
   }, 120_000);
+});
+
+describe('the gauntlet, cancelled part way', () => {
+  for (const tool of OP_IDS) {
+    it(`${tool}: stops when the person taps Stop, and says nothing else`, async () => {
+      const files = casesFor(tool).find((c) => !c.files.some((f) => f.bad) && c.files.length > 0)?.files ?? [];
+      const inputs = runsFor(tool, files)[0] ?? [];
+      const workspace = createMemoryWorkspace();
+      const ids: FoolscapFile[] = [];
+      for (const input of inputs) ids.push(await workspace.put(input.name, input.bytes.slice(), input.kind ?? 'pdf', { kind: 'picked' }));
+      const controller = new AbortController();
+      const ctx: OpContext = {
+        workspace,
+        engine: async () => engine,
+        ocr: async () => fakeOcr,
+        surgeon: createSurgeon(),
+        passwords: new Map(),
+        signal: controller.signal,
+        // Stop at the first sign of work, as a person tapping Stop would.
+        progress: () => controller.abort(),
+      };
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const settled = await Promise.race([
+        getOp(tool)
+          .run(ids, PARAMS[tool]!(await pageCountOf(inputs[0])), ctx)
+          .then(
+            (outcomes) => ({ outcomes }),
+            (error: unknown) => ({ error }),
+          ),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`${tool} did not stop`)), 30_000);
+        }),
+      ]).finally(() => clearTimeout(timer));
+      // Either it was too quick to stop (and finished), or it stopped with OpCancelled: never another error.
+      if ('error' in settled) expect((settled.error as Error).name, String(settled.error)).toBe('OpCancelled');
+    }, 60_000);
+  }
+});
+
+describe('the gauntlet, a turned page looks the same as an upright one', () => {
+  /** Blank pages that all look 300 × 420 to a reader: upright, then stored sideways or upside down and turned back by /Rotate, one with an offset box. */
+  async function lookalikes(): Promise<Uint8Array> {
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    doc.addPage([300, 420]);
+    doc.addPage([420, 300]).setRotation(degrees(90));
+    doc.addPage([300, 420]).setRotation(degrees(180));
+    doc.addPage([420, 300]).setRotation(degrees(270));
+    const offset = doc.addPage([700, 900]);
+    offset.setMediaBox(50, 80, 300, 420);
+    return new Uint8Array(await doc.save());
+  }
+  const stamps: Array<[ToolId, unknown]> = [
+    ['watermark', { text: 'DRAFT', strength: 'strong', layout: 'tiled' }],
+    ['watermark', { text: 'COPY', strength: 'strong', layout: 'once' }],
+    ['header-footer', { header: 'CONFIDENTIAL', footer: 'Footer', align: 'left' }],
+    ['add-text', { marks: [0, 1, 2, 3, 4].map((page) => ({ kind: 'text', area: { page, x: 0.1, y: 0.3, w: 0.6, h: 0.05 }, text: 'Paid in full', size: 0.05, color: [0, 0, 0] })) }],
+    ['mark-up', { marks: [0, 1, 2, 3, 4].flatMap((page) => [{ kind: 'stamp', area: { page, x: 0.1, y: 0.5, w: 0.5, h: 0.1 }, text: 'APPROVED', color: [0, 0.5, 0] }, { kind: 'line', page, from: [0.1, 0.8], to: [0.7, 0.7], color: [0, 0, 0], width: 0.005, end: 'measure' }]) }],
+  ];
+  for (const [tool, params] of stamps) {
+    it(`${tool} ${JSON.stringify(params).slice(0, 40)}: every page shows the same thing`, async () => {
+      const bytes = await lookalikes();
+      const r = await run(tool, [pdf('Blank.pdf', bytes)], TIMEOUT, params);
+      const made = r.outcomes[0];
+      if (made?.kind !== 'produced') throw new Error(JSON.stringify(r.outcomes));
+      const after = await r.bytesOf(made.file);
+      const upright = await seen(after, 0);
+      const problems: string[] = [];
+      for (let page = 1; page < 5; page++) {
+        const other = await seen(after, page);
+        let differ = 0;
+        let inked = 0;
+        for (let k = 0; k < upright.data.length; k += 4) {
+          const a = upright.data[k]! + upright.data[k + 1]! + upright.data[k + 2]! < 700;
+          const b = other.data[k]! + other.data[k + 1]! + other.data[k + 2]! < 700;
+          if (a) inked++;
+          if (a !== b) differ++;
+        }
+        // The same to the pixel, give or take anti-aliasing.
+        if (inked === 0 || differ > inked * 0.1) problems.push(`page ${page + 1}: ${differ} of ${inked} inked pixels differ`);
+      }
+      expect(problems.join('\n')).toBe('');
+    }, 60_000);
+  }
 });

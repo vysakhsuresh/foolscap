@@ -20,6 +20,10 @@ import {
   PDFTextField,
   TextRenderingMode,
   beginText,
+  drawObject,
+  concatTransformationMatrix,
+  setFillingRgbColor,
+  setGraphicsState,
   endText,
   lineTo,
   moveTo,
@@ -315,6 +319,8 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
   /** Annotations on pages Remove areas turned into pictures; non-empty means save() finishes the job. */
   const removedWidgets = new Set<string>();
   let replaced = false;
+  /** Tiled watermarks already drawn as a form, by what they say and the page size they cover. */
+  const tiles = new Map<string, PDFRef>();
   /** One object copier per source document, so what its pages share is copied into this one once. */
   const copiers = new WeakMap<PDFDocument, PDFObjectCopier>();
   const copierFrom = (from: PDFDocument): PDFObjectCopier => {
@@ -445,6 +451,35 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const centres = stamp.tiled === true ? tileCentres(view, width, size) : [anchorCentre(view, placed, width, capHeight)];
       const rad = (angle * Math.PI) / 180;
       const [r, g, b] = stamp.color ?? [0, 0, 0];
+      if (stamp.tiled === true) {
+        // A tiled watermark is a couple of hundred copies of the words on
+        // every page. Drawn one by one that is 17 KB a page (a 130 KB file
+        // came out at 5 MB); drawn once into a form every page of the same
+        // size shares, each page only says "draw that here".
+        const key = [text, size, angle, stamp.opacity ?? 1, r, g, b, stamp.bold === true, view.width, view.height].join('|');
+        let form = tiles.get(key);
+        if (form === undefined) {
+          const operators = [pushGraphicsState(), setGraphicsState('GS0'), beginText(), setFillingRgbColor(r, g, b), setFontAndSize('F0', size)];
+          for (const [cx, cy] of centres) {
+            const vx = cx - (Math.cos(rad) * width) / 2 + (Math.sin(rad) * capHeight) / 2;
+            const vy = cy - (Math.sin(rad) * width) / 2 - (Math.cos(rad) * capHeight) / 2;
+            operators.push(rotateAndSkewTextDegreesAndTranslate(angle, 0, 0, vx, vy), showText(f.encodeText(text)));
+          }
+          operators.push(endText(), popGraphicsState());
+          const opacity = stamp.opacity ?? 1;
+          const context = live().context;
+          form = context.register(
+            context.formXObject(operators, {
+              BBox: [0, 0, view.width, view.height],
+              Resources: { Font: { F0: f.ref }, ExtGState: { GS0: { Type: 'ExtGState', ca: opacity, CA: opacity } } },
+            }),
+          );
+          tiles.set(key, form);
+        }
+        const name = page.node.newXObject('Wm', form);
+        page.pushOperators(pushGraphicsState(), concatTransformationMatrix(...view.matrix()), drawObject(name), popGraphicsState());
+        return;
+      }
       for (const [cx, cy] of centres) {
         // The text's own origin is its bottom-left; put its centre on (cx, cy).
         const vx = cx - (Math.cos(rad) * width) / 2 + (Math.sin(rad) * capHeight) / 2;
@@ -1338,6 +1373,8 @@ interface PageView {
   readonly width: number;
   readonly height: number;
   readonly rotation: Rotation;
+  /** `toPage` as a PDF matrix, for drawing a whole form in the page as the reader sees it. */
+  matrix(): [number, number, number, number, number, number];
   toPage(vx: number, vy: number): [number, number];
 }
 
@@ -1349,6 +1386,19 @@ function viewOf(page: PDFPage): PageView {
     width: sideways ? h : w,
     height: sideways ? w : h,
     rotation,
+    matrix() {
+      // toPage, as a PDF matrix [a b c d e f]: px = a·vx + c·vy + e, py = b·vx + d·vy + f.
+      switch (rotation) {
+        case 0:
+          return [1, 0, 0, 1, x, y];
+        case 90:
+          return [0, 1, -1, 0, x + w, y];
+        case 180:
+          return [-1, 0, 0, -1, x + w, y + h];
+        case 270:
+          return [0, -1, 1, 0, x, y + h];
+      }
+    },
     toPage(vx, vy) {
       switch (rotation) {
         case 0:

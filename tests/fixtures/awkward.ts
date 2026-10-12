@@ -79,6 +79,13 @@ export async function annotatedPdf(): Promise<Bytes> {
   return new Uint8Array(await doc.save());
 }
 
+/** Locked the way older banks and scanners lock a statement: RC4 or AES-128 rather than AES-256. */
+export async function oldLockPdf(password: string, algorithm: 'RC4-40' | 'RC4-128' | 'AES-128'): Promise<Bytes> {
+  const doc = await PDFDocument.load(await pagesPdf(2), { updateMetadata: false });
+  doc.encrypt({ userPassword: password, ownerPassword: `${password}-owner`, algorithm, allowWeakCryptography: true });
+  return new Uint8Array(await doc.save({ useObjectStreams: false }));
+}
+
 /** Opens for anyone (an empty user password) but carries printing and copying restrictions. */
 export async function restrictedPdf(): Promise<Bytes> {
   const doc = await PDFDocument.load(await pagesPdf(2), { updateMetadata: false });
