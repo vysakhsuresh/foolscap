@@ -9,3 +9,6 @@ playwright-report/
 
 # Copied from node_modules/pdfjs-dist by scripts/copy-pdfjs-assets.mjs on predev/prebuild.
 app/public/pdfjs/
+
+# Copied from node_modules/tesseract.js* by scripts/copy-ocr-assets.mjs on predev/prebuild.
+app/public/tesseract/

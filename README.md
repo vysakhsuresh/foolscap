@@ -10,7 +10,7 @@ Android app. `CLAUDE.md` is the brief and the rules; read it first.
 
 ## What is live
 
-Twenty-four tools, in five families:
+All twenty-seven tools, in five families:
 
 | Family | Tools |
 |---|---|
@@ -18,10 +18,14 @@ Twenty-four tools, in five families:
 | Convert and print | Compress · Images to PDF · PDF to images · Pages per sheet · Extract images |
 | Mark up | Watermark · Page numbers · Sign · Mark up · Add text · Fill in a form · Header and footer |
 | Protect | Add a password · Remove a password · Remove areas · Document details |
-| Read | Extract text |
+| Read | Read · Scan a document · Make searchable · Extract text |
 
-Three more are listed on the home page as "Soon": read, scan, make
-searchable.
+**Read** is a viewer: zoom that redraws, find, the document's own contents,
+night mode, and Then… to any tool. **Scan** finds the sheet of paper in each
+photo, lets you drag its corners right, straightens it and cleans it up
+(colour, grey, or black and white that survives a shadow). **Make
+searchable** reads a scan's words with Tesseract and lays them invisibly over
+the page, so it can be searched and copied and still looks the same.
 
 Sign, Add text, Mark up and Remove areas share one page editor
 (`ui/page-editor.ts`): the page drawn large, tap to place, drag to draw or
@@ -141,6 +145,8 @@ carry canonical URLs.
 | `pdfjs-dist` | Apache-2.0 |
 | `@cantoo/pdf-lib` | MIT |
 | `fflate` | MIT |
+| `tesseract.js`, `tesseract.js-core` | Apache-2.0 (licences copied next to them in `/tesseract/`) |
+| Tesseract English model (`@tesseract.js-data/eng`, tessdata best_int) | Apache-2.0 |
 | Space Grotesk | OFL (`app/public/fonts/OFL-*.txt`) |
 
 Never MuPDF, PyMuPDF, iText or Ghostscript: all AGPL.

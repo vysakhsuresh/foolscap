@@ -6,7 +6,7 @@
 import type { Workspace } from '../files/types';
 import { createWorkerWorkspace } from '../files/workspace-worker';
 import { getOp } from '../ops';
-import { OpCancelled, type OpContext } from '../ops/op';
+import { OpCancelled, type OcrReader, type OpContext } from '../ops/op';
 import { createSurgeon } from '../pdf/surgeon';
 import type { PdfEngine } from '../pdf/types';
 import { WENT_WRONG, failureFor, type FromWorker, type ToWorker } from './protocol';
@@ -26,11 +26,20 @@ const engine = (): Promise<PdfEngine> =>
     return created;
   }));
 
+let ocrPromise: Promise<OcrReader> | null = null;
+const ocr = (): Promise<OcrReader> =>
+  (ocrPromise ??= import('../ocr/ocr').then(async (m) => {
+    const created = m.createOcr();
+    await created.ready;
+    return created;
+  }));
+
 async function init(message: Extract<ToWorker, { type: 'init' }>): Promise<void> {
   workspace = createWorkerWorkspace(message.backend, scope.navigator, message.port);
   await workspace.ready;
   // A failure here is the op's to report, in words, when it asks for the engine.
   if (message.engine === true) await engine().catch(() => undefined);
+  if (message.ocr === true) await ocr().catch(() => undefined);
   post({ type: 'inited' });
 }
 
@@ -53,6 +62,7 @@ async function run(message: Extract<ToWorker, { type: 'run' }>): Promise<void> {
       },
     },
     engine,
+    ocr,
     surgeon: createSurgeon(),
     passwords: new Map(message.passwords),
     signal: controller.signal,

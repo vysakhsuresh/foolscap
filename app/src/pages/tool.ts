@@ -23,6 +23,7 @@ import { createFormPanel } from '../ui/form-panel';
 import { createPageEditor, type EditorMode } from '../ui/page-editor';
 import { createPageGrid, type PageGrid } from '../ui/page-grid';
 import { createReader } from '../ui/reader';
+import { createScanPanel, type ScanPanel } from '../ui/scan-panel';
 import { createProgress } from '../ui/progress';
 import { TOO_LARGE, renderResult } from '../ui/result';
 import { mountShell } from '../ui/shell';
@@ -68,7 +69,8 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   const several = tool.input !== 'one-pdf';
   // A viewer (Read) has no Op: it takes one file and shows it.
   const arity = tool.viewer ? ({ kind: 'one' } as const) : getOp(id).arity;
-  const noun = tool.input === 'images' ? 'image' : 'PDF';
+  const takesImages = tool.input === 'images' || tool.input === 'camera';
+  const noun = takesImages ? 'image' : 'PDF';
 
   // ---- Static parts of the page below the drop zone ----
   const notice = el('div', { class: 'notice', attrs: { role: 'status', 'aria-live': 'polite' } });
@@ -93,6 +95,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   let grid: PageGrid | null = null;
   let options: ToolOptions | null = null;
   // A panel that needs the document itself: the page editor, or the form.
+  let scanner: ScanPanel | null = null;
   let panel: { root: HTMLElement; load(view: PdfView): Promise<void>; params(): unknown; problem(): string | null; destroy(): Promise<void> } | null = null;
   if (id === 'organise') {
     grid = createPageGrid(() => refresh());
@@ -111,6 +114,9 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     });
     optionsSlot.append(panel.root);
     runArea.hidden = true;
+  } else if (id === 'scan') {
+    scanner = createScanPanel(() => refresh());
+    optionsSlot.append(scanner.root);
   } else if (id === 'fill-form') {
     panel = createFormPanel(() => refresh());
     optionsSlot.append(panel.root);
@@ -139,6 +145,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     if (arity.kind === 'one' && n !== 1) return `${tool.title} works on one file at a time.`;
     if (grid && grid.count() === 0) return 'Every page is deleted. Restore at least one.';
     if (panel && n === 1 && entries[0]?.pages !== undefined) return panel.problem() ?? '';
+    if (scanner) return scanner.problem() ?? '';
     return options?.problem(n) ?? '';
   }
 
@@ -161,6 +168,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       remove: (index) => void removeEntry(index),
       password: (index, password) => void unlock(index, password),
     });
+    if (scanner && ws) scanner.sync(entries.map((e) => e.file), ws);
     runButton.disabled = !runnable();
     runNote.textContent = blocker();
   }
@@ -216,7 +224,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       while (entries.length > 0) await removeEntry(0);
       files = files.slice(0, 1);
     }
-    const store = createDocumentStore(ws, tool.input === 'images' ? 'image' : 'pdf');
+    const store = createDocumentStore(ws, takesImages ? 'image' : 'pdf');
     const results = await store.import(files);
     const problems: string[] = [];
     const added: Entry[] = [];
@@ -256,7 +264,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       case 'organise':
         return grid?.params() ?? { pages: [] };
       default:
-        return panel?.params() ?? options?.params() ?? {};
+        return scanner?.params() ?? panel?.params() ?? options?.params() ?? {};
     }
   }
 
@@ -370,7 +378,10 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   const workspace = await createWorkspace();
   ws = workspace;
   document.body.dataset['storageBackend'] = workspace.backend;
-  const jobRunner = createJobRunner(workspace, { engine: !tool.viewer && getOp(id).engine === true });
+  const jobRunner = createJobRunner(workspace, {
+    engine: !tool.viewer && getOp(id).engine === true,
+    ocr: !tool.viewer && getOp(id).ocr === true,
+  });
   runner = jobRunner;
 
   // Nothing stays behind from a previous visit, except the files a "Then…" just handed over.

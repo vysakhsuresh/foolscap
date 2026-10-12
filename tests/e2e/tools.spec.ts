@@ -4,7 +4,7 @@
  * check what comes out. One test per tool, so a failure names the tool.
  */
 import { expect, test, type Page } from '@playwright/test';
-import { TINY_JPEG, encryptedPdf, heavyPdf, imagesPdf, formPdf, noisePng, outlinedPdf, pagesPdf, pdfInfo, photoPdf } from '../fixtures/pdfs';
+import { TINY_JPEG, encryptedPdf, heavyPdf, imagesPdf, formPdf, noisePng, outlinedPdf, pagesPdf, paperPhotoPng, pdfInfo, photoPdf, pictureOnlyPdf, typedPdf } from '../fixtures/pdfs';
 import { downloadFrom, openTool, run, useDownloads } from './helpers';
 
 test.beforeEach(async ({ context }) => {
@@ -373,4 +373,68 @@ test('read: every page, contents, find, zoom, night, and Then… to another tool
   await page.getByTestId('then-split').click();
   await expect(page).toHaveURL(/\/tools\/split\/$/);
   await expect(page.getByTestId('file-item')).toHaveCount(1);
+});
+
+// ---- Scan ----
+
+test('scan finds the sheet in each photo, and makes one straightened PDF', async ({ page }) => {
+  await openTool(page, 'scan');
+  await page.getByTestId('file-input').setInputFiles([
+    { name: 'IMG_0001.png', mimeType: 'image/png', buffer: Buffer.from(paperPhotoPng()) },
+    { name: 'IMG_0002.png', mimeType: 'image/png', buffer: Buffer.from(paperPhotoPng(800, 600)) },
+  ]);
+  await expect(page.getByTestId('scan-card')).toHaveCount(2);
+  await expect(page.locator('[data-testid="scan-card"][data-found="true"]')).toHaveCount(2);
+  await page.getByTestId('scan-turn').nth(1).click();
+  await page.getByTestId('opt-look-bw').check();
+  const items = await results(page);
+  await expect(items).toHaveCount(1);
+  await expect(items.first()).toHaveAttribute('data-pages', '2');
+  await expect(page.getByTestId('result-detail')).toHaveText('2 pages in black and white on A4');
+});
+
+// ---- Make searchable ----
+
+test('make searchable reads the words in a scanned page, and Extract text then finds them', async ({ page }) => {
+  test.setTimeout(180_000);
+  await openTool(page, 'ocr');
+  // A "scan": words drawn by the browser into a picture, at A4 and 150 dpi, with no text in the PDF.
+  const dataUrl = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1240;
+    canvas.height = 1754;
+    const c = canvas.getContext('2d')!;
+    c.fillStyle = '#fbfbf8';
+    c.fillRect(0, 0, canvas.width, canvas.height);
+    c.fillStyle = '#111';
+    c.font = '64px Arial, Helvetica, sans-serif';
+    c.fillText('INVOICE 4821', 120, 260);
+    c.font = '40px Arial, Helvetica, sans-serif';
+    c.fillText('Rent for October, paid in full.', 120, 380);
+    return canvas.toDataURL('image/png');
+  });
+  const png = Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
+  await pick(page, [{ name: 'Receipt scan.pdf', bytes: await pictureOnlyPdf(new Uint8Array(png)) }]);
+  const button = page.getByTestId('run-button');
+  await expect(button).toBeEnabled();
+  await button.click();
+  await expect(page.getByTestId('result')).toBeVisible({ timeout: 150_000 });
+  await expect(page.getByTestId('result-detail')).toContainText('read on 1 page');
+  if ((await page.getByTestId('then-menu').count()) === 0) return;
+  await page.getByTestId('then-menu').click();
+  await page.getByTestId('then-extract-text').click();
+  await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+  await expect(page.getByTestId('file-item')).toHaveCount(1);
+  await run(page);
+  const { bytes } = await downloadFrom(page, page.getByTestId('save-button'));
+  const text = new TextDecoder().decode(bytes);
+  expect(text).toContain('INVOICE');
+  expect(text).toContain('4821');
+});
+
+test('make searchable leaves a file that already has text alone, and says so', async ({ page }) => {
+  await openTool(page, 'ocr');
+  await pick(page, [{ name: 'Typed.pdf', bytes: await typedPdf() }]);
+  await run(page);
+  await expect(page.getByTestId('failure-item')).toContainText('already has text');
 });

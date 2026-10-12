@@ -18,8 +18,16 @@ import {
   PDFOptionList,
   PDFRadioGroup,
   PDFTextField,
+  TextRenderingMode,
+  beginText,
+  endText,
   lineTo,
   moveTo,
+  rotateAndSkewTextDegreesAndTranslate,
+  setCharacterSqueeze,
+  setFontAndSize,
+  setTextRenderingMode,
+  showText,
   popGraphicsState,
   pushGraphicsState,
   setLineCap,
@@ -327,6 +335,37 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
     images() {
       const { images, skipped } = extractImages(live());
       return { images, skipped };
+    },
+
+    addTextLayer(index, words) {
+      const page = pageAt(index);
+      const view = viewOf(page);
+      const f = font(false);
+      drawable ??= new Set(f.getCharacterSet());
+      const key = page.node.newFontDictionary(f.name, f.ref);
+      const ops = [pushGraphicsState(), beginText(), setTextRenderingMode(TextRenderingMode.Invisible)];
+      let placed = 0;
+      for (const word of words) {
+        const text = [...word.text].filter((ch) => drawable?.has(ch.codePointAt(0) ?? 0)).join('');
+        if (text.length === 0) continue;
+        const height = word.h * view.height;
+        const width = word.w * view.width;
+        // A word's box runs from the tops of its tall letters to the bottom of its descenders.
+        const size = Math.max(1, height * 0.92);
+        const natural = f.widthOfTextAtSize(text, size);
+        if (!(natural > 0) || !(width > 0)) continue;
+        const [px, py] = view.toPage(word.x * view.width, (1 - word.y - word.h) * view.height + height * 0.2);
+        ops.push(
+          setFontAndSize(key, size),
+          setCharacterSqueeze(Math.min(500, Math.max(10, (100 * width) / natural))),
+          rotateAndSkewTextDegreesAndTranslate(view.rotation, 0, 0, px, py),
+          showText(f.encodeText(text)),
+        );
+        placed++;
+      }
+      ops.push(endText(), popGraphicsState());
+      if (placed > 0) page.pushOperators(...ops);
+      return placed;
     },
 
     async drawMarks(marks) {

@@ -4,6 +4,8 @@
  * font arrived, and a tool page says which store it is using.
  */
 import { expect, test } from '@playwright/test';
+import { TOOLS } from '../../app/src/ops/tools';
+import { pagesPdf } from '../fixtures/pdfs';
 import { ALL_PAGES, TOOL_IDS, openPage, openTool } from './helpers';
 
 const MIN_TARGET = 44;
@@ -15,7 +17,7 @@ const MIN_TARGET = 44;
  */
 const MIN_INLINE_LINK_HEIGHT = 24;
 
-test('the home page links each live tool and lists the rest as coming soon', async ({ page }) => {
+test('the home page links each live tool, and any tool not ready is not a link', async ({ page }) => {
   await openPage(page, '/');
   for (const id of TOOL_IDS) {
     const card = page.getByTestId(`tool-card-${id}`);
@@ -24,7 +26,7 @@ test('the home page links each live tool and lists the rest as coming soon', asy
     expect(await card.evaluate((el) => el.tagName)).toBe('A');
   }
   const soon = page.locator('[data-testid^="tool-card-"][data-status="soon"]');
-  expect(await soon.count()).toBeGreaterThan(0);
+  expect(await soon.count()).toBe(TOOLS.length - TOOL_IDS.length);
   const tags = await soon.evaluateAll((els) => els.map((el) => el.tagName));
   expect(tags.every((tag) => tag !== 'A'), 'a tool that is not ready is not a link').toBe(true);
   await expect(page.getByTestId('trust-pills')).toBeVisible();
@@ -103,3 +105,23 @@ for (const path of ['/', '/private/', '/tools/merge/']) {
     await expect(page.getByTestId('help-panel')).toBeHidden();
   });
 }
+
+test('a button does not jitter when the pointer rests on its bottom edge', async ({ page }) => {
+  await openTool(page, 'merge');
+  await page.getByTestId('file-input').setInputFiles([
+    { name: 'a.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await pagesPdf(1)) },
+    { name: 'b.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await pagesPdf(1)) },
+  ]);
+  const button = page.getByTestId('run-button');
+  await expect(button).toBeEnabled();
+  await button.evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  const box = (await button.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height - 1);
+  await page.waitForTimeout(600);
+  const tops: number[] = [];
+  for (let i = 0; i < 6; i++) {
+    tops.push((await button.boundingBox())!.y);
+    await page.waitForTimeout(100);
+  }
+  expect(new Set(tops).size, `the button moved: ${tops.join(', ')}`).toBe(1);
+});

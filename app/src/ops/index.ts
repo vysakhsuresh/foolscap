@@ -7,7 +7,8 @@ import type { Op } from './op';
 import { organiseOp } from './organise';
 import { cropOp, extractPagesOp, insertPagesOp, nUpOp, splitBySizeOp } from './pages-ops';
 import { addPasswordOp, documentDetailsOp, removePasswordOp } from './protect-ops';
-import { compressOp, extractTextOp, pdfToImagesOp } from './render-ops';
+import { compressOp, extractTextOp, ocrOp, pdfToImagesOp } from './render-ops';
+import { scanOp } from './scan-ops';
 import { splitOp } from './split';
 import { toolById, type ToolId } from './tools';
 
@@ -43,6 +44,8 @@ const OPS: Partial<Record<ToolId, Op<never>>> = {
   'mark-up': markUpOp,
   'remove-areas': removeAreasOp,
   'fill-form': fillFormOp,
+  scan: scanOp,
+  ocr: ocrOp,
 };
 
 export function getOp(id: ToolId): Op {

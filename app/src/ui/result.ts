@@ -124,7 +124,7 @@ export function renderResult(outcomes: readonly Outcome[], deps: ResultDeps): HT
   // tools, images to Images to PDF, text to nothing.
   const kinds = new Set(files.map((f) => f.kind));
   const takes = (t: ToolMeta) =>
-    kinds.has('text') ? false : kinds.has('image') ? t.input === 'images' : t.input !== 'images' && t.input !== 'camera';
+    kinds.has('text') ? false : kinds.has('image') ? t.input === 'images' || t.input === 'camera' : t.input !== 'images' && t.input !== 'camera';
   const others = kinds.size === 1 ? LIVE_TOOLS.filter((t) => t.id !== deps.tool.id && takes(t)) : [];
   if (files.length > 0 && deps.handoff && others.length > 0) {
     const menu = el('div', { class: 'then__menu', attrs: { role: 'menu' } }, others.map((t) =>

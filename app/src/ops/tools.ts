@@ -135,8 +135,8 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'document-details', title: 'Document details', summary: 'Edit or strip the title, author and hidden metadata', action: 'Save the details', input: 'several-pdfs', group: 'protect', status: 'live' },
 
   { id: 'read', title: 'Read', summary: 'Open a document, then hand it to any tool', action: 'Open it', input: 'one-pdf', group: 'read', status: 'live', viewer: true },
-  { id: 'scan', title: 'Scan a document', summary: 'Photograph pages and straighten them', action: 'Scan', input: 'camera', group: 'read', status: 'soon' },
-  { id: 'ocr', title: 'Make searchable', summary: 'Read the text in a scan so you can search and copy it', action: 'Make it searchable', input: 'several-pdfs', group: 'read', status: 'soon' },
+  { id: 'scan', title: 'Scan a document', summary: 'Photograph pages and straighten them', action: 'Make the PDF', input: 'camera', group: 'read', status: 'live' },
+  { id: 'ocr', title: 'Make searchable', summary: 'Read the text in a scan so you can search and copy it', action: 'Make it searchable', input: 'several-pdfs', group: 'read', status: 'live' },
   { id: 'extract-text', title: 'Extract text', summary: 'Pull the words out of a PDF as plain text', action: 'Extract the text', input: 'several-pdfs', group: 'read', status: 'live' },
 ];
 

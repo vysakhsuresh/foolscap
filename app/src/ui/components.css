@@ -185,6 +185,7 @@ main {
 /* ---- Buttons ---- */
 
 .button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -206,6 +207,17 @@ main {
     box-shadow var(--motion),
     filter var(--motion-fast),
     opacity var(--motion-fast);
+}
+
+/*
+ * The lift on hover moves the button 2px up. Without these few invisible
+ * pixels below it, a pointer resting on its bottom edge would lose the hover,
+ * let it drop, regain it and lift it again, for ever.
+ */
+.button::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 -4px;
 }
 
 .button:hover {
@@ -2340,4 +2352,86 @@ select.input option {
   color: var(--muted);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
+}
+
+/* ---- Scan ---- */
+
+.scan {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.scan-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+
+.scan-card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--glass);
+  border: 1px solid var(--line);
+}
+
+.scan-card__stage {
+  position: relative;
+  /* Room for the handles to sit on the photo's own edge. */
+  margin: 14px;
+  touch-action: none;
+}
+
+.scan-card__photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.scan-card__frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.scan-card__frame polygon {
+  fill: color-mix(in srgb, var(--tool-b) 14%, transparent);
+  stroke: var(--tool-b);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.scan-card__handle {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 7px, var(--tool-b) 7.5px 12px, color-mix(in srgb, var(--tool-b) 25%, transparent) 12.5px);
+  cursor: grab;
+  touch-action: none;
+}
+
+.scan-card__handle:active {
+  cursor: grabbing;
+}
+
+.scan-card__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.scan-card__number {
+  margin-inline-end: auto;
+  font-weight: 600;
 }

@@ -4,24 +4,40 @@
  * every request from navigation onward stayed on this origin.
  */
 import { expect, test } from '@playwright/test';
-import { pagesPdf } from '../fixtures/pdfs';
+import { pagesPdf, pictureOnlyPdf } from '../fixtures/pdfs';
 import { ALL_PAGES, ORIGIN, openPage, openTool, recordRequests, run, thumbnailsRendered, upload } from './helpers';
 
 test('every live tool runs with the network gone, and makes no request', async ({ context }) => {
+  test.setTimeout(240_000);
   const merge = await context.newPage();
   const split = await context.newPage();
   const organise = await context.newPage();
   // Two that draw and read pages with pdf.js inside the op worker.
   const images = await context.newPage();
   const text = await context.newPage();
+  // And the one that reads words out of pictures, whose engine and model come from this site too.
+  const ocr = await context.newPage();
   await openTool(merge, 'merge');
   await openTool(split, 'split');
   await openTool(organise, 'organise');
   await openTool(images, 'pdf-to-images');
   await openTool(text, 'extract-text');
+  await openTool(ocr, 'ocr');
+  const scan = await ocr.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1240;
+    canvas.height = 1754;
+    const c = canvas.getContext('2d')!;
+    c.fillStyle = '#fbfbf8';
+    c.fillRect(0, 0, canvas.width, canvas.height);
+    c.fillStyle = '#111';
+    c.font = '64px Arial, Helvetica, sans-serif';
+    c.fillText('OFFLINE PROOF', 120, 260);
+    return canvas.toDataURL('image/png');
+  });
 
   await context.setOffline(true);
-  const requests = [merge, split, organise, images, text].flatMap((page) => recordRequests(page));
+  const requests = [merge, split, organise, images, text, ocr].flatMap((page) => recordRequests(page));
 
   await upload(merge, [
     { name: 'a.pdf', bytes: await pagesPdf(2) },
@@ -50,6 +66,11 @@ test('every live tool runs with the network gone, and makes no request', async (
   await upload(text, [{ name: 'f.pdf', bytes: await pagesPdf(2) }]);
   await run(text);
   await expect(text.getByTestId('result-item')).toHaveCount(1);
+
+  await upload(ocr, [{ name: 'g.pdf', bytes: await pictureOnlyPdf(new Uint8Array(Buffer.from(scan.slice(scan.indexOf(',') + 1), 'base64'))) }]);
+  await expect(ocr.getByTestId('run-button')).toBeEnabled();
+  await ocr.getByTestId('run-button').click();
+  await expect(ocr.getByTestId('result-detail')).toContainText('read on 1 page', { timeout: 150_000 });
 
   expect(requests, 'no request of any kind may follow data-ready').toEqual([]);
 });

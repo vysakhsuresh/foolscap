@@ -84,15 +84,33 @@ export type Outcome =
   | { readonly kind: 'skipped'; readonly inputIds: readonly string[]; readonly reason: string };
 
 /** What an op is given to work with. Assembled once per job, inside the worker. */
+/** A word Make searchable found: its text and box, in fractions of the picture, from the top-left. */
+export interface OcrWord {
+  readonly text: string;
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** Reads the words in a picture (ocr/ocr.ts, in the op worker). */
+export interface OcrReader {
+  readonly ready: Promise<void>;
+  read(png: Uint8Array, width: number, height: number): Promise<OcrWord[]>;
+  close(): Promise<void>;
+}
+
 export interface OpContext {
   readonly workspace: Workspace;
   /**
-   * Lazy. The first call imports the pdf.js chunk into the worker. Merge,
-   * split and organise never call it; only tools that rasterise (remove
-   * areas, PDF to images, compress) do. Thumbnails and page counts for the
-   * UI come from the page-thread engine, not from here.
+   * Lazy. The first call imports the pdf.js chunk into the worker. Only
+   * tools that draw or read pages call it (their op sets `engine: true`, so
+   * the worker loads it at start). Thumbnails and page counts for the UI
+   * come from the page-thread engine, not from here.
    */
   engine(): Promise<PdfEngine>;
+  /** Lazy, like `engine`: the OCR reader, for an op that sets `ocr: true`. */
+  ocr?(): Promise<OcrReader>;
   readonly surgeon: PdfSurgeon;
   /**
    * Passwords the user typed for encrypted inputs, by file id. In memory only.
@@ -118,6 +136,8 @@ export interface Op<P = unknown> {
    * tool works with the network gone.
    */
   readonly engine?: true;
+  /** True for Make searchable: the worker also loads the OCR engine and model at start. */
+  readonly ocr?: true;
   /** What this run is called, including its settings: "Split every 3 pages". */
   title(params: P): string;
   /**
@@ -294,6 +314,13 @@ export interface FillFormParams {
   readonly values: FormValues;
   /** Flatten the answers into the page so they can no longer be changed. */
   readonly seal: boolean;
+}
+
+export interface ScanParams {
+  /** One per input photo, in order: where the sheet is in it, and how far to turn it. */
+  readonly pages: ReadonlyArray<{ readonly corners: readonly number[]; readonly turn: 0 | 90 | 180 | 270 }>;
+  readonly look: 'colour' | 'grey' | 'bw';
+  readonly paper: 'a4' | 'letter' | 'fit';
 }
 
 export type NoParams = Record<string, never>;

@@ -96,6 +96,8 @@ function dropZone(tool: ToolMeta): { title: string; hint: string; accept: string
   switch (tool.input) {
     case 'images':
       return { title: 'Drop your photos here, or tap to pick them', hint: 'JPEG, PNG, WebP or GIF. They stay on this device.', accept: 'image/*', multiple: true };
+    case 'camera':
+      return { title: 'Take a photo of each page, or pick photos', hint: 'One photo per page, in order. They stay on this device.', accept: 'image/*', multiple: true };
     case 'several-pdfs':
       return { title: 'Drop your PDFs here, or tap to pick them', hint: 'They stay on this device. No size limit.', accept: 'application/pdf,.pdf', multiple: true };
     default:

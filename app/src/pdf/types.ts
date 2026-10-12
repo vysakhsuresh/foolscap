@@ -333,6 +333,13 @@ export interface PdfDoc {
    * `recompress` (null keeps the original), drops objects nothing points at,
    * and deflates streams stored uncompressed. Save afterwards.
    */
+  /**
+   * Lays invisible text over a page (a scan) where its words are, so the page
+   * can be searched, selected and copied while it looks exactly the same.
+   * Boxes are fractions of the page as the reader sees it, from the top-left.
+   * Words the built-in font cannot spell are left out. Returns how many went in.
+   */
+  addTextLayer(index: number, words: ReadonlyArray<{ readonly text: string; readonly x: number; readonly y: number; readonly w: number; readonly h: number }>): number;
   /** Draws marks onto their pages, upright as the reader sees each page. */
   drawMarks(marks: readonly Mark[]): Promise<void>;
   /**

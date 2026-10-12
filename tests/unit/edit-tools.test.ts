@@ -150,3 +150,21 @@ describe('fill in a form', () => {
     await flat.close();
   });
 });
+
+describe('the invisible text layer', () => {
+  it('makes words findable on a page that had none, without changing how it looks', async () => {
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    doc.addPage([400, 300]).drawRectangle({ x: 0, y: 0, width: 400, height: 300 });
+    const surgeon = createSurgeon();
+    const pdf = await surgeon.open(await doc.save());
+    const placed = pdf.addTextLayer(0, [
+      { text: 'Invoice', x: 0.1, y: 0.1, w: 0.2, h: 0.05 },
+      { text: '4821', x: 0.35, y: 0.1, w: 0.1, h: 0.05 },
+      { text: 'ക്ഷ', x: 0.5, y: 0.1, w: 0.1, h: 0.05 },
+    ]);
+    expect(placed).toBe(2);
+    const view = await engine.open(await pdf.save());
+    expect(await view.text(0)).toMatch(/Invoice\s*4821/);
+    await view.close();
+  });
+});

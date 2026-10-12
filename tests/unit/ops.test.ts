@@ -375,8 +375,8 @@ describe('helpers', () => {
     ]);
   });
 
-  it('getOp throws a plain Error for a tool that is not ready', () => {
-    expect(() => getOp('ocr')).toThrow(Error);
-    expect(() => getOp('ocr')).toThrow("Make searchable isn't ready yet.");
+  it('getOp throws a plain Error for a tool with no Op (Read)', () => {
+    expect(() => getOp('read')).toThrow(Error);
+    expect(() => getOp('read')).toThrow("Read isn't ready yet.");
   });
 });

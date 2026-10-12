@@ -31,8 +31,9 @@ interface Job {
   cancelled: boolean;
 }
 
-export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean } = {}): JobRunner {
+export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean; readonly ocr?: boolean } = {}): JobRunner {
   const engine = opts.engine === true;
+  const ocr = opts.ocr === true;
   const queue: Job[] = [];
   let running: Job | null = null;
   let worker: Worker | null = null;
@@ -74,9 +75,9 @@ export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean
       const channel = new MessageChannel();
       serveWorkspace(ws, channel.port1);
       port = channel.port1;
-      w.postMessage({ type: 'init', backend: 'memory', port: channel.port2, engine } satisfies ToWorker, [channel.port2]);
+      w.postMessage({ type: 'init', backend: 'memory', port: channel.port2, engine, ocr } satisfies ToWorker, [channel.port2]);
     } else {
-      w.postMessage({ type: 'init', backend: 'opfs', engine } satisfies ToWorker);
+      w.postMessage({ type: 'init', backend: 'opfs', engine, ocr } satisfies ToWorker);
     }
   }
 

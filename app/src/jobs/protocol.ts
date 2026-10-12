@@ -16,6 +16,8 @@ export type ToWorker =
       readonly port?: MessagePort;
       /** Load pdf.js in the worker before answering, so a tool that draws pages works offline from the start. */
       readonly engine?: boolean;
+      /** Load the OCR engine and English model too, for the same reason. */
+      readonly ocr?: boolean;
     }
   | {
       readonly type: 'run';

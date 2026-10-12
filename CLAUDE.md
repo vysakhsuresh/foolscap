@@ -175,6 +175,7 @@ app/public/_headers         the CSP and friends
 | `pdfjs-dist` | Apache-2.0 | Reading and rasterising, behind `PdfEngine` |
 | `@cantoo/pdf-lib` | MIT | Everything structural, and AES-256, behind `PdfSurgeon` |
 | `fflate` | MIT | ZIP for "save all" |
+| `tesseract.js` (+ core, English model) | Apache-2.0 | Make searchable, in the op worker, self-hosted under `/tesseract/` |
 | Space Grotesk | OFL | The site's one face, self-hosted |
 
 ## Design direction
@@ -229,12 +230,15 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
    password, document details. 16 live.
 2b. ✅ pdf.js inside the op worker (`pdf/engine-worker.ts`): PDF to images,
    extract text, compress. Then the page editor: sign, add text, mark up,
-   remove areas, and fill in a form. 24 live. **You are here.**
-3. The reader: re-rendering zoom, find, outline, night mode, resume.
+   remove areas, and fill in a form. 24 live.
+2c. ✅ Read (viewer), Scan, Make searchable (tesseract.js in the op worker,
+   self-hosted). All 27 live. **You are here.**
+3. The reader, deeper: re-rendering zoom, find, outline, night mode, resume.
 4. Complex-script text drawn as real text (harfbuzzjs). Until then Add text
    puts Malayalam, Hindi and the like in as a picture of the words, shaped
    by the browser.
-5. Scan, and OCR (tesseract.js, lazy-loaded).
+5. More OCR languages (Malayalam, Hindi, Tamil), each a model fetched only
+   when asked for.
 6. The design pass, as a system.
 7. SEO: one fast page per tool × intent, generated from `tools.ts`.
 8. PWA: install, offline, share target, file handler. The service worker
@@ -304,3 +308,10 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
 - **2026-10-13** Remove areas rasterises each marked page at 200 dpi with the
   areas painted black, then swaps the page for that picture: contents,
   resources and annotations go. That is the honest version of redaction.
+- **2026-10-13** All 27 tools live. Make searchable runs tesseract.js (its
+  own worker, started from the op worker) with every file self-hosted under
+  `/tesseract/<version>/` and IndexedDB caching off; an op with `ocr: true`
+  has the worker load the engine and model before the page reports ready,
+  and the offline proof runs it. Scan's corner finder is Otsu plus the largest
+  bright patch, which is cheap and right for paper on a table; the handles
+  are there for the rest.

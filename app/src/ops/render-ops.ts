@@ -6,7 +6,7 @@
 import type { FoolscapFile } from '../files/types';
 import type { PdfView } from '../pdf';
 import { PageSelection } from '../pdf/page-selection';
-import { baseName, failed, forEachPdf, megabytes, ordinal, passwordFor, plural, refused, saveKeepingLock, store } from './common';
+import { baseName, failed, forEachPdf, megabytes, ordinal, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import { canDecode, shrink } from './images';
 import { checkCancelled, type CompressParams, type NoParams, type Op, type OpContext, type Outcome, type PdfToImagesParams } from './op';
 import { PAGES_HELP } from './pages-ops';
@@ -163,3 +163,104 @@ export const compressOp: Op<CompressParams> = {
     });
   },
 };
+
+/** 300 dpi: what Tesseract reads best. */
+const OCR_DPI = 300;
+/** A page with this many characters of its own text is searchable already. */
+const HAS_TEXT = 40;
+
+export const ocrOp: Op<NoParams> = {
+  tool: 'ocr',
+  arity: { kind: 'each' },
+  engine: true,
+  ocr: true,
+  title: () => 'Make searchable',
+  async run(inputs, _params, ctx) {
+    const outcomes: Outcome[] = [];
+    const reader = ctx.ocr ? await ctx.ocr() : null;
+    if (reader === null) return inputs.map((input) => refused([input], "The text reader couldn't start in this browser."));
+    for (const [f, input] of inputs.entries()) {
+      checkCancelled(ctx.signal);
+      const which = inputs.length > 1 ? ` of the ${ordinal(f + 1)} file` : '';
+      // First, read: draw every page that has no text of its own and find the words in it.
+      const found = new Map<number, Awaited<ReturnType<typeof reader.read>>>();
+      let pageCount = 0;
+      let alreadyText = 0;
+      try {
+        const view = await openView(ctx, input);
+        try {
+          pageCount = view.pageCount;
+          for (let index = 0; index < pageCount; index++) {
+            checkCancelled(ctx.signal);
+            ctx.progress({ done: index, total: pageCount, label: `Reading page ${index + 1} of ${pageCount}${which}` });
+            if ((await view.text(index)).replace(/\s+/g, '').length >= HAS_TEXT) {
+              alreadyText++;
+              continue;
+            }
+            const page = await view.page(index);
+            const sideways = page.rotation === 90 || page.rotation === 270;
+            const across = sideways ? page.height : page.width;
+            const down = sideways ? page.width : page.height;
+            const width = Math.round((across / 72) * OCR_DPI);
+            const png = await view.encode(index, { width, format: 'png', signal: ctx.signal });
+            // The engine may draw it smaller to stay inside its pixel budget; the PNG's own header says what came out.
+            const words = await reader.read(png, pngWidth(png) ?? width, pngHeight(png) ?? Math.round((width * down) / across));
+            if (words.length > 0) found.set(index, words);
+          }
+        } finally {
+          await view.close();
+        }
+      } catch (error) {
+        outcomes.push(failed(error, [input]));
+        continue;
+      }
+      if (alreadyText === pageCount) {
+        outcomes.push({ kind: 'skipped', inputIds: [input.id], reason: 'Every page of this file already has text you can search and copy.' });
+        continue;
+      }
+      if (found.size === 0) {
+        outcomes.push(refused([input], 'No words could be read in this file. If it is a photo, try Scan first for a straighter, sharper page.'));
+        continue;
+      }
+      // Then, write: the words go in as invisible text over the pictures.
+      ctx.progress({ done: pageCount, total: pageCount, label: 'Writing the file…' });
+      let doc;
+      try {
+        doc = await ctx.surgeon.open(await readInput(ctx, input), passwordFor(ctx, input));
+      } catch (error) {
+        outcomes.push(failed(error, [input]));
+        continue;
+      }
+      try {
+        let words = 0;
+        for (const [index, list] of found) words += doc.addTextLayer(index, list);
+        const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+        outcomes.push(
+          await store(
+            ctx,
+            'ocr',
+            [input],
+            `${baseName(input.name)} (searchable).pdf`,
+            bytes,
+            `${plural(words, 'word')} read on ${plural(found.size, 'page')}. You can now search, select and copy them${relocked ? ', still locked with the same password' : ''}`,
+          ),
+        );
+      } catch (error) {
+        outcomes.push(failed(error, [input]));
+      } finally {
+        doc.close();
+      }
+    }
+    ctx.progress({ done: inputs.length, total: inputs.length, label: 'Done' });
+    return outcomes;
+  },
+};
+
+/** A PNG's own width and height, from its header. */
+function pngWidth(png: Uint8Array): number | null {
+  return png.length >= 24 ? new DataView(png.buffer, png.byteOffset).getUint32(16) : null;
+}
+
+function pngHeight(png: Uint8Array): number | null {
+  return png.length >= 24 ? new DataView(png.buffer, png.byteOffset).getUint32(20) : null;
+}

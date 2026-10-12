@@ -391,6 +391,13 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       };
     }
 
+    case 'ocr':
+      return {
+        root: note('Reads the words in scanned pages and lays them invisibly over the pictures, so you can search, select and copy them. The pages look exactly the same. English for now; pages that already have text are left alone.'),
+        params: () => ({}),
+        problem: () => null,
+      };
+
     case 'extract-text':
       return {
         root: note('The words as plain text, page by page, ready to copy or search. A scan has pictures of words, not words: make it searchable first.'),
