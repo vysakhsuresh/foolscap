@@ -43,6 +43,7 @@ const TOOLS = {
   'page-labels': 'list-ordered',
   attachments: 'paperclip',
   bookmarks: 'bookmark',
+  'digital-sign': 'file-badge',
   read: 'book-open',
   scan: 'scan-line',
   ocr: 'scan-text',

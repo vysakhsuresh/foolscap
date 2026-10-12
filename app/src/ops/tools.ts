@@ -9,7 +9,7 @@
  * The ids are URLs (`/tools/<id>/`) and the keys the SEO pages are generated
  * from. Never rename one once it has shipped.
  *
- * `group` exists because a flat list of thirty-one tools stops being a menu
+ * `group` exists because a flat list of thirty-two tools stops being a menu
  * and becomes a wall. The groups are by what someone is trying to do, not by
  * which library implements them.
  */
@@ -45,7 +45,8 @@ export type ToolId =
   | 'background'
   | 'page-labels'
   | 'attachments'
-  | 'bookmarks';
+  | 'bookmarks'
+  | 'digital-sign';
 
 /** 'pdf-and-files': a PDF first, then files of any kind (Attachments). */
 export type InputKind = 'one-pdf' | 'several-pdfs' | 'images' | 'camera' | 'pdf-and-files';
@@ -69,7 +70,7 @@ export interface ToolMeta {
 /**
  * The five families. Each owns one colour (tokens.css), so a page and a card
  * say which family they belong to before you read a word, and the home page
- * reads as five calm groups rather than thirty-one loud cards.
+ * reads as five calm groups rather than thirty-two loud cards.
  * Order here is the order on screen.
  */
 export const GROUPS: ReadonlyArray<{ readonly id: GroupId; readonly title: string; readonly blurb: string }> = [
@@ -113,6 +114,7 @@ export const KEYWORDS: Partial<Record<ToolId, string>> = {
   'page-labels': 'roman numerals i ii iii numbering labels front matter',
   attachments: 'attach embed files inside portfolio take out',
   bookmarks: 'outline contents chapters table of contents navigation split chapters',
+  'digital-sign': 'certificate pfx p12 dsc digital signature class 3 esign validate pki',
 };
 
 export const TOOLS: readonly ToolMeta[] = [
@@ -142,6 +144,7 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'header-footer', title: 'Header and footer', summary: 'A line along the top or bottom of every page', action: 'Add them', input: 'several-pdfs', group: 'mark', status: 'live' },
 
   { id: 'add-password', title: 'Add a password', summary: 'Lock a PDF with AES-256', action: 'Lock it', input: 'several-pdfs', group: 'protect', status: 'live' },
+  { id: 'digital-sign', title: 'Digital signature', summary: 'Seal a PDF with your certificate (.pfx), checked by Acrobat', action: 'Sign it digitally', input: 'one-pdf', group: 'protect', status: 'live' },
   { id: 'remove-password', title: 'Remove a password', summary: 'Unlock a PDF whose password you know', action: 'Unlock it', input: 'several-pdfs', group: 'protect', status: 'live' },
   { id: 'remove-areas', title: 'Remove areas', summary: 'Genuinely remove what you mark, not a black box over it', action: 'Remove them', input: 'one-pdf', group: 'protect', status: 'live' },
   { id: 'document-details', title: 'Clean hidden data', summary: 'Strip metadata, scripts and comments, or set the title and author', action: 'Clean it', input: 'several-pdfs', group: 'protect', status: 'live' },
@@ -197,6 +200,7 @@ export const SEARCH_NAMES: Record<ToolId, string> = {
   'page-labels': 'Roman numeral page numbers in PDF',
   attachments: 'Attach files to PDF or extract attachments',
   bookmarks: 'Edit PDF bookmarks',
+  'digital-sign': 'Digitally sign PDF with a certificate',
 };
 
 export const toolPath = (id: ToolId): string => `${import.meta.env.BASE_URL}tools/${id}/`;

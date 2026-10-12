@@ -377,4 +377,13 @@ export interface BookmarksParams {
   readonly items: readonly import('../pdf/types').OutlineItem[];
 }
 
+export interface DigitalSignParams {
+  /** The .pfx / .p12 file's bytes. Never stored; gone when the run ends. */
+  readonly certificate: Uint8Array;
+  readonly password: string;
+  /** Show a signature box at the foot of the last page, or sign invisibly. */
+  readonly visible: boolean;
+  readonly reason: string;
+}
+
 export type NoParams = Record<string, never>;

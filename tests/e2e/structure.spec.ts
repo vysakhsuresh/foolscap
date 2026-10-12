@@ -4,6 +4,7 @@
  * names what broke.
  */
 import { expect, test, type Page } from '@playwright/test';
+import { AES_EC384 } from '../fixtures/certificates';
 import { bloatedPdf, outlinedPdf, pagesPdf, pdfInfo } from '../fixtures/pdfs';
 import { downloadFrom, openTool, run, useDownloads } from './helpers';
 
@@ -168,4 +169,19 @@ test('the reader prints every page as a picture, and reads aloud only with an on
   await expect
     .poll(async () => (await page.getByTestId('reader-aloud').getAttribute('aria-pressed')) === 'true' || /voices that work over the internet/.test((await page.getByTestId('reader-status').textContent()) ?? ''))
     .toBe(true);
+});
+
+test('digital signature seals the PDF with a certificate file and its password', async ({ page }) => {
+  await openTool(page, 'digital-sign');
+  await pick(page, [{ name: 'Agreement.pdf', bytes: await pagesPdf(2) }]);
+  await expect(page.getByTestId('run-button')).toBeDisabled();
+  await page.getByTestId('opt-certificate').setInputFiles([{ name: 'me.pfx', mimeType: 'application/x-pkcs12', buffer: Buffer.from(AES_EC384, 'base64') }]);
+  await expect(page.getByTestId('certificate-picked')).toHaveText('Certificate ready. Type its password below.');
+  await page.getByTestId('opt-cert-password').fill('wrong');
+  await run(page);
+  await expect(page.getByTestId('failure-item')).toContainText("That password didn't open the certificate.");
+  await page.getByTestId('opt-cert-password').fill('pässword');
+  const items = await results(page);
+  await expect(items.first()).toHaveAttribute('data-name', 'Agreement (signed).pdf');
+  await expect(page.getByTestId('result-detail')).toContainText('Signed by Kerala Test Co');
 });

@@ -10,14 +10,14 @@ Android app. `CLAUDE.md` is the brief and the rules; read it first.
 
 ## What is live
 
-All thirty-one tools, in five families:
+All thirty-two tools, in five families:
 
 | Family | Tools |
 |---|---|
 | Pages | Merge · Split (also at each chapter) · Organise pages · Extract or remove pages · Insert or replace pages · Crop pages · Bookmarks · Page labels · Split by size |
 | Convert and print | Compress (or to a size: 100 KB, 200 KB…) · Images to PDF · PDF to images · Pages per sheet · Extract images |
 | Mark up | Watermark · Page numbers (and Bates) · Sign · Mark up · Add text · Fill in a form · Page background · Header and footer |
-| Protect | Add a password (or restrict only) · Remove a password · Remove areas · Clean hidden data · Attachments |
+| Protect | Add a password (or restrict only) · Digital signature (your .pfx certificate) · Remove a password · Remove areas · Clean hidden data · Attachments |
 | Read | Read · Scan a document · Make searchable · Extract text |
 
 **Read** is a viewer: zoom that redraws, find, the document's own contents,
@@ -148,6 +148,8 @@ carry canonical URLs.
 | `pdfjs-dist` | Apache-2.0 |
 | `@cantoo/pdf-lib` | MIT |
 | `fflate` | MIT |
+| `pkijs`, `asn1js`, `bytestreamjs` (Digital signature) | BSD-3-Clause (`licenses/`) |
+| `@noble/hashes`, `pvutils`, `pvtsutils`; `tslib` | MIT; 0BSD (`licenses/`) |
 | Lucide icons (`lucide-static`) | ISC (`licenses/lucide-ISC.txt`) |
 | `tesseract.js`, `tesseract.js-core` | Apache-2.0 (licences copied next to them in `/tesseract/`) |
 | Tesseract language models (`@tesseract.js-data/*`, tessdata best_int: English, plus 20 fetched only when picked) | Apache-2.0 (packaged as MIT) |

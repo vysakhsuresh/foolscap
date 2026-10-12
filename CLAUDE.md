@@ -159,7 +159,7 @@ app/public/_headers         the CSP and friends
    both fetched after first paint and before `data-ready`. The numbers live
    in `tests/unit/size.test.ts` (runs over `dist/` after `vite build`) and in
    the README.
-6. **Licences.** Only Apache-2.0, MIT, BSD, ISC, OFL or public-domain code
+6. **Licences.** Only Apache-2.0, MIT, BSD (0BSD included), ISC, OFL or public-domain code
    and fonts (ISC is the two-clause BSD in fewer words; Lucide uses it). **Never add MuPDF, PyMuPDF, iText or Ghostscript** — all AGPL, and
    Ghostscript is the one most likely to be reached for by accident.
 7. **No stamp.** No output carries a Producer, Creator or Info entry the input
@@ -175,7 +175,9 @@ app/public/_headers         the CSP and friends
 | `pdfjs-dist` | Apache-2.0 | Reading and rasterising, behind `PdfEngine` |
 | `@cantoo/pdf-lib` | MIT | Everything structural, and AES-256, behind `PdfSurgeon` |
 | `fflate` | MIT | ZIP for "save all" |
-| `tesseract.js` (+ core, English model) | Apache-2.0 | Make searchable, in the op worker, self-hosted under `/tesseract/` |
+| `tesseract.js` (+ core, English and 20 more models) | Apache-2.0 | Make searchable, in the op worker, self-hosted under `/tesseract/` |
+| `pkijs`, `asn1js`, `bytestreamjs` | BSD-3-Clause | Digital signature: PKCS#12 and CMS, in the op worker only |
+| `@noble/hashes`, `pvutils`, `pvtsutils` / `tslib` | MIT / 0BSD | Hashes and helpers under pkijs |
 | Lucide (`lucide-static`) | ISC | The tool and family icons, copied into `ui/tool-icons.ts` by `scripts/gen-icons.mjs` |
 | Space Grotesk | OFL | The site's one face, self-hosted |
 
@@ -367,4 +369,14 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   Restrict-only is labelled honestly as a request readers may ignore.
   Compress to a size tries photo strengths by binary search, then (only if
   ticked) pages as pictures, and always says which it did.
+- **2026-10-12** Two helper branches merged: twenty OCR languages, each
+  model fetched from this site only when picked; and certificate signatures
+  (PKCS#12 opened in the browser, CMS `adbe.pkcs7.detached`, appended as an
+  incremental update so an earlier signature stays valid). The Digital
+  signature tool reads the .pfx in the page and sends it with the run's
+  params, like a typed password: never into the workspace, never kept. It is
+  a key, not a document, so rule 2a's "documents enter only through
+  DocumentStore" is not bent. An expired certificate is refused with its
+  date rather than producing a signature every reader marks invalid. 0BSD
+  (tslib, already shipped through pdf-lib) is allowed as a BSD form.
 

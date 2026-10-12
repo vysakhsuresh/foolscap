@@ -9,6 +9,7 @@ import type {
   AddPasswordParams,
   AttachmentsParams,
   BackgroundParams,
+  DigitalSignParams,
   PageLabelsParams,
   CompressParams,
   PdfToImagesParams,
@@ -480,6 +481,64 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         root: group([mode.root, note('Attached files are not checked or opened here; they are carried inside as they are. Clean hidden data can take them out again.')]),
         params: (): AttachmentsParams => ({ mode: mode.value() }),
         problem: (count) => (mode.value() === 'attach' && count < 2 ? 'Add the files to attach after the PDF.' : null),
+      };
+    }
+
+    case 'digital-sign': {
+      // The certificate is read here, into memory, and sent with the run; it
+      // never goes into the workspace and is never kept.
+      let certificate: Uint8Array | null = null;
+      let reading = false;
+      const picked = document.createElement('span');
+      picked.className = 'field__hint';
+      picked.dataset['testid'] = 'certificate-picked';
+      picked.textContent = 'No certificate chosen yet.';
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.id = 'opt-certificate';
+      fileInput.className = 'input';
+      fileInput.dataset['testid'] = 'opt-certificate';
+      fileInput.accept = '.pfx,.p12,application/x-pkcs12';
+      fileInput.addEventListener('change', () => {
+        const file = fileInput.files?.[0];
+        certificate = null;
+        if (!file) {
+          picked.textContent = 'No certificate chosen yet.';
+          onChange();
+          return;
+        }
+        reading = true;
+        onChange();
+        void file.arrayBuffer().then(
+          (buffer) => {
+            certificate = new Uint8Array(buffer);
+            reading = false;
+            picked.textContent = 'Certificate ready. Type its password below.';
+            onChange();
+          },
+          () => {
+            reading = false;
+            picked.textContent = "That file couldn't be read. Choose it again.";
+            onChange();
+          },
+        );
+      });
+      const certField = document.createElement('div');
+      certField.className = 'field';
+      certField.append(Object.assign(document.createElement('label'), { className: 'field__label', htmlFor: 'opt-certificate', textContent: 'Your certificate (.pfx or .p12)' }), fileInput, picked);
+      const password = field('cert-password', { label: 'Its password', type: 'password', autocomplete: 'off' }, onChange);
+      const visible = check('visible', 'Show the signature on the last page', true, onChange, 'A box with your name and the date. Off: the signature is still there, in the reader’s signature panel.');
+      const reason = field('reason', { label: 'Reason (optional)', placeholder: 'e.g. I approve this document' }, onChange);
+      return {
+        root: group([
+          certField,
+          password.root,
+          visible.root,
+          reason.root,
+          note('This is the signature Acrobat checks: it proves who signed and that nothing changed since. Your certificate and password stay on this device and are forgotten when you leave the page. A drawn signature is in Sign.'),
+        ]),
+        params: (): DigitalSignParams => ({ certificate: certificate ?? new Uint8Array(0), password: password.value(), visible: visible.checked(), reason: reason.value() }),
+        problem: () => (reading ? 'Reading the certificate…' : certificate === null ? 'Choose your certificate file (.pfx or .p12).' : null),
       };
     }
 

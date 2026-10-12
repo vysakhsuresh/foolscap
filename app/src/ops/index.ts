@@ -2,6 +2,7 @@
 import { extractImagesOp, imagesToPdfOp } from './convert-ops';
 import { headerFooterOp, pageNumbersOp, watermarkOp } from './mark-ops';
 import { addTextOp, fillFormOp, markUpOp, removeAreasOp, signOp } from './edit-ops';
+import { digitalSignOp } from './certify-ops';
 import { mergeOp } from './merge';
 import type { Op } from './op';
 import { organiseOp } from './organise';
@@ -51,6 +52,7 @@ const OPS: Partial<Record<ToolId, Op<never>>> = {
   'page-labels': pageLabelsOp,
   attachments: attachmentsOp,
   bookmarks: bookmarksOp,
+  'digital-sign': digitalSignOp,
 };
 
 export function getOp(id: ToolId): Op {
