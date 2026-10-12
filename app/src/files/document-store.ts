@@ -4,7 +4,7 @@
  * reference on the memory backend), so nothing downstream can reach the
  * original.
  */
-import type { DocumentStore, ImportResult, Workspace } from './types';
+import type { DocumentStore, FileKind, ImportResult, Workspace } from './types';
 
 const SNIFF_BYTES = 1024;
 const HEADER = [0x25, 0x50, 0x44, 0x46, 0x2d]; // "%PDF-"
@@ -18,12 +18,30 @@ export function looksLikePdf(bytes: Uint8Array): boolean {
   return false;
 }
 
-export function createDocumentStore(ws: Workspace): DocumentStore {
+/**
+ * True for the image formats a browser can decode: JPEG, PNG, GIF, WebP, BMP,
+ * and HEIC/AVIF (whether this browser can actually read those is found out
+ * when the tool runs, and said in words if not). By bytes, not by name.
+ */
+export function looksLikeImage(head: Uint8Array): boolean {
+  const ascii = (from: number, to: number) => String.fromCharCode(...head.subarray(from, to));
+  if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return true;
+  if (head[0] === 0x89 && ascii(1, 4) === 'PNG') return true;
+  if (ascii(0, 4) === 'GIF8' || ascii(0, 2) === 'BM') return true;
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return true;
+  return ascii(4, 8) === 'ftyp' && /^(heic|heix|hevc|heim|heis|mif1|msf1|avif|avis)$/.test(ascii(8, 12));
+}
+
+export function createDocumentStore(ws: Workspace, accept: FileKind = 'pdf'): DocumentStore {
   const importOne = async (file: File): Promise<ImportResult> => {
     const name = file.name;
     try {
       if (file.size === 0) return { ok: false, name, reason: 'This file is empty.' };
       const head = new Uint8Array(await file.slice(0, SNIFF_BYTES).arrayBuffer());
+      if (accept === 'image') {
+        if (!looksLikeImage(head)) return { ok: false, name, reason: "This isn't a photo or picture this tool can read. Use JPEG, PNG, WebP or GIF." };
+        return { ok: true, file: await ws.put(name, file, 'image', { kind: 'picked' }) };
+      }
       if (!looksLikePdf(head)) return { ok: false, name, reason: "This isn't a PDF." };
       return { ok: true, file: await ws.put(name, file, 'pdf', { kind: 'picked' }) };
     } catch {

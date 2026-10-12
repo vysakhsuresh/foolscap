@@ -42,6 +42,12 @@ export type PdfErrorCode =
    */
   | 'too-large'
   | 'cancelled'
+  /**
+   * The built-in fonts can draw Latin text only. Malayalam, Devanagari,
+   * Arabic, Chinese or emoji in a watermark, a header or a page number fail
+   * here, with a message that says so, until shaping arrives (stage 4).
+   */
+  | 'unsupported-text'
   | 'unknown';
 
 /**
@@ -142,9 +148,105 @@ export interface PdfSurgeon {
   open(data: Uint8Array, opts?: { password?: string }): Promise<PdfDoc>;
 }
 
+/** A rectangle in PDF points, origin bottom-left, as the PDF stores it (before /Rotate). */
+export interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export type Anchor =
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'center'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
+
+/**
+ * Text drawn onto a page, positioned as the reader sees the page: "top-right"
+ * is the top right of the page on screen, whatever its /Rotate, and the text
+ * reads upright. The surgeon does the rotation arithmetic so no op has to.
+ */
+export interface TextStamp {
+  readonly text: string;
+  readonly anchor: Anchor;
+  /** Points. */
+  readonly size: number;
+  readonly bold?: boolean;
+  /** 0 to 1. */
+  readonly opacity?: number;
+  /** Red, green, blue, each 0 to 1. */
+  readonly color?: readonly [number, number, number];
+  /** Points from the edge of the visible page. */
+  readonly margin?: number;
+  /** Degrees, counter-clockwise as seen, about the text's own centre. */
+  readonly angle?: number;
+  /** Repeat across the whole page in a staggered grid, ignoring `anchor`. */
+  readonly tiled?: boolean;
+}
+
+export type DocInfoField = 'title' | 'author' | 'subject' | 'keywords' | 'creator' | 'producer';
+export type DocInfo = Partial<Record<DocInfoField, string>>;
+
+export interface EncryptOptions {
+  readonly userPassword: string;
+  readonly allowPrinting: boolean;
+  readonly allowCopying: boolean;
+}
+
+/** An image embedded in a document, as a file a person can open. */
+export interface ExtractedImage {
+  /** Zero-based index of the first page it appears on. */
+  readonly page: number;
+  readonly bytes: Uint8Array;
+  readonly ext: 'jpg' | 'png' | 'jp2';
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface PdfDoc {
   readonly pageCount: number;
+  /** Whether the file this was opened from was encrypted (with or without a password to open it). */
+  readonly wasEncrypted: boolean;
   pages(): readonly PageInfo[];
+  /** The visible area of a page: its CropBox, or its MediaBox when it has none. */
+  visibleBox(index: number): Box;
+  /** Sets the CropBox. What falls outside stops being shown but stays in the file; crop is not redaction. */
+  setVisibleBox(index: number, box: Box): void;
+  /** Throws PdfError 'unsupported-text' when the built-in fonts cannot draw a character. */
+  stampText(index: number, stamp: TextStamp): void;
+  /** Appends an empty page. */
+  addBlankPage(width: number, height: number): void;
+  /**
+   * Appends a new page `width` × `height` and draws other pages onto it, each
+   * scaled to fit its box (aspect kept, centred) and upright as its reader
+   * would see it. This is n-up and "fit to A4".
+   */
+  composePage(
+    width: number,
+    height: number,
+    placements: ReadonlyArray<{ readonly source: PdfDoc; readonly index: number; readonly box: Box }>,
+  ): Promise<void>;
+  /**
+   * Appends a page holding one image. `page` 'fit' makes the page the image's
+   * shape; a size puts the image on that paper, turned to match its
+   * orientation, scaled to fit inside `margin`.
+   */
+  addImagePage(
+    image: { readonly bytes: Uint8Array; readonly kind: 'jpeg' | 'png' },
+    page: 'fit' | { readonly width: number; readonly height: number },
+    margin: number,
+  ): Promise<void>;
+  /** The images embedded in the document, each once, and how many could not be turned into a file. */
+  images(): { readonly images: readonly ExtractedImage[]; readonly skipped: number };
+  info(): DocInfo;
+  /** Sets the fields given; an empty string removes that field. */
+  setInfo(info: DocInfo): void;
+  /** Removes every Info field and the XMP metadata stream. */
+  stripMetadata(): void;
   /**
    * Appends copies of `source`'s pages `indices`, in the order given. The same
    * index may appear twice; a page may be copied from a document into itself.
@@ -169,8 +271,12 @@ export interface PdfDoc {
   /** Absolute /Rotate for one page of this document. Replaces, never adds to, the page's own rotation. */
   setRotation(index: number, rotation: Rotation): void;
   setTitle(title: string): void;
-  /** Cannot be interrupted once started; the JobRunner's terminate is the real cancel. */
-  save(): Promise<Uint8Array>;
+  /**
+   * Cannot be interrupted once started; the JobRunner's terminate is the real
+   * cancel. With `encrypt`, the output is AES-256 encrypted with that password.
+   * Without it, the output is never encrypted, whatever the input was.
+   */
+  save(opts?: { readonly encrypt?: EncryptOptions }): Promise<Uint8Array>;
   /**
    * Drops this document's references so they can be collected. It cannot force
    * memory back; the JobRunner's worker lifecycle does that. Every other method

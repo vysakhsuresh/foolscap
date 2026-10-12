@@ -10,11 +10,18 @@ Android app. `CLAUDE.md` is the brief and the rules; read it first.
 
 ## What is live
 
-| Tool | What it does |
+Sixteen tools, in five families:
+
+| Family | Tools |
 |---|---|
-| Merge | Join several PDFs into one, in the order you choose |
-| Split | Every N pages, single pages, or by ranges like `1-3, 7, 12-` |
-| Organise pages | Reorder, rotate and delete pages, with thumbnails |
+| Pages | Merge · Split · Organise pages · Extract or remove pages · Insert pages · Crop pages · Split by size |
+| Convert and print | Images to PDF · Pages per sheet · Extract images |
+| Mark up | Watermark · Page numbers · Header and footer |
+| Protect | Add a password · Remove a password · Document details |
+
+Eleven more are listed on the home page as "Soon": compress, PDF to images,
+sign, mark up, add text, fill in a form, remove areas, read, scan, make
+searchable, extract text.
 
 Every result has **Save**, **Save all** (a folder, or one ZIP), **Share** (on
 phones that can share files — straight into WhatsApp) and **Then…**, which
@@ -24,8 +31,9 @@ Every page has **Get help** (Email or WhatsApp, the same as
 layerbit.co.in) and **Buy me a coffee**. Both are ordinary links; nothing is
 fetched until they are tapped.
 
-The other twenty-four tools are listed on the home page as coming soon, in
-the order they will arrive (see the build order in `CLAUDE.md`).
+Tool pages are generated from `app/src/ops/tools.ts` by
+`scripts/gen-pages.ts`; adding a tool is an entry there, an `Op`, its
+settings in `ui/tool-options.ts`, and an icon in `ui/tool-icons.ts`.
 
 ## How we know nothing leaves
 

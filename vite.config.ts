@@ -1,3 +1,4 @@
+import { existsSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
@@ -31,13 +32,16 @@ export default defineConfig({
     target: 'es2022',
     rollupOptions: {
       // Every page has to be listed: Vite builds index.html and nothing else by
-      // default, so a new page silently goes missing from dist/.
+      // default. The tool pages are found on disk (scripts/gen-pages.ts writes
+      // one per live tool), so a new tool cannot silently go missing from dist/.
       input: {
         home: page('index.html'),
         private: page('private', 'index.html'),
-        merge: page('tools', 'merge', 'index.html'),
-        split: page('tools', 'split', 'index.html'),
-        organise: page('tools', 'organise', 'index.html'),
+        ...Object.fromEntries(
+          readdirSync(page('tools'))
+            .filter((id) => existsSync(page('tools', id, 'index.html')))
+            .map((id) => [`tool-${id}`, page('tools', id, 'index.html')]),
+        ),
       },
     },
   },

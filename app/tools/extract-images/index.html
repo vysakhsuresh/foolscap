@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0c10">
+  <title>Extract images — Foolscap</title>
+  <meta name="description" content="Pull out the embedded originals, not re-rendered pages. In your browser; nothing is uploaded. Free, no sign-up, no limits, no watermark.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Extract images — Foolscap">
+  <meta property="og:description" content="Pull out the embedded originals, not re-rendered pages. In your browser; nothing is uploaded. Free, no sign-up, no limits, no watermark.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <script type="module" src="/src/pages/tool.ts"></script>
+</head>
+<body data-tool="extract-images" data-group="convert" data-page="tool">
+  <header class="site-header" data-testid="site-header">
+    <div class="wrap site-header__row">
+      <a class="brand" href="/"><svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="34" height="34" aria-hidden="true" focusable="false"><defs><linearGradient id="mark-cap" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00f2fe"/><stop offset="1" stop-color="#4facfe"/></linearGradient></defs><path d="M19 25h22l9 9v21a5 5 0 0 1-5 5H19a5 5 0 0 1-5-5V30a5 5 0 0 1 5-5Z" fill="currentColor"/><path d="M41 25v9h9Z" fill="#94a3b8"/><path d="M22 44h20M22 50h14" stroke="#64748b" stroke-width="3" stroke-linecap="round"/><path d="M13 23C12 16 10 11 6 7c8 2 14 7 19 14Zm9 0C24 14 28 8 32 3c4 5 8 11 10 20Zm18 0c5-7 11-12 18-14-4 4-6 9-7 16Z" fill="url(#mark-cap)"/><rect x="12" y="20" width="40" height="7" rx="3.5" fill="url(#mark-cap)"/><circle cx="6" cy="7" r="3.4" fill="currentColor"/><circle cx="32" cy="3" r="3.4" fill="currentColor"/><circle cx="58" cy="7" r="3.4" fill="currentColor"/></svg><span>Foolscap</span></a>
+      <nav class="site-nav" data-testid="site-nav" aria-label="Site">
+        <a href="/#tools" aria-current="page">Tools</a>
+        <a href="/private/">Privacy</a>
+      </nav>
+      <a class="support" data-testid="support" href="https://www.buymeacoffee.com/layerbit" target="_blank" rel="noopener" aria-label="Buy me a coffee"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9h12v5a6 6 0 0 1-6 6h0a6 6 0 0 1-6-6V9ZM16 10.5h1.5a2.75 2.75 0 0 1 0 5.5H16M8 3c0 1.2 1 1.6 1 3M12 3c0 1.2 1 1.6 1 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="support__text">Buy me a coffee</span></a>
+    </div>
+  </header>
+  <main class="wrap tool" data-app>
+    <header class="tool__head">
+      <a class="crumb" href="/#convert"><svg class="crumb__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 8h15l-3-3M20 16H5l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Convert and print</span></a>
+      <h1 class="tool__title" data-testid="tool-title">Extract images</h1>
+      <p class="tool__summary">Pull out the embedded originals, not re-rendered pages. Nothing is uploaded: the work happens on this device.</p>
+    </header>
+    <label class="drop-zone" data-testid="drop-zone" for="file-input" tabindex="0" role="button" aria-describedby="drop-hint">
+      <svg class="drop-zone__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h12v12H3zM3 14l4-4 3 3 2-2 3 3M17 11h5M20 9l2 2-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="drop-zone__title">Drop a PDF here, or tap to pick one</span>
+      <span class="drop-zone__hint" id="drop-hint">It stays on this device. No size limit.</span>
+      <input class="visually-hidden" id="file-input" data-testid="file-input" type="file" accept="application/pdf,.pdf" tabindex="-1">
+    </label>
+    <div data-slot="body"></div>
+    <nav class="related" aria-labelledby="related-title">
+      <h2 class="related__title" id="related-title">More in Convert and print</h2>
+      <div class="related__list">
+        <a class="related__item" href="/tools/images-to-pdf/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 4h18v16H3zM3 16l5-5 4 4 3-3 6 6M15.5 8.5h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Images to PDF</span></a>
+        <a class="related__item" href="/tools/n-up/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 3h16v18H4zM7 6h4v5H7zM13 6h4v5h-4zM7 13h4v5H7zM13 13h4v5h-4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Pages per sheet</span></a>
+        <a class="related__item related__item--all" href="/#tools"><span>All tools</span><span aria-hidden="true">→</span></a>
+      </div>
+    </nav>
+  </main>
+  <footer class="site-footer" data-testid="site-footer">
+    <div class="wrap site-footer__row">
+      <p>© 2026 Foolscap · from <a href="https://layerbit.co.in" rel="noopener">Layerbit</a></p>
+      <p class="site-footer__links"><a href="/private/">Privacy</a><button class="linklike" type="button" popovertarget="help-panel">Get help</button><a href="https://www.buymeacoffee.com/layerbit" target="_blank" rel="noopener">Buy me a coffee</a></p>
+    </div>
+  </footer>
+  <button class="help-orb" type="button" popovertarget="help-panel" data-testid="help-orb" aria-label="Get help">
+    <span class="help-orb__label" aria-hidden="true">GET HELP</span>
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle class="help-orb__ring" cx="12" cy="12" r="11.5" fill="none" stroke="#94a3b8" stroke-width="0.6" stroke-dasharray="3 6" opacity="0.5"/><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="#38bdf8" fill-opacity="0.1" stroke="#38bdf8" stroke-width="2" stroke-linejoin="round"/><rect class="help-orb__bar" x="8" y="8.5" width="1.6" height="5" rx="0.8" fill="#00f2fe"/><rect class="help-orb__bar" x="11.2" y="7" width="1.6" height="8" rx="0.8" fill="#38bdf8"/><rect class="help-orb__bar" x="14.4" y="8.5" width="1.6" height="5" rx="0.8" fill="#00f2fe"/></svg>
+  </button>
+  <div class="help-panel" id="help-panel" popover data-testid="help-panel" role="dialog" aria-labelledby="help-title">
+    <button class="help-panel__close" type="button" popovertarget="help-panel" popovertargetaction="hide" aria-label="Close">×</button>
+    <h2 id="help-title">Get help with Foolscap</h2>
+    <p>Ask us anything. Please don’t send us your documents — we never need them to help.</p>
+    <a class="help-option" data-testid="help-email" href="mailto:ceo@layerbit.co.in?subject=Foolscap%20help"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v12H3zM3 7l9 6 9-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Send us an email</a>
+    <a class="help-option help-option--whatsapp" data-testid="help-whatsapp" href="https://wa.me/916282595823" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.8L4 20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 9.5c.3 1.8 2.2 4 4 4.6l1.2-1.1 1.8.8c0 1-.9 1.7-2 1.7-3 0-5.9-2.9-5.9-5.9 0-1.1.7-2 1.7-2l.8 1.8Z" fill="currentColor"/></svg>Chat on WhatsApp</a>
+  </div>
+</body>
+</html>

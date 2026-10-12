@@ -182,16 +182,19 @@ app/public/_headers         the CSP and friends
 The Layerbit family, made playful. The ground is near-black (`#0a0c10`) lit
 from above; surfaces are frosted glass; the type is **Space Grotesk**, the
 same face as layerbit.co.in and the Sheaf app. Colour is neon light with a
-meaning: **each tool owns one gradient** (merge cyan→blue, split pink→orange,
-organise violet→mint) that colours its card, its drop zone, its title and its
-main button, so a page tells you which tool you are in before you read a word.
-A new tool adds one line to `tokens.css`. Professional means restraint
+meaning: **each family owns one gradient** (Pages cyan→blue, Convert
+coral→pink, Mark up violet→fuchsia, Protect lime→emerald, Read yellow→amber)
+that colours its cards, its tools' drop zones, titles and main buttons, so
+twenty-seven tools read as five calm groups rather than a rainbow. Professional means restraint
 everywhere else: one accent per screen, generous space, no decoration that
 does not confirm something. Dark only, matching Layerbit.
 
-Efficiency is part of the design. The live tools sit directly under the
-headline; tools not built yet are one compact "Coming next" panel, never a
-wall of cards. On a phone the main button is pinned under the thumb, and the
+Efficiency is part of the design. Under the headline: a finder ("join",
+"lock", "jpg" all work, from `KEYWORDS` in tools.ts), a row of family jumps,
+then the five families, live tools first and the rest as quiet dashed
+"Soon" cards that are not links. Every tool page is generated from one
+template (`scripts/gen-pages.ts`), carries its family's colour and a crumb
+back to it, and ends with "More in <family>". On a phone the main button is pinned under the thumb, and the
 drop zone shrinks to one line once files are in.
 
 **Links are never underlined.** They are told apart by colour and weight, and
@@ -215,9 +218,13 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
 ## Build order
 
 1. ✅ Foundation: contracts, CSP, build. Merge, split, organise end to end,
-   with the offline proof. **You are here.**
-2. The dozen structural tools: extract, insert, crop, images↔PDF, n-up,
-   split by size, extract images, document details, extract text.
+   with the offline proof.
+2. ✅ Thirteen more, no drawing needed: extract or remove pages, insert
+   pages, crop, split by size, images to PDF, pages per sheet, extract
+   images, watermark, page numbers, header and footer, add and remove a
+   password, document details. 16 live. **You are here.**
+2b. PDF to images and extract text: pdf.js inside the op worker (the recipe
+   is on `PdfEngine` in pdf/types.ts).
 3. The reader: re-rendering zoom, find, outline, night mode, resume.
 4. Stamping: watermark, page numbers, header/footer, sign, mark up, add
    text, remove areas. Complex-script text needs shaping (harfbuzzjs).
@@ -265,3 +272,12 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   paper-and-highlighter look read as unprofessional. Dark glass, neon per-tool
   gradients, Space Grotesk (40 KB, down from 105 KB), no underlined links,
   Buy me a coffee and Get help as on layerbit.co.in.
+- **2026-10-12** Thirteen more tools (16 live). Colour moved from the tool to
+  its family, so the home page reads as five groups. Tool pages and the home
+  tool list are generated from tools.ts by `scripts/gen-pages.ts` (run on
+  predev/prebuild, output committed) so no page can drift. Settings are built
+  from one kit (`ui/fields.ts`, `ui/tool-options.ts`).
+- **2026-10-12** The built-in PDF fonts draw Latin text only, and pdf-lib
+  draws an empty box for anything else rather than refusing. The surgeon
+  checks every character against the font's set and fails with
+  `unsupported-text` in words; complex scripts arrive with shaping (stage 4).

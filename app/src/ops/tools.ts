@@ -59,42 +59,78 @@ export interface ToolMeta {
   readonly status: 'live' | 'soon';
 }
 
-/** How the home page groups the tools. Order here is the order on screen. */
-export const GROUPS: ReadonlyArray<{ readonly id: GroupId; readonly title: string }> = [
-  { id: 'pages', title: 'Pages' },
-  { id: 'convert', title: 'Convert and print' },
-  { id: 'mark', title: 'Mark up' },
-  { id: 'protect', title: 'Protect' },
-  { id: 'read', title: 'Read and capture' },
+/**
+ * The five families. Each owns one colour (tokens.css), so a page and a card
+ * say which family they belong to before you read a word, and the home page
+ * reads as five calm groups rather than twenty-seven loud cards.
+ * Order here is the order on screen.
+ */
+export const GROUPS: ReadonlyArray<{ readonly id: GroupId; readonly title: string; readonly blurb: string }> = [
+  { id: 'pages', title: 'Pages', blurb: 'Combine, split, reorder and trim.' },
+  { id: 'convert', title: 'Convert and print', blurb: 'Between PDFs, photos and paper sizes.' },
+  { id: 'mark', title: 'Mark up', blurb: 'Stamp, number, sign and write on pages.' },
+  { id: 'protect', title: 'Protect', blurb: 'Lock, unlock, and clean what a file gives away.' },
+  { id: 'read', title: 'Read and capture', blurb: 'Open, scan and search documents.' },
 ];
+
+/** Other words people use for a tool, so the home search finds "join" and "lock". */
+export const KEYWORDS: Partial<Record<ToolId, string>> = {
+  merge: 'combine join add together append',
+  split: 'separate divide break pages apart',
+  organise: 'organize reorder rotate delete sort turn',
+  'extract-pages': 'remove delete pages select keep take out',
+  'insert-pages': 'add pages blank append put in',
+  crop: 'trim margins a4 letter resize page size',
+  'split-by-size': 'email attachment limit too big smaller parts mb',
+  compress: 'reduce shrink smaller size optimise optimize',
+  'images-to-pdf': 'jpg jpeg png photo picture camera image convert to pdf',
+  'pdf-to-images': 'jpg jpeg png image convert pictures',
+  'n-up': 'print 2 up 4 up handout booklet',
+  'extract-images': 'photos pictures save images get',
+  watermark: 'stamp draft confidential copy',
+  'page-numbers': 'number pages bates numbering',
+  sign: 'signature esign autograph',
+  'mark-up': 'highlight annotate draw pen comment',
+  'add-text': 'write type edit text fill',
+  'fill-form': 'form fields fill in',
+  'header-footer': 'heading top bottom date running header',
+  'add-password': 'lock encrypt protect secure aes',
+  'remove-password': 'unlock decrypt open remove restrictions',
+  'remove-areas': 'redact black out hide censor erase',
+  'document-details': 'metadata author title properties privacy clean',
+  read: 'open view reader',
+  scan: 'camera photo document scanner',
+  ocr: 'searchable text recognition scan',
+  'extract-text': 'copy text txt words',
+};
 
 export const TOOLS: readonly ToolMeta[] = [
   { id: 'merge', title: 'Merge', summary: 'Join several PDFs into one, in the order you choose', action: 'Merge into one file', input: 'several-pdfs', group: 'pages', status: 'live' },
   { id: 'split', title: 'Split', summary: 'Break one PDF into several smaller files', action: 'Split it up', input: 'one-pdf', group: 'pages', status: 'live' },
   { id: 'organise', title: 'Organise pages', summary: 'Reorder, rotate and delete pages', action: 'Save the new order', input: 'one-pdf', group: 'pages', status: 'live' },
-  { id: 'extract-pages', title: 'Extract pages', summary: 'Keep only the pages you pick', action: 'Keep these pages', input: 'one-pdf', group: 'pages', status: 'soon' },
-  { id: 'insert-pages', title: 'Insert pages', summary: 'Put another PDF, or blank pages, in at a chosen page', action: 'Insert them', input: 'several-pdfs', group: 'pages', status: 'soon' },
-  { id: 'crop', title: 'Crop pages', summary: 'Trim the margins, or fit every page to A4 or Letter', action: 'Crop it', input: 'several-pdfs', group: 'pages', status: 'soon' },
-  { id: 'split-by-size', title: 'Split by size', summary: 'Parts that fit a 5, 10 or 25 MB email limit', action: 'Split into parts that fit', input: 'one-pdf', group: 'pages', status: 'soon' },
+  { id: 'extract-pages', title: 'Extract or remove pages', summary: 'Keep only the pages you pick, or take some out', action: 'Make the new file', input: 'one-pdf', group: 'pages', status: 'live' },
+  { id: 'insert-pages', title: 'Insert pages', summary: 'Put another PDF, or blank pages, in at a chosen page', action: 'Insert them', input: 'several-pdfs', group: 'pages', status: 'live' },
+  { id: 'crop', title: 'Crop pages', summary: 'Trim the margins, or fit every page to A4 or Letter', action: 'Crop it', input: 'several-pdfs', group: 'pages', status: 'live' },
+  { id: 'split-by-size', title: 'Split by size', summary: 'Parts that fit a 5, 10 or 25 MB email limit', action: 'Split into parts that fit', input: 'one-pdf', group: 'pages', status: 'live' },
 
   { id: 'compress', title: 'Compress', summary: 'Make a PDF smaller, and say so when it cannot', action: 'Compress it', input: 'several-pdfs', group: 'convert', status: 'soon' },
-  { id: 'images-to-pdf', title: 'Images to PDF', summary: 'Turn photos and scans into one PDF', action: 'Make a PDF', input: 'images', group: 'convert', status: 'soon' },
+  { id: 'images-to-pdf', title: 'Images to PDF', summary: 'Turn photos and scans into one PDF', action: 'Make a PDF', input: 'images', group: 'convert', status: 'live' },
   { id: 'pdf-to-images', title: 'PDF to images', summary: 'Save every page as a PNG or JPEG', action: 'Save as images', input: 'one-pdf', group: 'convert', status: 'soon' },
-  { id: 'n-up', title: 'Pages per sheet', summary: '2-up or 4-up for printing', action: 'Lay it out', input: 'several-pdfs', group: 'convert', status: 'soon' },
-  { id: 'extract-images', title: 'Extract images', summary: 'Pull out the embedded originals, not re-rendered pages', action: 'Pull the images out', input: 'one-pdf', group: 'convert', status: 'soon' },
+  { id: 'n-up', title: 'Pages per sheet', summary: '2-up or 4-up for printing', action: 'Lay it out', input: 'several-pdfs', group: 'convert', status: 'live' },
+  { id: 'extract-images', title: 'Extract images', summary: 'Pull out the embedded originals, not re-rendered pages', action: 'Pull the images out', input: 'one-pdf', group: 'convert', status: 'live' },
 
-  { id: 'watermark', title: 'Watermark', summary: 'Stamp DRAFT or a name across every page', action: 'Add the watermark', input: 'several-pdfs', group: 'mark', status: 'soon' },
-  { id: 'page-numbers', title: 'Page numbers', summary: 'Number the pages, and skip a cover if you like', action: 'Add the numbers', input: 'several-pdfs', group: 'mark', status: 'soon' },
+  { id: 'watermark', title: 'Watermark', summary: 'Stamp DRAFT or a name across every page', action: 'Add the watermark', input: 'several-pdfs', group: 'mark', status: 'live' },
+  { id: 'page-numbers', title: 'Page numbers', summary: 'Number the pages, and skip a cover if you like', action: 'Add the numbers', input: 'several-pdfs', group: 'mark', status: 'live' },
   { id: 'sign', title: 'Sign', summary: 'Draw your signature and place it on the page', action: 'Place the signature', input: 'one-pdf', group: 'mark', status: 'soon' },
   { id: 'mark-up', title: 'Mark up', summary: 'Highlight a line or draw on a page', action: 'Save the marks', input: 'one-pdf', group: 'mark', status: 'soon' },
   { id: 'add-text', title: 'Add text', summary: 'Tap a page and write on it', action: 'Write it on', input: 'one-pdf', group: 'mark', status: 'soon' },
   { id: 'fill-form', title: 'Fill in a form', summary: 'Type into a real PDF form and seal the answers', action: 'Fill it in', input: 'one-pdf', group: 'mark', status: 'soon' },
-  { id: 'header-footer', title: 'Header and footer', summary: 'A line along the top or bottom of every page', action: 'Add them', input: 'several-pdfs', group: 'mark', status: 'soon' },
+  { id: 'header-footer', title: 'Header and footer', summary: 'A line along the top or bottom of every page', action: 'Add them', input: 'several-pdfs', group: 'mark', status: 'live' },
 
-  { id: 'add-password', title: 'Add a password', summary: 'Lock a PDF with AES-256', action: 'Lock it', input: 'several-pdfs', group: 'protect', status: 'soon' },
-  { id: 'remove-password', title: 'Remove a password', summary: 'Unlock a PDF whose password you know', action: 'Unlock it', input: 'several-pdfs', group: 'protect', status: 'soon' },
+  { id: 'add-password', title: 'Add a password', summary: 'Lock a PDF with AES-256', action: 'Lock it', input: 'several-pdfs', group: 'protect', status: 'live' },
+  { id: 'remove-password', title: 'Remove a password', summary: 'Unlock a PDF whose password you know', action: 'Unlock it', input: 'several-pdfs', group: 'protect', status: 'live' },
   { id: 'remove-areas', title: 'Remove areas', summary: 'Genuinely remove what you mark, not a black box over it', action: 'Remove them', input: 'one-pdf', group: 'protect', status: 'soon' },
-  { id: 'document-details', title: 'Document details', summary: 'Edit or strip the title, author and hidden metadata', action: 'Save the details', input: 'several-pdfs', group: 'protect', status: 'soon' },
+  { id: 'document-details', title: 'Document details', summary: 'Edit or strip the title, author and hidden metadata', action: 'Save the details', input: 'several-pdfs', group: 'protect', status: 'live' },
 
   { id: 'read', title: 'Read', summary: 'Open a document, then hand it to any tool', action: 'Open it', input: 'one-pdf', group: 'read', status: 'soon' },
   { id: 'scan', title: 'Scan a document', summary: 'Photograph pages and straighten them', action: 'Scan', input: 'camera', group: 'read', status: 'soon' },

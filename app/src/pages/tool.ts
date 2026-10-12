@@ -10,7 +10,8 @@
  */
 import { createDocumentStore, createExporter, createWorkspace, type FoolscapFile, type Workspace } from '../files';
 import { JobCrashed, createJobRunner, type JobHandle, type JobRunner } from '../jobs';
-import { ArityError, OpCancelled, type MergeParams, type Outcome, type SplitParams } from '../ops/op';
+import { getOp } from '../ops';
+import { ArityError, OpCancelled, type MergeParams, type Outcome } from '../ops/op';
 import { LIVE_TOOLS, toolById, toolPath, type ToolId } from '../ops/tools';
 import { PdfError, type PdfEngine } from '../pdf/types';
 import { HANDOFF_KEY } from '../site/config';
@@ -22,7 +23,7 @@ import { createPageGrid, type PageGrid } from '../ui/page-grid';
 import { createProgress } from '../ui/progress';
 import { TOO_LARGE, renderResult } from '../ui/result';
 import { mountShell } from '../ui/shell';
-import { createSplitOptions, type SplitOptions } from '../ui/split-options';
+import { createToolOptions, type ToolOptions } from '../ui/tool-options';
 
 mountShell();
 
@@ -59,7 +60,9 @@ function takeHandoff(): string[] {
 
 async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HTMLInputElement): Promise<void> {
   const tool = toolById(id);
-  const several = tool.input === 'several-pdfs';
+  const several = tool.input !== 'one-pdf';
+  const arity = getOp(id).arity;
+  const noun = tool.input === 'images' ? 'image' : 'PDF';
 
   // ---- Static parts of the page below the drop zone ----
   const notice = el('div', { class: 'notice', attrs: { role: 'status', 'aria-live': 'polite' } });
@@ -81,15 +84,14 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   };
 
   // ---- Tool-specific options ----
-  let split: SplitOptions | null = null;
   let grid: PageGrid | null = null;
-  if (id === 'split') {
-    split = createSplitOptions(() => refresh());
-    optionsSlot.append(split.root);
-  }
+  let options: ToolOptions | null = null;
   if (id === 'organise') {
     grid = createPageGrid(() => refresh());
     optionsSlot.append(grid.root);
+  } else {
+    options = createToolOptions(id, () => refresh());
+    if (options) optionsSlot.append(options.root);
   }
 
   // ---- State ----
@@ -101,12 +103,22 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
 
   const nameOf = (fileId: string): string => entries.find((e) => e.file.id === fileId)?.file.name ?? '';
 
+  /** Why the run cannot start, in words, or '' when it can (or when there is nothing to say yet). */
+  function blocker(): string {
+    const n = entries.length;
+    if (n === 0) return '';
+    if (arity.kind === 'together' && n < arity.min) {
+      const more = arity.min - n;
+      return id === 'merge' ? 'Add at least one more PDF to merge.' : `Add ${more} more ${noun}${more === 1 ? '' : 's'}.`;
+    }
+    if (arity.kind === 'one' && n !== 1) return `${tool.title} works on one file at a time.`;
+    if (grid && grid.count() === 0) return 'Every page is deleted. Restore at least one.';
+    return options?.problem(n) ?? '';
+  }
+
   function runnable(): boolean {
-    if (job || !runner) return false;
-    if (several) return entries.length >= 2;
-    if (entries.length !== 1) return false;
-    if (grid) return grid.count() > 0;
-    return true;
+    if (job || !runner || entries.length === 0) return false;
+    return blocker() === '';
   }
 
   function refresh(): void {
@@ -124,9 +136,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       password: (index, password) => void unlock(index, password),
     });
     runButton.disabled = !runnable();
-    if (several && entries.length === 1) runNote.textContent = 'Add at least one more PDF to merge.';
-    else if (grid && entries.length === 1 && grid.count() === 0) runNote.textContent = 'Every page is deleted. Restore at least one.';
-    else runNote.textContent = '';
+    runNote.textContent = blocker();
   }
 
   async function removeEntry(index: number): Promise<void> {
@@ -140,7 +150,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
 
   /** Opens the file once on the page-thread engine for its page count (and, for organise, its grid). */
   async function inspect(entry: Entry): Promise<void> {
-    if (!ws) return;
+    if (!ws || entry.file.kind !== 'pdf') return;
     try {
       const engine = await enginePromise;
       const blob = await ws.read(entry.file);
@@ -178,7 +188,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       while (entries.length > 0) await removeEntry(0);
       files = files.slice(0, 1);
     }
-    const store = createDocumentStore(ws);
+    const store = createDocumentStore(ws, tool.input === 'images' ? 'image' : 'pdf');
     const results = await store.import(files);
     const problems: string[] = [];
     const added: Entry[] = [];
@@ -215,12 +225,10 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     switch (id) {
       case 'merge':
         return {} satisfies MergeParams;
-      case 'split':
-        return (split?.params() ?? { mode: 'single' }) satisfies SplitParams;
       case 'organise':
         return grid?.params() ?? { pages: [] };
       default:
-        return {};
+        return options?.params() ?? {};
     }
   }
 
@@ -229,7 +237,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     if (!ws) return counts;
     const engine = await enginePromise;
     for (const outcome of outcomes) {
-      if (outcome.kind !== 'produced') continue;
+      if (outcome.kind !== 'produced' || outcome.file.kind !== 'pdf') continue;
       try {
         const view = await engine.open(await ws.read(outcome.file));
         counts.set(outcome.file.id, view.pageCount);

@@ -63,7 +63,7 @@
   --text-l: clamp(1.125rem, 1.06rem + 0.35vw, 1.3125rem);
   --text-xl: clamp(1.375rem, 1.2rem + 0.9vw, 1.875rem);
   --text-2xl: clamp(1.875rem, 1.45rem + 2.2vw, 3rem);
-  --text-3xl: clamp(2.375rem, 1.6rem + 3.9vw, 4.25rem);
+  --text-3xl: clamp(2.125rem, 1.45rem + 3.9vw, 4.25rem);
 
   --font: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -79,29 +79,36 @@
   --target: 44px;
 }
 
-/* One gradient per tool. A new tool adds one line here. */
-[data-tool='merge'],
-[data-tone='merge'] {
+/* One gradient per family (tools.ts GROUPS). Every tool in a family shares
+   it, so twenty-seven tools read as five calm groups, not a rainbow. */
+[data-group='pages'] {
   --tool-a: #00f2fe;
   --tool-b: #4facfe;
 }
 
-[data-tool='split'],
-[data-tone='split'] {
-  --tool-a: #ff7ac6;
-  --tool-b: #ffb35c;
+[data-group='convert'] {
+  --tool-a: #ff9a62;
+  --tool-b: #ff6ec7;
 }
 
-[data-tool='organise'],
-[data-tone='organise'] {
+[data-group='mark'] {
   --tool-a: #b69bff;
-  --tool-b: #4ee6b0;
+  --tool-b: #f08bff;
+}
+
+[data-group='protect'] {
+  --tool-a: #c4f05a;
+  --tool-b: #34d399;
+}
+
+[data-group='read'] {
+  --tool-a: #ffe066;
+  --tool-b: #ffb84d;
 }
 
 /* A custom property built from others is resolved where it is declared, so the
-   gradient and glow are rebuilt wherever a tool's colours change. */
-[data-tool],
-[data-tone],
+   gradient and glow are rebuilt wherever a family's colours change. */
+[data-group],
 .steps li {
   --tool-gradient: linear-gradient(135deg, var(--tool-a) 0%, var(--tool-b) 100%);
   --tool-glow: color-mix(in srgb, var(--tool-b) 35%, transparent);

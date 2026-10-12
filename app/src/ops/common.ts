@@ -2,10 +2,11 @@
  * What the structural ops share: reading an input, naming an output, and
  * turning whatever went wrong into a `failed` outcome in the user's words.
  */
-import type { FoolscapFile } from '../files/types';
-import { PdfError } from '../pdf';
+import type { FileKind, FoolscapFile } from '../files/types';
+import { PdfError, type PdfDoc } from '../pdf';
 import type { OpContext, Outcome } from './op';
-import { OpCancelled } from './op';
+import { OpCancelled, checkCancelled } from './op';
+import type { ToolId } from './tools';
 
 /** "Lease agreement.pdf" → "Lease agreement". Only a trailing .pdf comes off, whatever its case. */
 export function baseName(name: string): string {
@@ -79,4 +80,66 @@ export function failed(error: unknown, inputs: readonly FoolscapFile[]): Outcome
 /** `failed` as a plain sentence from the op itself, for input that cannot be worked with. */
 export function refused(inputs: readonly FoolscapFile[], reason: string): Outcome {
   return { kind: 'failed', inputIds: inputs.map((input) => input.id), reason };
+}
+
+/** "Holiday photo.JPG" → "Holiday photo": any extension, for images. */
+export function stem(name: string): string {
+  const stripped = name.replace(/\.[a-z0-9]{1,5}$/i, '').trim();
+  return stripped.length > 0 ? stripped : 'Image';
+}
+
+export function megabytes(bytes: number): string {
+  const mb = bytes / 1_000_000;
+  return mb >= 10 ? `${Math.round(mb)} MB` : mb >= 0.1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1000))} KB`;
+}
+
+/** Writes one output and returns its `produced` outcome. */
+export async function store(
+  ctx: OpContext,
+  tool: ToolId,
+  from: readonly FoolscapFile[],
+  name: string,
+  bytes: Uint8Array,
+  detail: string,
+  kind: FileKind = 'pdf',
+): Promise<Outcome> {
+  const file = await ctx.workspace.put(name, bytes, kind, { kind: 'derived', tool, from: from.map((f) => f.id) });
+  return { kind: 'produced', file, detail };
+}
+
+/**
+ * The shape of every `each` op: open one input, work on it, close it, move
+ * on. One unreadable file is a `failed` outcome at its own index and the rest
+ * carry on; a cancel stops the run.
+ */
+export async function forEachPdf(
+  inputs: readonly FoolscapFile[],
+  ctx: OpContext,
+  work: (doc: PdfDoc, input: FoolscapFile) => Promise<Outcome>,
+): Promise<Outcome[]> {
+  const outcomes: Outcome[] = [];
+  for (const [i, input] of inputs.entries()) {
+    checkCancelled(ctx.signal);
+    ctx.progress({
+      done: i,
+      total: inputs.length,
+      label: inputs.length > 1 ? `Working on the ${ordinal(i + 1)} file` : 'Working on it…',
+    });
+    let doc: PdfDoc;
+    try {
+      doc = await ctx.surgeon.open(await readInput(ctx, input), passwordFor(ctx, input));
+    } catch (error) {
+      outcomes.push(failed(error, [input]));
+      continue;
+    }
+    try {
+      outcomes.push(await work(doc, input));
+    } catch (error) {
+      outcomes.push(failed(error, [input]));
+    } finally {
+      doc.close();
+    }
+  }
+  ctx.progress({ done: inputs.length, total: inputs.length, label: 'Done' });
+  return outcomes;
 }

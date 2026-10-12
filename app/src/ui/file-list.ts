@@ -27,7 +27,7 @@ export function renderFileList(list: HTMLElement, entries: readonly Entry[], reo
     const { file } = entry;
     const meta: string[] = [formatSize(file.size)];
     if (entry.pages !== undefined) meta.push(plural(entry.pages, 'page'));
-    else if (!entry.error) meta.push('Counting pages…');
+    else if (!entry.error && file.kind === 'pdf') meta.push('Counting pages…');
 
     const controls = el('div', { class: 'file-item__controls' }, [
       reorderable
@@ -58,6 +58,7 @@ export function renderFileList(list: HTMLElement, entries: readonly Entry[], reo
       ? el('div', { class: 'file-item__password' }, [
           el('input', {
             class: 'input',
+            testid: 'file-password',
             attrs: { type: 'password', placeholder: 'Password', autocomplete: 'off', 'aria-label': 'Password for this file' },
             on: {
               keydown: (ev) => {
@@ -67,6 +68,7 @@ export function renderFileList(list: HTMLElement, entries: readonly Entry[], reo
           }),
           el('button', {
             class: 'button button--ghost button--small',
+            testid: 'file-unlock',
             text: 'Unlock',
             attrs: { type: 'button' },
             on: {

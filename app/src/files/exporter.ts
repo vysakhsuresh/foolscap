@@ -7,7 +7,22 @@
 import { zipSync, type Zippable } from 'fflate';
 import type { Exporter, FoolscapFile, SaveOutcome, ShareOutcome, Workspace } from './types';
 
-const PDF_TYPE = 'application/pdf';
+/** The type a saved or shared file declares, from its name. Outputs are PDFs and, from Extract images, images. */
+const TYPES: Record<string, { mime: string; description: string }> = {
+  '.pdf': { mime: 'application/pdf', description: 'PDF' },
+  '.jpg': { mime: 'image/jpeg', description: 'JPEG image' },
+  '.jpeg': { mime: 'image/jpeg', description: 'JPEG image' },
+  '.png': { mime: 'image/png', description: 'PNG image' },
+  '.jp2': { mime: 'image/jp2', description: 'JPEG 2000 image' },
+  '.txt': { mime: 'text/plain', description: 'Text' },
+};
+
+export function typeOf(name: string): { ext: string; mime: string; description: string } {
+  const dot = name.lastIndexOf('.');
+  const ext = dot > 0 ? name.slice(dot).toLowerCase() : '';
+  const known = TYPES[ext];
+  return known ? { ext, ...known } : { ext, mime: 'application/octet-stream', description: 'File' };
+}
 
 const isAbort = (error: unknown): boolean => error instanceof DOMException && error.name === 'AbortError';
 
@@ -100,7 +115,7 @@ function download(blob: Blob, name: string): void {
 const SAVE_FAILED = "The file couldn't be saved there. Try saving it somewhere else.";
 
 export function createExporter(ws: Workspace): Exporter {
-  const asFile = async (file: FoolscapFile): Promise<File> => new File([await ws.read(file)], file.name, { type: PDF_TYPE });
+  const asFile = async (file: FoolscapFile): Promise<File> => new File([await ws.read(file)], file.name, { type: typeOf(file.name).mime });
 
   const save = async (file: FoolscapFile): Promise<SaveOutcome> => {
     const blob = await ws.read(file);
@@ -110,7 +125,11 @@ export function createExporter(ws: Workspace): Exporter {
       return { kind: 'downloaded' };
     }
     try {
-      const handle = await picker({ suggestedName: file.name, types: [{ description: 'PDF', accept: { [PDF_TYPE]: ['.pdf'] } }] });
+      const type = typeOf(file.name);
+      const handle = await picker({
+        suggestedName: file.name,
+        ...(type.ext ? { types: [{ description: type.description, accept: { [type.mime]: [type.ext] } }] } : {}),
+      });
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();
@@ -155,7 +174,7 @@ export function createExporter(ws: Workspace): Exporter {
   const share = async (files: readonly FoolscapFile[]): Promise<ShareOutcome> => {
     if (!(await canShare(files))) return { kind: 'unsupported' };
     try {
-      await navigator.share({ files: await Promise.all(files.map(asFile)), title: 'PDF' });
+      await navigator.share({ files: await Promise.all(files.map(asFile)) });
       return { kind: 'shared' };
     } catch (error) {
       return isAbort(error) ? { kind: 'cancelled' } : { kind: 'failed', reason: "Sharing didn't work. Save the file instead." };

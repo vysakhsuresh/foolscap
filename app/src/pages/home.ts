@@ -1,46 +1,49 @@
-import { el, icon } from '../ui/dom';
+/**
+ * The home page's one piece of behaviour: the finder. The tool list itself is
+ * static HTML (scripts/gen-pages.ts), so the page works and reads with no
+ * script; this only filters it as you type.
+ */
 import { mountShell } from '../ui/shell';
-import { TOOL_ICONS } from '../ui/tool-icons';
-import { GROUPS, TOOLS, toolPath, type ToolMeta } from '../ops/tools';
 
 mountShell();
 
-function liveCard(tool: ToolMeta): HTMLElement {
-  const glyph = TOOL_ICONS[tool.id];
-  return el('a', { class: 'tool-card', testid: `tool-card-${tool.id}`, attrs: { href: toolPath(tool.id), 'data-tone': tool.id } }, [
-    el('span', { class: 'tool-card__icon' }, glyph ? [icon(glyph, 28)] : []),
-    el('span', { class: 'tool-card__title', text: tool.title }),
-    el('span', { class: 'tool-card__summary', text: tool.summary }),
-    el('span', { class: 'tool-card__go', text: 'Open →' }),
-  ]);
-}
+const finder = document.querySelector<HTMLElement>('[data-finder]');
+const input = document.querySelector<HTMLInputElement>('[data-testid="tool-search"]');
+const empty = document.querySelector<HTMLElement>('[data-finder-empty]');
+const families = [...document.querySelectorAll<HTMLElement>('.family')];
+const jumps = document.querySelector<HTMLElement>('.family-jumps');
 
-// Not a link: a tool that does not work yet should not look like one you can tap.
-function soonChip(tool: ToolMeta): HTMLElement {
-  return el('li', { class: 'chip', testid: `tool-card-${tool.id}`, text: tool.title, attrs: { 'data-status': 'soon', title: tool.summary } });
-}
-
-// The three live cards are already in the HTML so the page works without
-// scripts; this replaces that block with the full list rather than adding to it.
-const slot = document.querySelector('[data-tools]');
-if (slot) {
-  const soon = TOOLS.filter((t) => t.status === 'soon');
-  const fresh = el('div', { attrs: { 'data-tools': '' } });
-  fresh.append(el('div', { class: 'tool-grid' }, TOOLS.filter((t) => t.status === 'live').map(liveCard)));
-  const groups = el('div', { class: 'soon__groups' });
-  for (const group of GROUPS) {
-    const tools = soon.filter((t) => t.group === group.id);
-    if (tools.length === 0) continue;
-    groups.append(el('div', {}, [el('h3', { class: 'group-title', text: group.title }), el('ul', { class: 'chips' }, tools.map(soonChip))]));
+function filter(): void {
+  const words = (input?.value ?? '').toLowerCase().split(/\s+/).filter(Boolean);
+  let shown = 0;
+  for (const family of families) {
+    let inFamily = 0;
+    for (const card of family.querySelectorAll<HTMLElement>('.tool-card')) {
+      const haystack = card.dataset['keywords'] ?? '';
+      // Every word typed must match the start of some word in the card, so
+      // "lock" finds Add a password and "pass" finds both password tools.
+      const match = words.every((w) => haystack.includes(w));
+      card.hidden = !match;
+      if (match) inFamily++;
+    }
+    family.hidden = inFamily === 0;
+    shown += inFamily;
   }
-  fresh.append(
-    el('section', { class: 'soon glass', attrs: { 'aria-labelledby': 'soon-title' } }, [
-      el('div', { class: 'soon__head' }, [
-        el('h2', { class: 'soon__title', text: 'Coming next', attrs: { id: 'soon-title' } }),
-        el('span', { class: 'badge', text: `${soon.length} more tools · all free` }),
-      ]),
-      groups,
-    ]),
-  );
-  slot.replaceWith(fresh);
+  if (empty) empty.hidden = shown > 0;
+  if (jumps) jumps.hidden = words.length > 0;
+}
+
+if (finder && input) {
+  finder.hidden = false;
+  input.addEventListener('input', filter);
+  // "/" jumps to the search box, as on most tool sites; Escape clears it.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === '/' && document.activeElement !== input) {
+      event.preventDefault();
+      input.focus();
+    } else if (event.key === 'Escape' && document.activeElement === input) {
+      input.value = '';
+      filter();
+    }
+  });
 }

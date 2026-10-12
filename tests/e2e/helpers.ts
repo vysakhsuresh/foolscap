@@ -4,11 +4,11 @@
  */
 import { readFileSync } from 'node:fs';
 import { expect, type BrowserContext, type Locator, type Page } from '@playwright/test';
-import type { ToolId } from '../../app/src/ops/tools';
+import { LIVE_TOOLS, type ToolId } from '../../app/src/ops/tools';
 import { pdfInfo, type Bytes, type PdfInfo } from '../fixtures/pdfs';
 
 export const ORIGIN = 'http://127.0.0.1:4173';
-export const TOOL_IDS = ['merge', 'split', 'organise'] as const satisfies readonly ToolId[];
+export const TOOL_IDS: readonly ToolId[] = LIVE_TOOLS.map((t) => t.id);
 export const ALL_PAGES = ['/', '/private/', ...TOOL_IDS.map((id) => `/tools/${id}/`)];
 
 /** A tool page, once the engine and the job runner have both come up. Nothing is fetched after this. */

@@ -19,7 +19,7 @@
  * params, outcomes - is plain structured-clonable data.
  */
 import type { FoolscapFile, Workspace } from '../files/types';
-import type { PdfEngine, PdfErrorCode, PdfSurgeon } from '../pdf/types';
+import type { Anchor, PdfEngine, PdfErrorCode, PdfSurgeon } from '../pdf/types';
 import type { ToolId } from './tools';
 
 /**
@@ -184,3 +184,83 @@ export interface OrganiseParams {
    */
   readonly pages: ReadonlyArray<{ readonly source: number; readonly rotation: import('../pdf/types').Rotation }>;
 }
+
+/** Paper sizes, by name. Points are in pages-ops.ts. */
+export type Paper = 'a4' | 'letter';
+
+export interface ExtractPagesParams {
+  /** One-based, as typed: "1-3, 7, 12-". */
+  readonly pages: string;
+  /** Keep the pages typed, or keep everything else. */
+  readonly mode: 'keep' | 'remove';
+}
+
+export interface InsertPagesParams {
+  /** Insert after this one-based page; 0 puts them before the first page. Clipped to the document. */
+  readonly after: number;
+  /** The other files picked, in order, or blank pages the size of the neighbouring page. */
+  readonly what: 'files' | 'blank';
+  readonly blankCount: number;
+}
+
+export type CropParams =
+  /** Trim the same margin, in millimetres, from every edge of every page. */
+  | { readonly mode: 'trim'; readonly mm: number }
+  /** Put every page on one paper size, scaled to fit, turned to match. */
+  | { readonly mode: 'paper'; readonly paper: Paper };
+
+export interface SplitBySizeParams {
+  /** The most each part may weigh, in megabytes (1 MB = 1,000,000 bytes, as mail limits count). */
+  readonly megabytes: number;
+}
+
+export interface ImagesToPdfParams {
+  readonly paper: 'fit' | Paper;
+  readonly margin: 'none' | 'small' | 'large';
+}
+
+export interface NUpParams {
+  readonly perSheet: 2 | 4;
+  readonly paper: Paper;
+}
+
+export interface WatermarkParams {
+  readonly text: string;
+  readonly strength: 'light' | 'medium' | 'strong';
+  readonly layout: 'once' | 'tiled';
+}
+
+export interface PageNumbersParams {
+  readonly position: Exclude<Anchor, 'center'>;
+  readonly format: 'n' | 'n-of-total' | 'page-n' | 'page-n-of-total';
+  /** The number the first numbered page gets. */
+  readonly start: number;
+  /** Leave the first page (a cover) unnumbered. */
+  readonly skipFirst: boolean;
+}
+
+export interface HeaderFooterParams {
+  /** Either may be empty, not both. {page}, {total}, {date} and {name} are filled in. */
+  readonly header: string;
+  readonly footer: string;
+  readonly align: 'left' | 'center' | 'right';
+}
+
+export interface AddPasswordParams {
+  readonly password: string;
+  readonly allowPrinting: boolean;
+  readonly allowCopying: boolean;
+}
+
+export type DocumentDetailsParams =
+  | { readonly mode: 'strip' }
+  | {
+      readonly mode: 'edit';
+      readonly title: string;
+      readonly author: string;
+      readonly subject: string;
+      readonly keywords: string;
+    };
+
+/** Tools that take no settings. */
+export type NoParams = Record<string, never>;
