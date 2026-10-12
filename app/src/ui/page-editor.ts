@@ -8,11 +8,14 @@
  * down, drag to draw or move. Whatever is selected gets a × to take it off.
  */
 import type { MarksParams, RemoveAreasParams } from '../ops/op';
-import type { Area, Mark, PdfView, Rgb } from '../pdf/types';
+import { measureLabel, type Area, type Mark, type PdfView, type Rgb } from '../pdf/types';
 import { el } from './dom';
-import { choices, note } from './fields';
+import { choices, field, note, select as selectField } from './fields';
 
-export type EditorMode = 'sign' | 'add-text' | 'mark-up' | 'remove-areas';
+export type EditorMode = 'sign' | 'add-text' | 'mark-up' | 'remove-areas' | 'add-image';
+
+/** Everything Mark up can put on a page. */
+export type MarkTool = 'highlight' | 'underline' | 'strike' | 'pen' | 'rect' | 'ellipse' | 'arrow' | 'line' | 'measure' | 'note' | 'stamp' | 'textbox' | 'link';
 
 export interface PageEditor {
   readonly root: HTMLElement;
@@ -26,10 +29,38 @@ export interface PageEditor {
 
 type Item =
   | { kind: 'image'; area: MutableArea; png: Uint8Array; src: string; el: HTMLElement }
-  | { kind: 'text'; area: MutableArea; text: string; size: number; color: Rgb; el: HTMLElement }
-  | { kind: 'highlight'; area: MutableArea; color: Rgb; el: HTMLElement }
+  | { kind: 'picture'; area: MutableArea; bytes: Uint8Array; format: 'jpeg' | 'png'; src: string; el: HTMLElement }
+  | { kind: 'text'; area: MutableArea; text: string; size: number; color: Rgb; boxed: boolean; el: HTMLElement }
+  | { kind: 'highlight'; area: MutableArea; color: Rgb; style: 'marker' | 'underline' | 'strike'; el: HTMLElement }
+  | { kind: 'shape'; area: MutableArea; shape: 'rect' | 'ellipse'; color: Rgb; el: HTMLElement }
+  | { kind: 'note'; area: MutableArea; text: string; color: Rgb; el: HTMLElement }
+  | { kind: 'stamp'; area: MutableArea; text: string; color: Rgb; el: HTMLElement }
+  | { kind: 'link'; area: MutableArea; url: string; el: HTMLElement }
   | { kind: 'cover'; area: MutableArea; el: HTMLElement }
-  | { kind: 'ink'; page: number; points: number[]; width: number; color: Rgb; el: SVGPolylineElement };
+  | { kind: 'ink'; page: number; points: number[]; width: number; color: Rgb; el: SVGPolylineElement }
+  | {
+      kind: 'line';
+      page: number;
+      from: [number, number];
+      to: [number, number];
+      end: 'none' | 'arrow' | 'measure';
+      width: number;
+      color: Rgb;
+      el: SVGGElement;
+      label: HTMLElement | null;
+    };
+
+/** Drawn in the SVG layer, not as boxes: they can be undone, not moved. */
+type Vector = Extract<Item, { kind: 'ink' | 'line' }>;
+type Boxed = Exclude<Item, Vector>;
+const isVector = (item: Item): item is Vector => item.kind === 'ink' || item.kind === 'line';
+const pageOfItem = (item: Item): number => (isVector(item) ? item.page : item.area.page);
+
+const RECT_TOOLS = new Set<MarkTool>(['highlight', 'underline', 'strike', 'rect', 'ellipse', 'link']);
+const LINE_TOOLS = new Set<MarkTool>(['arrow', 'line', 'measure']);
+const STAMPS = ['APPROVED', 'PAID', 'RECEIVED', 'DRAFT', 'CONFIDENTIAL', 'URGENT', 'COPY', 'VOID'] as const;
+/** Readers open a link only to these. */
+const LINKABLE = /^(https?:\/\/|mailto:|tel:)\S+$/i;
 
 interface MutableArea {
   page: number;
@@ -104,8 +135,15 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   let sizeChoice: ReturnType<typeof choices<'small' | 'medium' | 'large'>> | null = null;
   let penChoice: ReturnType<typeof choices<'black' | 'blue' | 'red'>> | null = null;
   // Mark up.
-  let toolChoice: ReturnType<typeof choices<'highlight' | 'pen'>> | null = null;
+  let toolChoice: ReturnType<typeof choices<MarkTool>> | null = null;
   let markerChoice: ReturnType<typeof choices<'yellow' | 'green' | 'pink'>> | null = null;
+  let stampChoice: ReturnType<typeof selectField<(typeof STAMPS)[number]>> | null = null;
+  let linkField: ReturnType<typeof field> | null = null;
+  let wordsRow: HTMLElement | null = null;
+  // Add image: the picture chosen, ready to place.
+  let chosen: { bytes: Uint8Array; format: 'jpeg' | 'png'; src: string; aspect: number } | null = null;
+  /** Each page's size in points as seen, for measurements. */
+  const pagePoints = new Map<number, { w: number; h: number }>();
 
   if (mode === 'sign') {
     const pad = el('canvas', { class: 'pad__canvas', testid: 'signature-pad', attrs: { width: '900', height: '300', 'aria-label': 'Draw your signature here' } });
@@ -174,10 +212,73 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       }
     });
   } else if (mode === 'mark-up') {
-    toolChoice = choices<'highlight' | 'pen'>('tool', 'Tool', [{ value: 'highlight', title: 'Highlighter' }, { value: 'pen', title: 'Pen' }], 'highlight', () => sync(), 'pills');
+    toolChoice = choices<MarkTool>(
+      'tool',
+      'Tool',
+      [
+        { value: 'highlight', title: 'Highlight' },
+        { value: 'underline', title: 'Underline' },
+        { value: 'strike', title: 'Strike out' },
+        { value: 'pen', title: 'Pen' },
+        { value: 'rect', title: 'Box' },
+        { value: 'ellipse', title: 'Circle' },
+        { value: 'arrow', title: 'Arrow' },
+        { value: 'line', title: 'Line' },
+        { value: 'measure', title: 'Measure' },
+        { value: 'note', title: 'Note' },
+        { value: 'textbox', title: 'Text box' },
+        { value: 'stamp', title: 'Stamp' },
+        { value: 'link', title: 'Link' },
+      ],
+      'highlight',
+      () => sync(),
+      'pills',
+    );
     markerChoice = choices<'yellow' | 'green' | 'pink'>('marker', 'Highlighter colour', [{ value: 'yellow', title: 'Yellow' }, { value: 'green', title: 'Green' }, { value: 'pink', title: 'Pink' }], 'yellow', () => undefined, 'pills');
-    penChoice = choices<'black' | 'blue' | 'red'>('pen', 'Pen colour', [{ value: 'black', title: 'Black' }, { value: 'blue', title: 'Blue' }, { value: 'red', title: 'Red' }], 'blue', () => undefined, 'pills');
-    tools.append(el('div', { class: 'field-row' }, [toolChoice.root, markerChoice.root, penChoice.root]));
+    penChoice = choices<'black' | 'blue' | 'red'>('pen', 'Colour', [{ value: 'black', title: 'Black' }, { value: 'blue', title: 'Blue' }, { value: 'red', title: 'Red' }], 'blue', () => restyleSelected(), 'pills');
+    textBox = el('textarea', { class: 'input', testid: 'opt-words', attrs: { id: 'opt-words', rows: '2', placeholder: 'What the note or box says' } });
+    wordsRow = el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'Words' }), textBox]);
+    stampChoice = selectField<(typeof STAMPS)[number]>('stamp', 'Stamp', STAMPS.map((v) => ({ value: v, title: v.charAt(0) + v.slice(1).toLowerCase() })), 'APPROVED', () => undefined);
+    linkField = field('link', { label: 'Web address, email or phone', placeholder: 'https://… or mailto:… or tel:…' }, () => sync());
+    tools.append(toolChoice.root, el('div', { class: 'field-row' }, [markerChoice.root, penChoice.root]), wordsRow, stampChoice.root, linkField.root);
+    textBox.addEventListener('input', () => {
+      if (!textBox) return;
+      if (selected?.kind === 'text') {
+        selected.text = textBox.value;
+        paintText(selected);
+        onChange();
+      } else if (selected?.kind === 'note') {
+        selected.text = textBox.value;
+        selected.el.setAttribute('title', textBox.value);
+        onChange();
+      }
+    });
+  } else if (mode === 'add-image') {
+    const input = el('input', { class: 'visually-hidden', testid: 'opt-picture', attrs: { id: 'opt-picture', type: 'file', accept: 'image/*' } });
+    const preview = el('img', { class: 'picture-pick__preview', attrs: { alt: '' } });
+    preview.hidden = true;
+    const words = el('span', { class: 'picture-pick__words', text: 'Choose a photo, a logo or a stamp' });
+    const pickLabel = el('label', { class: 'picture-pick', attrs: { for: 'opt-picture' } }, [preview, words, input]);
+    tools.append(pickLabel, note('The picture goes onto the page as it is. A PNG with a see-through background keeps it; photos are kept sharp but light.'));
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      input.value = '';
+      if (!file) return;
+      words.textContent = 'Getting it ready…';
+      void readPicture(file).then(
+        (made) => {
+          chosen = made;
+          preview.src = made.src;
+          preview.hidden = false;
+          words.textContent = 'Now tap the page where it goes. Choose again to change it.';
+          onChange();
+          sync();
+        },
+        () => {
+          words.textContent = "That picture couldn't be read. Try a JPEG or PNG.";
+        },
+      );
+    });
   } else {
     tools.append(
       note('Drag across anything that should go: a number, a name, a photo. Every page you mark becomes a picture of itself with those parts painted out, so the hidden words cannot be copied, searched or recovered. Its other text stops being selectable, and any form answers on that page go too.'),
@@ -192,7 +293,15 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     prev.hidden = next.hidden = n <= 1;
     undo.disabled = items.length === 0;
     hint.textContent = hintText();
-    if (mode === 'mark-up') root.dataset['tool'] = toolChoice?.value() ?? 'highlight';
+    if (mode === 'mark-up') {
+      const tool = toolChoice?.value() ?? 'highlight';
+      root.dataset['tool'] = tool;
+      if (markerChoice) markerChoice.root.hidden = tool !== 'highlight';
+      if (penChoice) penChoice.root.hidden = tool === 'highlight' || tool === 'link';
+      if (wordsRow) wordsRow.hidden = tool !== 'note' && tool !== 'textbox' && selected?.kind !== 'note' && selected?.kind !== 'text';
+      if (stampChoice) stampChoice.root.hidden = tool !== 'stamp';
+      if (linkField) linkField.root.hidden = tool !== 'link';
+    }
   }
 
   function hintText(): string {
@@ -202,7 +311,36 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       case 'add-text':
         return 'Tap the page where the words go. Tap them again to change them, or drag to move them.';
       case 'mark-up':
-        return toolChoice?.value() === 'pen' ? 'Draw on the page with your finger or mouse.' : 'Drag across the words to highlight them.';
+        switch (toolChoice?.value() ?? 'highlight') {
+          case 'pen':
+            return 'Draw on the page with your finger or mouse.';
+          case 'highlight':
+            return 'Drag across the words to highlight them.';
+          case 'underline':
+            return 'Drag across the words to underline them.';
+          case 'strike':
+            return 'Drag across the words to strike them out.';
+          case 'rect':
+          case 'ellipse':
+            return 'Drag across what to ring.';
+          case 'arrow':
+            return 'Drag from where the arrow starts to what it points at.';
+          case 'line':
+            return 'Drag from one end of the line to the other.';
+          case 'measure':
+            return 'Drag from one point to another: the length on paper is written beside it.';
+          case 'note':
+            return 'Type the note above, then tap the page where it goes. Readers show it as a comment.';
+          case 'textbox':
+            return 'Type the words above, then tap the page where the box goes.';
+          case 'stamp':
+            return 'Pick a stamp, then tap the page where it goes. Drag its corner to size it.';
+          case 'link':
+            return LINKABLE.test(linkField?.value().trim() ?? '') ? 'Drag across the words or picture the link should sit on.' : 'Type the web address first, then drag across where the link goes.';
+        }
+        return '';
+      case 'add-image':
+        return chosen === null ? 'Choose a picture above, then tap the page where it goes.' : 'Tap the page to put the picture there. Drag it to move it; drag its corner to resize.';
       case 'remove-areas':
         return 'Drag across each part that should go.';
     }
@@ -235,6 +373,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     const h = sideways ? info.width : info.height;
     pageAspect = h / w;
     aspects.set(target, pageAspect);
+    pagePoints.set(target, { w, h });
     const cssW = layoutWidth(pageAspect);
     drawnWidth = cssW;
     sheet.style.setProperty('width', `${cssW}px`);
@@ -263,10 +402,14 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     layer.replaceChildren();
     ink.replaceChildren();
     for (const item of items) {
-      const page = item.kind === 'ink' ? item.page : item.area.page;
-      if (page !== current) continue;
-      if (item.kind === 'ink') ink.append(item.el);
-      else {
+      if (pageOfItem(item) !== current) continue;
+      if (isVector(item)) {
+        ink.append(item.el);
+        if (item.kind === 'line' && item.label) {
+          layer.append(item.label);
+          drawLine(item);
+        }
+      } else {
         layer.append(item.el);
         position(item);
         if (item.kind === 'text') paintText(item);
@@ -274,11 +417,11 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     }
   }
 
-  function position(item: Exclude<Item, { kind: 'ink' }>): void {
+  function position(item: Boxed): void {
     const { x, y, w, h } = item.area;
     item.el.style.setProperty('left', `${x * 100}%`);
     item.el.style.setProperty('top', `${y * 100}%`);
-    if (item.kind !== 'text') {
+    if (item.kind !== 'text' && item.kind !== 'note') {
       item.el.style.setProperty('width', `${w * 100}%`);
       item.el.style.setProperty('height', `${h * 100}%`);
     }
@@ -289,6 +432,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     if (body) body.textContent = item.text.length > 0 ? item.text : ' ';
     item.el.style.setProperty('--size', String(item.size));
     item.el.style.setProperty('color', css(item.color));
+    item.el.classList.toggle('editor__item--boxed', item.boxed);
     // The text box's size follows its words.
     const box = sheet.getBoundingClientRect();
     const own = item.el.getBoundingClientRect();
@@ -299,23 +443,31 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   }
 
   function restyleSelected(): void {
-    if (selected?.kind !== 'text') return;
-    selected.size = SIZES[sizeChoice?.value() ?? 'medium'];
-    selected.color = PENS[penChoice?.value() ?? 'black'];
-    paintText(selected);
-    onChange();
+    const pen = PENS[penChoice?.value() ?? 'black'];
+    if (selected?.kind === 'text') {
+      if (sizeChoice) selected.size = SIZES[sizeChoice.value()];
+      selected.color = pen;
+      paintText(selected);
+      onChange();
+    } else if (selected?.kind === 'shape' || selected?.kind === 'stamp' || selected?.kind === 'note') {
+      selected.color = pen;
+      selected.el.style.setProperty('--ink', css(pen));
+      onChange();
+    }
   }
 
   function select(item: Item | null): void {
-    if (selected && selected.kind !== 'ink') selected.el.classList.remove('is-selected');
+    if (selected && !isVector(selected)) selected.el.classList.remove('is-selected');
     selected = item;
-    if (item && item.kind !== 'ink') item.el.classList.add('is-selected');
-    if (item?.kind === 'text' && textBox) textBox.value = item.text;
+    if (item && !isVector(item)) item.el.classList.add('is-selected');
+    if ((item?.kind === 'text' || item?.kind === 'note') && textBox) textBox.value = item.text;
+    if (mode === 'mark-up') sync();
   }
 
   function remove(item: Item): void {
     items = items.filter((i) => i !== item);
     item.el.remove();
+    if (item.kind === 'line') item.label?.remove();
     if (selected === item) selected = null;
     onChange();
     sync();
@@ -332,7 +484,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
 
   function addItem(item: Item): void {
     items.push(item);
-    if (item.kind === 'ink') ink.append(item.el);
+    if (isVector(item)) ink.append(item.el);
     else {
       layer.append(item.el);
       position(item);
@@ -344,7 +496,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     sync();
   }
 
-  function wireItem(item: Exclude<Item, { kind: 'ink' }>): void {
+  function wireItem(item: Boxed): void {
     const remover = item.el.querySelector<HTMLButtonElement>('.editor__remove');
     remover?.addEventListener('click', (ev) => {
       ev.stopPropagation();
@@ -373,10 +525,10 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     item.el.addEventListener('pointerdown', (ev) => {
       ev.stopPropagation();
       select(item);
-      if (item.kind === 'text') textBox?.focus({ preventScroll: true });
+      if (item.kind === 'text' || item.kind === 'note') textBox?.focus({ preventScroll: true });
       const resizing = handle !== null && ev.target === handle;
       drag(ev, item.el, (dx, dy, start) => {
-        if (resizing && item.kind === 'image') {
+        if (resizing && (item.kind === 'image' || item.kind === 'picture' || item.kind === 'stamp')) {
           const w = clamp(start.w + dx, 0.05, 1 - item.area.x);
           item.area.w = w;
           item.area.h = (w * start.h) / start.w;
@@ -392,7 +544,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   /** Follows one pointer from `ev` until it lifts; `move` gets the travel in page fractions. */
   function drag(ev: PointerEvent, target: Element, move: (dx: number, dy: number, start: MutableArea) => void, end?: () => void): void {
     const box = sheet.getBoundingClientRect();
-    const owner = selected && selected.kind !== 'ink' ? selected : null;
+    const owner = selected && !isVector(selected) ? selected : null;
     const start: MutableArea = owner ? { ...owner.area } : { page: current, x: 0, y: 0, w: 0, h: 0 };
     const x0 = ev.clientX;
     const y0 = ev.clientY;
@@ -421,41 +573,70 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     return [clamp((ev.clientX - box.left) / box.width, 0, 1), clamp((ev.clientY - box.top) / box.height, 0, 1)];
   };
 
-  /** Puts a signature or a piece of text at (px, py). False when there is nothing to put down yet. */
+  /** Puts a signature, a picture, text, a note or a stamp at (px, py). False when there is nothing to put down yet. */
   function placeAt(px: number, py: number): boolean {
-    switch (mode) {
-      case 'sign': {
-        if (signature === null) {
-          hint.textContent = 'Draw or type your signature in the box first.';
-          return false;
-        }
-        const w = 0.32;
-        const h = (w / signature.aspect) / pageAspect;
-        const area: MutableArea = { page: current, x: clamp(px - w / 2, 0, 1 - w), y: clamp(py - h / 2, 0, 1 - h), w, h };
-        const box = boxElement('image', 'Signature');
-        box.prepend(el('img', { class: 'editor__img', attrs: { src: signature.src, alt: '' } }));
-        box.append(el('span', { class: 'editor__resize', attrs: { 'aria-hidden': 'true' } }));
-        addItem({ kind: 'image', area, png: signature.png, src: signature.src, el: box });
-        return true;
-      }
-      case 'add-text': {
-        const text = textBox?.value.trim() ? textBox.value : 'Your text';
-        if (textBox && !textBox.value.trim()) textBox.value = text;
-        const box = boxElement('text', 'Text');
-        box.prepend(el('span', { class: 'editor__words' }));
-        const item: Item = { kind: 'text', area: { page: current, x: px, y: py, w: 0, h: 0 }, text, size: SIZES[sizeChoice?.value() ?? 'medium'], color: PENS[penChoice?.value() ?? 'black'], el: box };
-        addItem(item);
-        // Keep it on the page once its real width is known.
-        item.area.x = clamp(item.area.x, 0, Math.max(0, 1 - item.area.w));
-        item.area.y = clamp(item.area.y, 0, Math.max(0, 1 - item.area.h));
-        position(item);
-        textBox?.focus({ preventScroll: true });
-        textBox?.select();
-        return true;
-      }
-      default:
+    const tool = mode === 'mark-up' ? (toolChoice?.value() ?? 'highlight') : null;
+    if (mode === 'sign' || mode === 'add-image') {
+      const made = mode === 'sign' ? signature : chosen;
+      if (made === null) {
+        hint.textContent = mode === 'sign' ? 'Draw or type your signature in the box first.' : 'Choose a picture first.';
         return false;
+      }
+      const w = mode === 'sign' ? 0.32 : 0.4;
+      const h = Math.min(0.9, (w / made.aspect) / pageAspect);
+      const area: MutableArea = { page: current, x: clamp(px - w / 2, 0, 1 - w), y: clamp(py - h / 2, 0, 1 - h), w, h };
+      const box = boxElement('image', mode === 'sign' ? 'Signature' : 'Picture');
+      box.prepend(el('img', { class: 'editor__img', attrs: { src: made.src, alt: '' } }));
+      box.append(el('span', { class: 'editor__resize', attrs: { 'aria-hidden': 'true' } }));
+      if (mode === 'sign' && signature) addItem({ kind: 'image', area, png: signature.png, src: signature.src, el: box });
+      else if (chosen) addItem({ kind: 'picture', area, bytes: chosen.bytes, format: chosen.format, src: chosen.src, el: box });
+      return true;
     }
+    if (mode === 'add-text' || tool === 'textbox') {
+      const fallback = tool === 'textbox' ? 'Note this' : 'Your text';
+      const text = textBox?.value.trim() ? textBox.value : fallback;
+      if (textBox && !textBox.value.trim()) textBox.value = text;
+      const box = boxElement('text', tool === 'textbox' ? 'Text box' : 'Text');
+      box.prepend(el('span', { class: 'editor__words' }));
+      const color = tool === 'textbox' ? PENS[penChoice?.value() ?? 'blue'] : PENS[penChoice?.value() ?? 'black'];
+      const size = tool === 'textbox' ? SIZES.small : SIZES[sizeChoice?.value() ?? 'medium'];
+      const item: Item = { kind: 'text', area: { page: current, x: px, y: py, w: 0, h: 0 }, text, size, color, boxed: tool === 'textbox', el: box };
+      addItem(item);
+      // Keep it on the page once its real width is known.
+      item.area.x = clamp(item.area.x, 0, Math.max(0, 1 - item.area.w));
+      item.area.y = clamp(item.area.y, 0, Math.max(0, 1 - item.area.h));
+      position(item);
+      textBox?.focus({ preventScroll: true });
+      textBox?.select();
+      return true;
+    }
+    if (tool === 'note') {
+      const text = textBox?.value.trim() ? textBox.value : 'Note';
+      if (textBox && !textBox.value.trim()) textBox.value = text;
+      const w = 0.05;
+      const h = w / pageAspect;
+      const color = PENS[penChoice?.value() ?? 'blue'];
+      const box = boxElement('note', 'Note');
+      box.setAttribute('title', text);
+      box.style.setProperty('--ink', css(color));
+      addItem({ kind: 'note', area: { page: current, x: clamp(px, 0, 1 - w), y: clamp(py, 0, 1 - h), w, h }, text, color, el: box });
+      textBox?.focus({ preventScroll: true });
+      textBox?.select();
+      return true;
+    }
+    if (tool === 'stamp') {
+      const text = stampChoice?.value() ?? 'APPROVED';
+      const w = Math.min(0.5, 0.06 + text.length * 0.026);
+      const h = (w * 0.3) / pageAspect;
+      const color = PENS[penChoice?.value() ?? 'red'];
+      const box = boxElement('stamp', 'Stamp');
+      box.prepend(el('span', { class: 'editor__stamp-words', text }));
+      box.append(el('span', { class: 'editor__resize', attrs: { 'aria-hidden': 'true' } }));
+      box.style.setProperty('--ink', css(color));
+      addItem({ kind: 'stamp', area: { page: current, x: clamp(px - w / 2, 0, 1 - w), y: clamp(py - h / 2, 0, 1 - h), w, h }, text, color, el: box });
+      return true;
+    }
+    return false;
   }
 
   layer.addEventListener('pointerdown', (ev) => {
@@ -466,10 +647,12 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     switch (mode) {
       case 'sign':
       case 'add-text':
+      case 'add-image':
         placeAt(px, py);
         return;
-      case 'mark-up':
-        if (toolChoice?.value() === 'pen') {
+      case 'mark-up': {
+        const tool = toolChoice?.value() ?? 'highlight';
+        if (tool === 'pen') {
           const line = document.createElementNS(SVG, 'polyline');
           const color = PENS[penChoice?.value() ?? 'blue'];
           line.setAttribute('class', 'editor__stroke');
@@ -492,8 +675,22 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
           onChange();
           return;
         }
-        rect(ev, px, py, 'highlight');
+        if (RECT_TOOLS.has(tool)) {
+          if (tool === 'link' && !LINKABLE.test(linkField?.value().trim() ?? '')) {
+            hint.textContent = 'Type the web address first: https://…, mailto:… or tel:…';
+            linkField?.input.focus();
+            return;
+          }
+          rect(ev, px, py, tool as RectKind);
+          return;
+        }
+        if (LINE_TOOLS.has(tool)) {
+          lineDrag(ev, px, py, tool === 'arrow' ? 'arrow' : tool === 'measure' ? 'measure' : 'none');
+          return;
+        }
+        placeAt(px, py);
         return;
+      }
       case 'remove-areas':
         rect(ev, px, py, 'cover');
     }
@@ -505,31 +702,75 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     if (!view || (ev.key !== 'Enter' && ev.key !== ' ')) return;
     ev.preventDefault();
     select(null);
-    if (mode === 'sign' || mode === 'add-text') {
+    if (mode === 'sign' || mode === 'add-text' || mode === 'add-image') {
       placeAt(0.5, 0.5);
       return;
     }
-    if (mode === 'mark-up' && toolChoice?.value() === 'pen') {
-      hint.textContent = 'The pen needs a finger or a mouse. The highlighter works from the keyboard.';
+    const tool = mode === 'mark-up' ? (toolChoice?.value() ?? 'highlight') : null;
+    if (tool === 'pen') {
+      hint.textContent = 'The pen needs a finger or a mouse. Every other tool works from the keyboard.';
       return;
     }
-    const kind = mode === 'remove-areas' ? 'cover' : 'highlight';
-    const color = MARKERS[markerChoice?.value() ?? 'yellow'];
-    const box = boxElement(kind, kind === 'cover' ? 'Area to remove' : 'Highlight');
-    if (kind === 'highlight') box.style.setProperty('background-color', css(color, 0.45));
-    const area: MutableArea = { page: current, x: 0.3, y: 0.45, w: 0.4, h: 0.06 };
-    const item: Item = kind === 'cover' ? { kind, area, el: box } : { kind, area, color, el: box };
+    if (tool !== null && LINE_TOOLS.has(tool)) {
+      const item = makeLine(0.3, 0.5, tool === 'arrow' ? 'arrow' : tool === 'measure' ? 'measure' : 'none');
+      item.to = [0.7, 0.5];
+      drawLine(item);
+      items.push(item);
+      onChange();
+      sync();
+      return;
+    }
+    if (tool !== null && !RECT_TOOLS.has(tool)) {
+      placeAt(0.45, 0.45);
+      return;
+    }
+    if (tool === 'link' && !LINKABLE.test(linkField?.value().trim() ?? '')) {
+      hint.textContent = 'Type the web address first: https://…, mailto:… or tel:…';
+      return;
+    }
+    const kind: RectKind = mode === 'remove-areas' ? 'cover' : ((tool ?? 'highlight') as RectKind);
+    const item = makeRect(kind, { page: current, x: 0.3, y: 0.45, w: 0.4, h: 0.06 });
     addItem(item);
     item.el.focus();
   });
 
+  type RectKind = 'highlight' | 'underline' | 'strike' | 'rect' | 'ellipse' | 'link' | 'cover';
+
+  /** A box-shaped item of `kind` over `area`, styled for the screen. */
+  function makeRect(kind: RectKind, area: MutableArea): Boxed {
+    switch (kind) {
+      case 'cover':
+        return { kind: 'cover', area, el: boxElement('cover', 'Area to remove') };
+      case 'highlight':
+      case 'underline':
+      case 'strike': {
+        const color = kind === 'highlight' ? MARKERS[markerChoice?.value() ?? 'yellow'] : PENS[penChoice?.value() ?? 'red'];
+        const box = boxElement(kind === 'highlight' ? 'highlight' : kind, kind === 'highlight' ? 'Highlight' : kind === 'underline' ? 'Underline' : 'Strike-through');
+        if (kind === 'highlight') box.style.setProperty('background-color', css(color, 0.45));
+        else box.style.setProperty('--ink', css(color));
+        return { kind: 'highlight', area, color, style: kind === 'highlight' ? 'marker' : kind, el: box };
+      }
+      case 'rect':
+      case 'ellipse': {
+        const color = PENS[penChoice?.value() ?? 'red'];
+        const box = boxElement(kind, kind === 'rect' ? 'Box' : 'Circle');
+        box.style.setProperty('--ink', css(color));
+        return { kind: 'shape', area, shape: kind, color, el: box };
+      }
+      case 'link': {
+        const url = linkField?.value().trim() ?? '';
+        const box = boxElement('link', 'Link');
+        box.setAttribute('title', url);
+        return { kind: 'link', area, url, el: box };
+      }
+    }
+  }
+
   /** Drag out a rectangle from (px, py); a tap that makes no area makes nothing. */
-  function rect(ev: PointerEvent, px: number, py: number, kind: 'highlight' | 'cover'): void {
-    const color = MARKERS[markerChoice?.value() ?? 'yellow'];
-    const box = boxElement(kind, kind === 'cover' ? 'Area to remove' : 'Highlight');
-    if (kind === 'highlight') box.style.setProperty('background-color', css(color, 0.45));
+  function rect(ev: PointerEvent, px: number, py: number, kind: RectKind): void {
     const area: MutableArea = { page: current, x: px, y: py, w: 0, h: 0 };
-    const item: Item = kind === 'cover' ? { kind, area, el: box } : { kind, area, color, el: box };
+    const item = makeRect(kind, area);
+    const box = item.el;
     layer.append(box);
     position(item);
     drag(ev, layer, (dx, dy) => {
@@ -541,13 +782,92 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       area.h = Math.abs(y2 - py);
       position(item);
     }, () => {
-      if (area.w < 0.008 || area.h < 0.004) {
+      const thin = kind === 'underline' || kind === 'strike';
+      if (area.w < 0.008 || (!thin && area.h < 0.004)) {
         box.remove();
         return;
+      }
+      // An underline dragged flat still needs a line's height to sit in.
+      if (thin && area.h < 0.012) {
+        area.y = Math.max(0, area.y - 0.012);
+        area.h = 0.014;
+        position(item);
       }
       items.push(item);
       wireItem(item);
       select(item);
+      sync();
+    });
+  }
+
+  function makeLine(px: number, py: number, end: 'none' | 'arrow' | 'measure'): Extract<Item, { kind: 'line' }> {
+    const g = document.createElementNS(SVG, 'g');
+    const color = PENS[penChoice?.value() ?? 'red'];
+    g.setAttribute('stroke', css(color));
+    g.setAttribute('class', 'editor__line');
+    g.style.setProperty('stroke-width', `max(2px, calc(var(--page-w) * 0.004))`);
+    const label = end === 'measure' ? el('span', { class: 'editor__measure', testid: 'editor-measure' }) : null;
+    if (label) label.style.setProperty('color', css(color));
+    return { kind: 'line', page: current, from: [px, py], to: [px, py], end, width: 0.004, color, el: g, label };
+  }
+
+  /** Paints a line item's SVG (and its measurement) from its two ends. Arrowheads are worked out in true proportions. */
+  function drawLine(item: Extract<Item, { kind: 'line' }>): void {
+    const [ax, ay] = item.from;
+    const [bx, by] = item.to;
+    const segs: Array<[number, number, number, number]> = [[ax, ay, bx, by]];
+    // In a space where both axes are the same length on screen.
+    const dx = bx - ax;
+    const dy = (by - ay) * pageAspect;
+    const length = Math.hypot(dx, dy);
+    if (length > 0 && item.end !== 'none') {
+      const angle = Math.atan2(dy, dx);
+      if (item.end === 'arrow') {
+        const head = 0.025;
+        for (const turn of [Math.PI * 0.84, -Math.PI * 0.84]) segs.push([bx, by, bx + head * Math.cos(angle + turn), by + (head * Math.sin(angle + turn)) / pageAspect]);
+      } else {
+        const tick = 0.012;
+        for (const [px, py] of [[ax, ay], [bx, by]] as const) {
+          const nx = -Math.sin(angle) * tick;
+          const ny = (Math.cos(angle) * tick) / pageAspect;
+          segs.push([px - nx, py - ny, px + nx, py + ny]);
+        }
+      }
+    }
+    item.el.replaceChildren(
+      ...segs.map(([x1, y1, x2, y2]) => {
+        const l = document.createElementNS(SVG, 'line');
+        l.setAttribute('x1', (x1 * 1000).toFixed(1));
+        l.setAttribute('y1', (y1 * 1000).toFixed(1));
+        l.setAttribute('x2', (x2 * 1000).toFixed(1));
+        l.setAttribute('y2', (y2 * 1000).toFixed(1));
+        return l;
+      }),
+    );
+    if (item.label) {
+      const size = pagePoints.get(item.page) ?? { w: 595, h: 842 };
+      item.label.textContent = measureLabel(Math.hypot((bx - ax) * size.w, (by - ay) * size.h));
+      item.label.style.setProperty('left', `${((ax + bx) / 2) * 100}%`);
+      item.label.style.setProperty('top', `${((ay + by) / 2) * 100}%`);
+    }
+  }
+
+  /** Drag out a line from (px, py); a tap that makes no line makes nothing. */
+  function lineDrag(ev: PointerEvent, px: number, py: number, end: 'none' | 'arrow' | 'measure'): void {
+    const item = makeLine(px, py, end);
+    ink.append(item.el);
+    if (item.label) layer.append(item.label);
+    drag(ev, layer, (dx, dy) => {
+      item.to = [clamp(px + dx, 0, 1), clamp(py + dy, 0, 1)];
+      drawLine(item);
+    }, () => {
+      if (Math.hypot(item.to[0] - px, (item.to[1] - py) * pageAspect) < 0.01) {
+        item.el.remove();
+        item.label?.remove();
+        return;
+      }
+      items.push(item);
+      onChange();
       sync();
     });
   }
@@ -557,8 +877,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   undo.addEventListener('click', () => {
     const last = items[items.length - 1];
     if (!last) return;
-    if (last.kind !== 'ink' && last.area.page !== current) void show(last.area.page);
-    else if (last.kind === 'ink' && last.page !== current) void show(last.page);
+    if (pageOfItem(last) !== current) void show(pageOfItem(last));
     remove(last);
   });
 
@@ -582,20 +901,38 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         case 'image':
           out.push({ kind: 'image', area: { ...item.area }, png: item.png });
           break;
+        case 'picture':
+          out.push({ kind: 'picture', area: { ...item.area }, bytes: item.bytes, format: item.format });
+          break;
         case 'highlight':
-          out.push({ kind: 'highlight', area: { ...item.area }, color: item.color });
+          out.push({ kind: 'highlight', area: { ...item.area }, color: item.color, ...(item.style === 'marker' ? {} : { style: item.style }) });
           break;
         case 'ink':
           out.push({ kind: 'ink', page: item.page, points: [...item.points], width: item.width, color: item.color });
+          break;
+        case 'line':
+          out.push({ kind: 'line', page: item.page, from: [...item.from], to: [...item.to], color: item.color, width: item.width, end: item.end });
+          break;
+        case 'shape':
+          out.push({ kind: 'shape', area: { ...item.area }, shape: item.shape, color: item.color, width: 0.003 });
+          break;
+        case 'note':
+          if (item.text.trim()) out.push({ kind: 'note', area: { ...item.area }, text: item.text, color: item.color });
+          break;
+        case 'stamp':
+          out.push({ kind: 'stamp', area: { ...item.area }, text: item.text, color: item.color });
+          break;
+        case 'link':
+          out.push({ kind: 'link', area: { ...item.area }, url: item.url });
           break;
         case 'text': {
           if (item.text.trim().length === 0) break;
           if (WIN_ANSI.test(item.text)) {
             // A line longer than the page runs off its edge, as the editor shows; the box itself is capped.
-            out.push({ kind: 'text', area: { ...item.area, w: Math.min(item.area.w, 1), h: Math.min(item.area.h, 1) }, text: item.text, size: item.size, color: item.color });
+            out.push({ kind: 'text', area: { ...item.area, w: Math.min(item.area.w, 1), h: Math.min(item.area.h, 1) }, text: item.text, size: item.size, color: item.color, ...(item.boxed ? { boxed: true } : {}) });
           } else {
             // Malayalam, Hindi, Arabic, emoji: the browser shapes them, and they go in as a picture of the words.
-            const picture = textPicture(item.text, item.size, item.color, pageWidthPx(), aspects.get(item.area.page) ?? pageAspect);
+            const picture = textPicture(item.text, item.size, item.color, pageWidthPx(), aspects.get(item.area.page) ?? pageAspect, item.boxed);
             if (picture) out.push({ kind: 'image', area: { ...item.area, w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png });
           }
           break;
@@ -635,10 +972,13 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         case 'add-text':
           return 'Tap the page where the words go.';
         case 'mark-up':
-          return 'Highlight or draw on the page first.';
+          return 'Pick a tool, then mark the page.';
         case 'remove-areas':
           return 'Drag across what should go.';
+        case 'add-image':
+          return chosen === null ? 'Choose a picture, then tap the page where it goes.' : 'Tap the page where the picture goes.';
       }
+      return null;
     },
     async destroy() {
       window.removeEventListener('resize', onResize);
@@ -735,7 +1075,7 @@ function trim(pad: HTMLCanvasElement): { png: Uint8Array; src: string; aspect: n
 }
 
 /** Words in a script the PDF font cannot draw, drawn by the browser instead, at three times the page's size on screen. */
-function textPicture(text: string, size: number, color: Rgb, pageWidthPx: number, aspect: number): { png: Uint8Array; w: number; h: number } | null {
+function textPicture(text: string, size: number, color: Rgb, pageWidthPx: number, aspect: number, boxed = false): { png: Uint8Array; w: number; h: number } | null {
   const scale = 3;
   const px = size * pageWidthPx * scale;
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -749,6 +1089,13 @@ function textPicture(text: string, size: number, color: Rgb, pageWidthPx: number
   out.height = Math.ceil(lineHeight * lines.length);
   const context = out.getContext('2d');
   if (!context) return null;
+  if (boxed) {
+    context.fillStyle = 'rgb(255, 254, 247)';
+    context.fillRect(0, 0, out.width, out.height);
+    context.strokeStyle = css(color);
+    context.lineWidth = Math.max(2, px * 0.06);
+    context.strokeRect(0, 0, out.width, out.height);
+  }
   context.font = `${px}px ${TEXT_FONT}`;
   context.fillStyle = css(color);
   context.textBaseline = 'middle';
@@ -763,3 +1110,28 @@ function fromDataUrl(url: string): Uint8Array {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
 }
+
+/** The longest side a placed picture keeps: sharp in print, light in the file. */
+const PICTURE_MAX = 2000;
+
+/**
+ * A chosen photo or picture, turned the right way up (a phone's EXIF turn is
+ * honoured), shrunk to at most PICTURE_MAX on its long side, and kept as
+ * JPEG, or as PNG when it may be see-through.
+ */
+async function readPicture(file: File): Promise<{ bytes: Uint8Array; format: 'jpeg' | 'png'; src: string; aspect: number }> {
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  try {
+    const scale = Math.min(1, PICTURE_MAX / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const clear = /png|gif|webp|svg/i.test(file.type);
+    const src = clear ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.9);
+    return { bytes: fromDataUrl(src), format: clear ? 'png' : 'jpeg', src, aspect: canvas.width / canvas.height };
+  } finally {
+    bitmap.close();
+  }
+}
+

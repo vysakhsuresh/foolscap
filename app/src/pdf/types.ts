@@ -154,6 +154,8 @@ export interface PdfView {
   layout(index: number): Promise<PageLayout>;
   /** The document's own table of contents (bookmarks), with the page each entry opens. Empty when it has none. */
   outline(): Promise<readonly OutlineItem[]>;
+  /** The comments a reader lists (notes, highlights, stamps…), in page order. Links and form fields are not comments. */
+  comments(): Promise<readonly PdfComment[]>;
   /** The document's fillable fields, in page order. Empty when it has none. */
   fields(): Promise<readonly FormField[]>;
   /** Awaits pdf.js destroy: frees page caches, decoded images and fonts. The UI calls it when a grid unmounts. */
@@ -330,11 +332,51 @@ export type Mark =
   /** A PNG (a signature, or text in a script the built-in font cannot draw) filling `area`. */
   | { readonly kind: 'image'; readonly area: Area; readonly png: Uint8Array }
   /** Lines of text whose first line's top is the area's top; `size` is a fraction of the page width. */
-  | { readonly kind: 'text'; readonly area: Area; readonly text: string; readonly size: number; readonly color: Rgb }
-  /** A see-through marker over `area`, multiplied so the words under it stay dark. */
-  | { readonly kind: 'highlight'; readonly area: Area; readonly color: Rgb }
+  | { readonly kind: 'text'; readonly area: Area; readonly text: string; readonly size: number; readonly color: Rgb; readonly boxed?: boolean }
+  /**
+   * A see-through marker over `area`, multiplied so the words under it stay
+   * dark; or, with `style`, a line under the words or through them.
+   */
+  | { readonly kind: 'highlight'; readonly area: Area; readonly color: Rgb; readonly style?: 'marker' | 'underline' | 'strike' }
   /** A pen stroke: x,y pairs in page fractions; `width` a fraction of the page width. */
-  | { readonly kind: 'ink'; readonly page: number; readonly points: readonly number[]; readonly width: number; readonly color: Rgb };
+  | { readonly kind: 'ink'; readonly page: number; readonly points: readonly number[]; readonly width: number; readonly color: Rgb }
+  /** A box or an oval drawn round `area`, outline only. `width` a fraction of the page width. */
+  | { readonly kind: 'shape'; readonly area: Area; readonly shape: 'rect' | 'ellipse'; readonly color: Rgb; readonly width: number }
+  /**
+   * A straight line from `from` to `to` (page fractions, top-left origin):
+   * plain, with an arrowhead at `to`, or as a measurement with its length on
+   * real paper written beside it.
+   */
+  | {
+      readonly kind: 'line';
+      readonly page: number;
+      readonly from: readonly [number, number];
+      readonly to: readonly [number, number];
+      readonly color: Rgb;
+      readonly width: number;
+      readonly end?: 'none' | 'arrow' | 'measure';
+    }
+  /** A sticky note: a real comment a reader lists and opens, pinned at the area's top-left. Any script. */
+  | { readonly kind: 'note'; readonly area: Area; readonly text: string; readonly color: Rgb }
+  /** A rubber stamp: the words in capitals inside a rounded frame, filling `area`. */
+  | { readonly kind: 'stamp'; readonly area: Area; readonly text: string; readonly color: Rgb }
+  /** A link over `area` that opens `url` (http, https, mailto or tel) when tapped in a reader. */
+  | { readonly kind: 'link'; readonly area: Area; readonly url: string }
+  /** A photo or picture filling `area`: JPEG or PNG bytes as they are. */
+  | { readonly kind: 'picture'; readonly area: Area; readonly bytes: Uint8Array; readonly format: 'jpeg' | 'png' };
+
+/** A length in PDF points as it measures on paper: "42 mm", "8.5 mm", "21.0 cm". */
+export function measureLabel(points: number): string {
+  const mm = (points * 25.4) / 72;
+  if (mm >= 100) return `${(mm / 10).toFixed(1)} cm`;
+  if (mm >= 10) return `${Math.round(mm)} mm`;
+  return `${mm.toFixed(1)} mm`;
+}
+
+/** The page a mark sits on. */
+export function markPage(mark: Mark): number {
+  return mark.kind === 'ink' || mark.kind === 'line' ? mark.page : mark.area.page;
+}
 
 /** One piece of text on a page, in points from the page's top-left; `y` is the baseline. */
 export interface LayoutItem {
@@ -353,6 +395,15 @@ export interface PageLayout {
   readonly width: number;
   readonly height: number;
   readonly items: readonly LayoutItem[];
+}
+
+/** One comment in a document, as a reader's comment list shows it. */
+export interface PdfComment {
+  readonly page: number;
+  /** "Note", "Highlight", "Stamp"…: the kind, in words. */
+  readonly kind: string;
+  readonly text: string;
+  readonly author?: string;
 }
 
 /** One entry in a document's table of contents. `page` is null when its target cannot be found. */

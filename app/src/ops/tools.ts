@@ -9,7 +9,7 @@
  * The ids are URLs (`/tools/<id>/`) and the keys the SEO pages are generated
  * from. Never rename one once it has shipped.
  *
- * `group` exists because a flat list of thirty-seven tools stops being a menu
+ * `group` exists because a flat list of thirty-eight tools stops being a menu
  * and becomes a wall. The groups are by what someone is trying to do, not by
  * which library implements them.
  */
@@ -51,7 +51,8 @@ export type ToolId =
   | 'pdf-to-excel'
   | 'pdf-to-powerpoint'
   | 'pdf-to-epub'
-  | 'office-to-pdf';
+  | 'office-to-pdf'
+  | 'add-image';
 
 /** 'pdf-and-files': a PDF first, then files of any kind (Attachments). 'office': Word and Excel files. */
 export type InputKind = 'one-pdf' | 'several-pdfs' | 'images' | 'camera' | 'pdf-and-files' | 'office';
@@ -103,7 +104,6 @@ export const KEYWORDS: Partial<Record<ToolId, string>> = {
   watermark: 'stamp draft confidential copy',
   'page-numbers': 'number pages bates numbering',
   sign: 'signature esign autograph',
-  'mark-up': 'highlight annotate draw pen comment',
   'add-text': 'write type edit text fill',
   'fill-form': 'form fields fill in',
   'header-footer': 'heading top bottom date running header',
@@ -125,6 +125,8 @@ export const KEYWORDS: Partial<Record<ToolId, string>> = {
   'pdf-to-powerpoint': 'pptx ppt powerpoint slides presentation convert',
   'pdf-to-epub': 'epub ebook kindle html web page reflow convert',
   'office-to-pdf': 'word excel docx xlsx doc xls convert to pdf office',
+  'add-image': 'insert picture photo logo image jpg png stamp',
+  'mark-up': 'highlight annotate draw pen comment note sticky shapes arrow circle box stamp underline strikethrough link measure callout',
 };
 
 export const TOOLS: readonly ToolMeta[] = [
@@ -152,8 +154,9 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'watermark', title: 'Watermark', summary: 'Stamp DRAFT or a name across every page', action: 'Add the watermark', input: 'several-pdfs', group: 'mark', status: 'live' },
   { id: 'page-numbers', title: 'Page numbers', summary: 'Number the pages, and skip a cover if you like', action: 'Add the numbers', input: 'several-pdfs', group: 'mark', status: 'live' },
   { id: 'sign', title: 'Sign', summary: 'Draw your signature and place it on the page', action: 'Place the signature', input: 'one-pdf', group: 'mark', status: 'live' },
-  { id: 'mark-up', title: 'Mark up', summary: 'Highlight a line or draw on a page', action: 'Save the marks', input: 'one-pdf', group: 'mark', status: 'live' },
+  { id: 'mark-up', title: 'Mark up', summary: 'Highlight, underline, notes, shapes, arrows, stamps, links and measurements', action: 'Save the marks', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'add-text', title: 'Add text', summary: 'Tap a page and write on it', action: 'Write it on', input: 'one-pdf', group: 'mark', status: 'live' },
+  { id: 'add-image', title: 'Add image', summary: 'Put a photo, logo or stamp picture on a page', action: 'Place it', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'fill-form', title: 'Fill in a form', summary: 'Type into a real PDF form and seal the answers', action: 'Fill it in', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'background', title: 'Page background', summary: 'Give the pages a soft paper colour', action: 'Colour the pages', input: 'several-pdfs', group: 'mark', status: 'live' },
   { id: 'header-footer', title: 'Header and footer', summary: 'A line along the top or bottom of every page', action: 'Add them', input: 'several-pdfs', group: 'mark', status: 'live' },
@@ -199,7 +202,7 @@ export const SEARCH_NAMES: Record<ToolId, string> = {
   watermark: 'Add a watermark to PDF',
   'page-numbers': 'Add page numbers to PDF',
   sign: 'Sign PDF',
-  'mark-up': 'Highlight and draw on PDF',
+  'mark-up': 'Annotate PDF: highlight, comment and draw',
   'add-text': 'Add text to PDF',
   'fill-form': 'Fill PDF form',
   'header-footer': 'Add header and footer to PDF',
@@ -221,6 +224,7 @@ export const SEARCH_NAMES: Record<ToolId, string> = {
   'pdf-to-powerpoint': 'PDF to PowerPoint',
   'pdf-to-epub': 'PDF to EPUB and HTML',
   'office-to-pdf': 'Word and Excel to PDF',
+  'add-image': 'Add image to PDF',
 };
 
 export const toolPath = (id: ToolId): string => `${import.meta.env.BASE_URL}tools/${id}/`;

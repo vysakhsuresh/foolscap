@@ -1,7 +1,7 @@
 /** The only public surface of the ops: the shape, the registry, and a lookup. */
 import { extractImagesOp, imagesToPdfOp } from './convert-ops';
 import { headerFooterOp, pageNumbersOp, watermarkOp } from './mark-ops';
-import { addTextOp, fillFormOp, markUpOp, removeAreasOp, signOp } from './edit-ops';
+import { addImageOp, addTextOp, fillFormOp, markUpOp, removeAreasOp, signOp } from './edit-ops';
 import { digitalSignOp } from './certify-ops';
 import { mergeOp } from './merge';
 import { officeToPdfOp, pdfToEpubOp, pdfToExcelOp, pdfToPowerPointOp, pdfToWordOp } from './office-ops';
@@ -59,6 +59,7 @@ const OPS: Partial<Record<ToolId, Op<never>>> = {
   'pdf-to-powerpoint': pdfToPowerPointOp,
   'pdf-to-epub': pdfToEpubOp,
   'office-to-pdf': officeToPdfOp,
+  'add-image': addImageOp,
 };
 
 export function getOp(id: ToolId): Op {

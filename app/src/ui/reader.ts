@@ -56,6 +56,7 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   const findPrev = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-find-prev', text: '‹', attrs: { type: 'button', 'aria-label': 'Previous match' } });
   const findNext = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-find-next', text: '›', attrs: { type: 'button', 'aria-label': 'Next match' } });
   const findCount = el('span', { class: 'reader__count', testid: 'reader-find-count', attrs: { 'aria-live': 'polite' } });
+  const commentsButton = el('button', { class: 'button button--ghost button--small', testid: 'reader-comments-toggle', text: 'Comments', attrs: { type: 'button', 'aria-expanded': 'false' } });
   const printButton = el('button', { class: 'button button--ghost button--small', testid: 'reader-print', text: 'Print', attrs: { type: 'button' } });
   const aloud = el('button', { class: 'button button--ghost button--small', testid: 'reader-aloud', text: 'Read aloud', attrs: { type: 'button', 'aria-pressed': 'false' } });
   const status = el('p', { class: 'reader__status', testid: 'reader-status', attrs: { role: 'status', 'aria-live': 'polite' } });
@@ -85,14 +86,18 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   const then = handoff ? el('div', { class: 'then reader__then' }, [thenButton, thenMenu]) : null;
 
   const bar = el('div', { class: 'reader__bar', testid: 'reader-bar' }, [
-    el('div', { class: 'reader__group' }, [contentsButton, zoomOut, zoomLabel, zoomIn, night, aloud, printButton, then]),
+    el('div', { class: 'reader__group' }, [contentsButton, commentsButton, zoomOut, zoomLabel, zoomIn, night, aloud, printButton, then]),
     el('div', { class: 'reader__group reader__group--find' }, [find, findPrev, findNext, findCount]),
   ]);
   const outline = el('nav', { class: 'reader__outline', testid: 'reader-outline', attrs: { 'aria-label': 'Contents' } });
   outline.hidden = true;
+  const commentList = el('section', { class: 'reader__outline reader__comments', testid: 'reader-comments', attrs: { 'aria-label': 'Comments' } });
+  commentList.hidden = true;
+  /** Read once, the first time the list is opened: going through every page is not free. */
+  let commentsRead: Promise<void> | null = null;
   // Focusable, so the keyboard can scroll it sideways when zoomed in.
   const pages = el('div', { class: 'reader__pages', testid: 'reader-pages', attrs: { tabindex: '0', role: 'region', 'aria-label': 'Pages' } });
-  const root = el('section', { class: 'reader', testid: 'reader', attrs: { 'aria-label': 'The document' } }, [bar, status, outline, where, pages]);
+  const root = el('section', { class: 'reader', testid: 'reader', attrs: { 'aria-label': 'The document' } }, [bar, status, outline, commentList, where, pages]);
   /** The pages as pictures, for the printer only: hidden on screen, the only thing shown on paper. */
   let sheets: HTMLElement | null = null;
   let printing = false;
@@ -220,6 +225,39 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
     contentsButton.setAttribute('aria-expanded', String(open));
   }
 
+  async function toggleComments(): Promise<void> {
+    const open = commentList.hidden;
+    commentList.hidden = !open;
+    commentsButton.setAttribute('aria-expanded', String(open));
+    if (!open || !view) return;
+    const v = view;
+    commentsRead ??= (async () => {
+      commentList.replaceChildren(el('p', { class: 'options__note', text: 'Reading the comments…' }));
+      const found = await v.comments().catch(() => []);
+      if (view !== v) return;
+      if (found.length === 0) {
+        commentList.replaceChildren(el('p', { class: 'options__note', testid: 'reader-comments-none', text: 'This document has no comments, notes or highlights.' }));
+        return;
+      }
+      commentList.replaceChildren(
+        el('p', { class: 'reader__comments-count', text: `${found.length} ${found.length === 1 ? 'comment' : 'comments'}` }),
+        el(
+          'ul',
+          {},
+          found.map((c) =>
+            el('li', {}, [
+              el('button', { class: 'reader__entry reader__comment', testid: 'reader-comment', attrs: { type: 'button' }, on: { click: () => goTo(c.page) } }, [
+                el('span', { class: 'reader__comment-head', text: `${c.kind} · page ${c.page + 1}${c.author ? ` · ${c.author}` : ''}` }),
+                c.text ? el('span', { class: 'reader__comment-text', text: c.text }) : null,
+              ]),
+            ]),
+          ),
+        ),
+      );
+    })();
+    await commentsRead;
+  }
+
   function goTo(index: number): void {
     slots[index]?.root.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
@@ -306,6 +344,7 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
     night.setAttribute('aria-pressed', String(on));
   });
   contentsButton.addEventListener('click', () => toggleOutline());
+  commentsButton.addEventListener('click', () => void toggleComments());
 
   // ---- Print ----
 
@@ -463,6 +502,10 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
     hits = [];
     pages.replaceChildren();
     outline.replaceChildren();
+    commentList.replaceChildren();
+    commentList.hidden = true;
+    commentsButton.setAttribute('aria-expanded', 'false');
+    commentsRead = null;
     window.removeEventListener('scroll', onScroll);
     window.removeEventListener('resize', onResize);
     const v = view;

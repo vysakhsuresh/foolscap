@@ -498,7 +498,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
       fileInput.id = 'opt-certificate';
-      fileInput.className = 'input';
+      fileInput.className = 'visually-hidden';
       fileInput.dataset['testid'] = 'opt-certificate';
       fileInput.accept = '.pfx,.p12,application/x-pkcs12';
       fileInput.addEventListener('change', () => {
@@ -525,9 +525,17 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
           },
         );
       });
-      const certField = document.createElement('div');
-      certField.className = 'field';
-      certField.append(Object.assign(document.createElement('label'), { className: 'field__label', htmlFor: 'opt-certificate', textContent: 'Your certificate (.pfx or .p12)' }), fileInput, picked);
+      // One big target, as the drop zone is: the whole box opens the picker.
+      const certField = document.createElement('label');
+      certField.className = 'picture-pick';
+      certField.htmlFor = 'opt-certificate';
+      const words = document.createElement('span');
+      words.className = 'picture-pick__words';
+      words.textContent = 'Choose your certificate (.pfx or .p12)';
+      const stack = document.createElement('span');
+      stack.className = 'picture-pick__stack';
+      stack.append(words, picked);
+      certField.append(stack, fileInput);
       const password = field('cert-password', { label: 'Its password', type: 'password', autocomplete: 'off' }, onChange);
       const visible = check('visible', 'Show the signature on the last page', true, onChange, 'A box with your name and the date. Off: the signature is still there, in the reader’s signature panel.');
       const reason = field('reason', { label: 'Reason (optional)', placeholder: 'e.g. I approve this document' }, onChange);

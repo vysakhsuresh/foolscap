@@ -185,3 +185,97 @@ test('digital signature seals the PDF with a certificate file and its password',
   await expect(items.first()).toHaveAttribute('data-name', 'Agreement (signed).pdf');
   await expect(page.getByTestId('result-detail')).toContainText('Signed by Kerala Test Co');
 });
+
+async function layerBox(page: Page) {
+  await page.getByTestId('editor-layer').evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  return (await page.getByTestId('editor-layer').boundingBox())!;
+}
+
+async function dragAcross(page: Page, from: [number, number], to: [number, number]): Promise<void> {
+  const box = await layerBox(page);
+  await page.mouse.move(box.x + box.width * from[0], box.y + box.height * from[1]);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * ((from[0] + to[0]) / 2), box.y + box.height * ((from[1] + to[1]) / 2), { steps: 4 });
+  await page.mouse.move(box.x + box.width * to[0], box.y + box.height * to[1], { steps: 4 });
+  await page.mouse.up();
+}
+
+async function tapAt(page: Page, at: [number, number]): Promise<void> {
+  const box = await layerBox(page);
+  await page.mouse.click(box.x + box.width * at[0], box.y + box.height * at[1]);
+}
+
+test('mark up has the whole kit: shapes, arrows, measure, notes, stamps, text boxes and links', async ({ page }) => {
+  await openTool(page, 'mark-up');
+  await pick(page, [{ name: 'Lease.pdf', bytes: await pagesPdf(1) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+  await page.getByTestId('opt-tool-underline').check();
+  await dragAcross(page, [0.1, 0.1], [0.5, 0.13]);
+  await page.getByTestId('opt-tool-rect').check();
+  await dragAcross(page, [0.1, 0.2], [0.4, 0.3]);
+  await page.getByTestId('opt-tool-ellipse').check();
+  await dragAcross(page, [0.5, 0.2], [0.8, 0.3]);
+  await page.getByTestId('opt-tool-arrow').check();
+  await dragAcross(page, [0.1, 0.4], [0.5, 0.45]);
+  await page.getByTestId('opt-tool-measure').check();
+  await dragAcross(page, [0.1, 0.5], [0.9, 0.5]);
+  await expect(page.getByTestId('editor-measure')).toContainText('mm');
+  await page.getByTestId('opt-tool-note').check();
+  await page.getByTestId('opt-words').fill('Ask about the deposit');
+  await tapAt(page, [0.8, 0.6]);
+  await page.getByTestId('opt-tool-stamp').check();
+  await page.getByTestId('opt-stamp').selectOption('PAID');
+  await tapAt(page, [0.5, 0.75]);
+  await page.getByTestId('opt-tool-textbox').check();
+  await page.getByTestId('opt-words').fill('See clause 4');
+  await tapAt(page, [0.1, 0.85]);
+  await page.getByTestId('opt-tool-link').check();
+  await dragAcross(page, [0.1, 0.92], [0.3, 0.96]);
+  await expect(page.getByTestId('editor-hint')).toContainText('web address first');
+  await page.getByTestId('opt-link').fill('https://example.org');
+  await dragAcross(page, [0.1, 0.92], [0.3, 0.96]);
+  await run(page);
+  await expect(page.getByTestId('result-detail')).toHaveText(
+    '1 underline, 1 box, 1 circle, 1 arrow, 1 measurement, 1 note, 1 stamp, 1 text box and 1 link',
+  );
+});
+
+test('add image places a chosen picture on the page', async ({ page }) => {
+  await openTool(page, 'add-image');
+  await pick(page, [{ name: 'Letter.pdf', bytes: await pagesPdf(1) }]);
+  await expect(page.getByTestId('run-button')).toBeDisabled();
+  const png = Buffer.from(await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 120;
+    c.height = 60;
+    const x = c.getContext('2d')!;
+    x.fillStyle = '#c41a1f';
+    x.fillRect(10, 10, 100, 40);
+    return c.toDataURL('image/png').split(',')[1]!;
+  }), 'base64');
+  await page.getByTestId('opt-picture').setInputFiles([{ name: 'logo.png', mimeType: 'image/png', buffer: png }]);
+  await expect(page.getByTestId('editor-hint')).toContainText('Tap the page to put the picture there');
+  await tapAt(page, [0.5, 0.3]);
+  await expect(page.getByTestId('editor-item')).toHaveCount(1);
+  await run(page);
+  await expect(page.getByTestId('result-detail')).toHaveText('1 picture placed');
+});
+
+test('read lists the comments in a document and jumps to them', async ({ page }) => {
+  await openTool(page, 'mark-up');
+  await pick(page, [{ name: 'Lease.pdf', bytes: await pagesPdf(2) }]);
+  await page.getByTestId('editor-next').click();
+  await page.getByTestId('opt-tool-note').check();
+  await page.getByTestId('opt-words').fill('Check the rent figure');
+  await tapAt(page, [0.5, 0.5]);
+  await run(page);
+  const { bytes } = await downloadFrom(page, page.getByTestId('save-button'));
+  await openTool(page, 'read');
+  await pick(page, [{ name: 'Lease marked up.pdf', bytes }]);
+  await expect(page.getByTestId('reader-page')).toHaveCount(2);
+  await page.getByTestId('reader-comments-toggle').click();
+  const comment = page.getByTestId('reader-comment');
+  await expect(comment).toHaveCount(1);
+  await expect(comment).toContainText('Note · page 2');
+  await expect(comment).toContainText('Check the rent figure');
+});

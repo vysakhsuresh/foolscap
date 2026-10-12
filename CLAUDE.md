@@ -255,9 +255,12 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
    compress to a size, and print and read aloud in Read. 31 live.
 2e. ✅ Converters: PDF to Word (scanned pages read with OCR), Excel,
    PowerPoint, EPUB or a web page; Word or Excel to PDF. Digital signature
-   with the person's own .pfx. 37 live. **You are here.** Next: the mark-up
-   kit (shapes, notes, stamps, links), text editing and redact by search,
-   forms, the offline app.
+   with the person's own .pfx. 37 live.
+2f. ✅ The mark-up kit: underline, strike out, box, circle, arrow, line,
+   measure, sticky notes (real comments), text boxes, stamps and links in
+   Mark up; Add image; a comments list in Read. 38 live. **You are here.**
+   Next: text editing, find and replace, redact by search, compare, forms,
+   the offline app.
 3. The reader, deeper: re-rendering zoom, find, outline, night mode, resume.
 4. Complex-script text drawn as real text (harfbuzzjs). Until then Add text
    puts Malayalam, Hindi and the like in as a picture of the words, shaped
@@ -391,4 +394,11 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   arity and worker flags, a unit test keeps it equal to the ops, and every
   pdf-lib and pkijs path goes through `PdfSurgeon`, so a tool page's first
   script stays under 60 KB and carries no PDF or crypto library.
+- **2026-10-12** The mark-up kit. Notes and links are real annotations (a
+  reader lists a note as a comment, in any script, and opens a link), never
+  pictures of them; a link only ever opens https, http, mailto or tel.
+  Everything else is drawn into the page, upright as the reader sees it on
+  any /Rotate. Measure writes the length on real paper (points to mm). The
+  editor keeps lines and pen strokes in its SVG layer (undo, not move) and
+  every other mark as a box you can move and remove.
 

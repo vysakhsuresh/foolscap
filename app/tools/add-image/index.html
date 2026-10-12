@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0c10">
+  <meta name="google-adsense-account" content="ca-pub-6072772587431629">
+  <title>Add image to PDF online, free and private — Foolscap</title>
+  <meta name="description" content="Add image to PDF in your browser. Put a photo, logo or stamp picture on a page. Nothing is uploaded: free, no sign-up, no limits, no watermark.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Add image to PDF online, free and private — Foolscap">
+  <meta property="og:description" content="Add image to PDF in your browser. Put a photo, logo or stamp picture on a page. Nothing is uploaded: free, no sign-up, no limits, no watermark.">
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/brand/favicon-48.png" type="image/png" sizes="48x48">
+  <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0a0c10">
+  <script type="module" src="/src/pages/tool.ts"></script>
+</head>
+<body data-tool="add-image" data-group="mark" data-page="tool">
+  <header class="site-header" data-testid="site-header">
+    <div class="wrap site-header__row">
+      <a class="brand" href="/"><svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true" focusable="false"><defs><linearGradient id="mark-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#4facfe"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#mark-g)"/><g transform="translate(8.5 9) scale(.74)"><g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 29 C 16 18, 9 10, 4.5 19 C 11 15, 20 16, 24.5 22 C 27 15, 29.5 10, 32 6.5 C 34.5 10, 37 15, 39.5 22 C 44 16, 53 15, 59.5 19 C 55 10, 48 18, 46 29 V52 Q46 57 41 57 H23 Q18 57 18 52 Z"/><path d="M25 39 H39 M25 47.5 H35"/></g><g fill="#fff"><circle cx="4.5" cy="20" r="4"/><circle cx="32" cy="6.5" r="4"/><circle cx="59.5" cy="20" r="4"/></g></g></svg><span>Foolscap</span></a>
+      <nav class="site-nav" data-testid="site-nav" aria-label="Site">
+        <a href="/#tools" aria-current="page">Tools</a>
+        <a href="/private/">Privacy</a>
+      </nav>
+      <a class="support" data-testid="support" href="https://www.buymeacoffee.com/layerbit" target="_blank" rel="noopener" aria-label="Buy me a coffee"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 10h13v4.5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6V10ZM16.5 11.5h1.25a2.75 2.75 0 0 1 0 5.5H16M6.5 2.5c0 1.25 1 1.75 1 3.25M10 2.5c0 1.25 1 1.75 1 3.25M13.5 2.5c0 1.25 1 1.75 1 3.25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="support__text">Buy me a coffee</span></a>
+    </div>
+  </header>
+  <main class="wrap tool" data-app>
+    <header class="tool__head">
+      <a class="crumb" href="/#mark"><svg class="crumb__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></g></svg><span>Mark up</span></a>
+      <h1 class="tool__title" data-testid="tool-title">Add image</h1>
+      <p class="tool__summary">Put a photo, logo or stamp picture on a page. Nothing is uploaded: the work happens on this device.</p>
+    </header>
+    <label class="drop-zone" data-testid="drop-zone" for="file-input">
+      <svg class="drop-zone__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5h6"/><path d="M19 2v6"/><path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/></g></svg>
+      <span class="drop-zone__title">Drop a PDF here, or tap to pick one</span>
+      <span class="drop-zone__hint" id="drop-hint">It stays on this device. No size limit.</span>
+      <input class="visually-hidden" id="file-input" data-testid="file-input" type="file" accept="application/pdf,.pdf" aria-describedby="drop-hint">
+    </label>
+    <div data-slot="body"></div>
+    <nav class="related" aria-labelledby="related-title">
+      <h2 class="related__title" id="related-title">More in Mark up</h2>
+      <div class="related__list">
+        <a class="related__item" href="/tools/watermark/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 13V8.5C14 7 15 7 15 5a3 3 0 0 0-6 0c0 2 1 2 1 3.5V13"/><path d="M20 15.5a2.5 2.5 0 0 0-2.5-2.5h-11A2.5 2.5 0 0 0 4 15.5V17a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1z"/><path d="M5 22h14"/></g></svg><span>Watermark</span></a>
+        <a class="related__item" href="/tools/page-numbers/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></g></svg><span>Page numbers</span></a>
+        <a class="related__item" href="/tools/sign/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 17-2.156-1.868A.5.5 0 0 0 18 15.5v.5a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1c0-2.545-3.991-3.97-8.5-4a1 1 0 0 0 0 5c4.153 0 4.745-11.295 5.708-13.5a2.5 2.5 0 1 1 3.31 3.284"/><path d="M3 21h18"/></g></svg><span>Sign</span></a>
+        <a class="related__item" href="/tools/mark-up/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></g></svg><span>Mark up</span></a>
+        <a class="related__item" href="/tools/add-text/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16"/><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"/><path d="M9 20h6"/></g></svg><span>Add text</span></a>
+        <a class="related__item" href="/tools/fill-form/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h-1a2 2 0 0 1-2-2 2 2 0 0 1-2 2H6"/><path d="M13 8h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7"/><path d="M5 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1"/><path d="M6 4h1a2 2 0 0 1 2 2 2 2 0 0 1 2-2h1"/><path d="M9 6v12"/></g></svg><span>Fill in a form</span></a>
+        <a class="related__item" href="/tools/background/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 7 6 2"/><path d="M18.992 12H2.041"/><path d="M21.145 18.38A3.34 3.34 0 0 1 20 16.5a3.3 3.3 0 0 1-1.145 1.88c-.575.46-.855 1.02-.855 1.595A2 2 0 0 0 20 22a2 2 0 0 0 2-2.025c0-.58-.285-1.13-.855-1.595"/><path d="m8.5 4.5 2.148-2.148a1.205 1.205 0 0 1 1.704 0l7.296 7.296a1.205 1.205 0 0 1 0 1.704l-7.592 7.592a3.615 3.615 0 0 1-5.112 0l-3.888-3.888a3.615 3.615 0 0 1 0-5.112L5.67 7.33"/></g></svg><span>Page background</span></a>
+        <a class="related__item" href="/tools/header-footer/"><svg class="related__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 15h1"/><path d="M14 9h1"/><path d="M19 15h2"/><path d="M19 9h2"/><path d="M3 15h2"/><path d="M3 9h2"/><path d="M9 15h1"/><path d="M9 9h1"/><rect x="3" y="3" width="18" height="18" rx="2"/></g></svg><span>Header and footer</span></a>
+        <a class="related__item related__item--all" href="/#tools"><span>All tools</span><span aria-hidden="true">→</span></a>
+      </div>
+    </nav>
+  </main>
+  <footer class="site-footer" data-testid="site-footer">
+    <div class="wrap site-footer__row">
+      <p>© 2026 Foolscap · from <a href="https://layerbit.co.in" rel="noopener">Layerbit</a></p>
+      <p class="site-footer__links"><a href="/private/">Privacy</a><button class="linklike" type="button" popovertarget="help-panel">Get help</button><a href="https://www.buymeacoffee.com/layerbit" target="_blank" rel="noopener">Buy me a coffee</a></p>
+    </div>
+  </footer>
+  <button class="help-orb" type="button" popovertarget="help-panel" data-testid="help-orb" aria-label="Get help">
+    <span class="help-orb__label" aria-hidden="true">GET HELP</span>
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle class="help-orb__ring" cx="12" cy="12" r="11.5" fill="none" stroke="#94a3b8" stroke-width="0.6" stroke-dasharray="3 6" opacity="0.5"/><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="#38bdf8" fill-opacity="0.1" stroke="#38bdf8" stroke-width="2" stroke-linejoin="round"/><rect class="help-orb__bar" x="8" y="8.5" width="1.6" height="5" rx="0.8" fill="#00f2fe"/><rect class="help-orb__bar" x="11.2" y="7" width="1.6" height="8" rx="0.8" fill="#38bdf8"/><rect class="help-orb__bar" x="14.4" y="8.5" width="1.6" height="5" rx="0.8" fill="#00f2fe"/></svg>
+  </button>
+  <div class="help-panel" id="help-panel" popover data-testid="help-panel" role="dialog" aria-labelledby="help-title">
+    <button class="help-panel__close" type="button" popovertarget="help-panel" popovertargetaction="hide" aria-label="Close">×</button>
+    <h2 id="help-title">Get help with Foolscap</h2>
+    <p>Ask us anything. Please don’t send us your documents — we never need them to help.</p>
+    <a class="help-option" data-testid="help-email" href="mailto:ceo@layerbit.co.in?subject=Foolscap%20help"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v12H3zM3 7l9 6 9-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Send us an email</a>
+    <a class="help-option help-option--whatsapp" data-testid="help-whatsapp" href="https://wa.me/916282595823" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.8L4 20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 9.5c.3 1.8 2.2 4 4 4.6l1.2-1.1 1.8.8c0 1-.9 1.7-2 1.7-3 0-5.9-2.9-5.9-5.9 0-1.1.7-2 1.7-2l.8 1.8Z" fill="currentColor"/></svg>Chat on WhatsApp</a>
+  </div>
+  <nav class="home-fab__nav" aria-label="Back to all tools"><a class="home-fab" data-testid="home-fab" href="/#from-add-image" aria-label="All tools"><svg class="home-fab__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><defs><linearGradient id="fab-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#4facfe"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><g fill="none" stroke="url(#fab-g)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 29 C 16 18, 9 10, 4.5 19 C 11 15, 20 16, 24.5 22 C 27 15, 29.5 10, 32 6.5 C 34.5 10, 37 15, 39.5 22 C 44 16, 53 15, 59.5 19 C 55 10, 48 18, 46 29 V52 Q46 57 41 57 H23 Q18 57 18 52 Z"/><path d="M25 39 H39 M25 47.5 H35"/></g><g fill="url(#fab-g)"><circle cx="4.5" cy="20" r="4"/><circle cx="32" cy="6.5" r="4"/><circle cx="59.5" cy="20" r="4"/></g></svg><span class="home-fab__label">All tools</span></a></nav>
+</body>
+</html>

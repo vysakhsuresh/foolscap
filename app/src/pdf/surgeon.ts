@@ -70,6 +70,8 @@ import {
   type CompressReport,
   type OutlineItem,
   type PageLabelRange,
+  markPage,
+  measureLabel,
   type ExtractedImage,
   type PageInfo,
   type PdfDoc,
@@ -513,15 +515,15 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
     async drawMarks(marks) {
       const d = live();
       for (const mark of marks) {
-        const page = pageAt(mark.kind === 'ink' ? mark.page : mark.area.page);
+        const page = pageAt(markPage(mark));
         const view = viewOf(page);
         const W = view.width;
         const H = view.height;
+        /** A point in page fractions (top-left origin) to the page's own points. */
+        const at = (fx: number, fy: number): [number, number] => view.toPage(fx * W, (1 - fy) * H);
         if (mark.kind === 'ink') {
           const points: Array<[number, number]> = [];
-          for (let i = 0; i + 1 < mark.points.length; i += 2) {
-            points.push(view.toPage((mark.points[i] ?? 0) * W, (1 - (mark.points[i + 1] ?? 0)) * H));
-          }
+          for (let i = 0; i + 1 < mark.points.length; i += 2) points.push(at(mark.points[i] ?? 0, mark.points[i + 1] ?? 0));
           const first = points[0];
           if (first === undefined) continue;
           const [r, g, b] = mark.color;
@@ -539,12 +541,60 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
           );
           continue;
         }
+        if (mark.kind === 'line') {
+          const [r, g, b] = mark.color;
+          const [ax, ay] = at(mark.from[0], mark.from[1]);
+          const [bx, by] = at(mark.to[0], mark.to[1]);
+          const thick = Math.max(0.5, mark.width * W);
+          const segments: Array<[number, number, number, number]> = [[ax, ay, bx, by]];
+          const angle = Math.atan2(by - ay, bx - ax);
+          const length = Math.hypot(bx - ax, by - ay);
+          if (mark.end === 'arrow' && length > 0) {
+            const head = Math.max(6, thick * 4.5);
+            for (const turn of [Math.PI * 0.84, -Math.PI * 0.84]) segments.push([bx, by, bx + head * Math.cos(angle + turn), by + head * Math.sin(angle + turn)]);
+          }
+          if (mark.end === 'measure' && length > 0) {
+            const tick = Math.max(4, thick * 3);
+            for (const [px, py] of [[ax, ay], [bx, by]] as const) {
+              const nx = -Math.sin(angle) * tick;
+              const ny = Math.cos(angle) * tick;
+              segments.push([px - nx, py - ny, px + nx, py + ny]);
+            }
+          }
+          page.pushOperators(
+            pushGraphicsState(),
+            setStrokingRgbColor(r, g, b),
+            setLineWidth(thick),
+            setLineCap(LineCapStyle.Round),
+            ...segments.flatMap(([x1, y1, x2, y2]) => [moveTo(x1, y1), lineTo(x2, y2)]),
+            stroke(),
+            popGraphicsState(),
+          );
+          if (mark.end === 'measure') {
+            // The label sits above the middle of the line as the reader sees it, upright.
+            const label = measureLabel(Math.hypot((mark.to[0] - mark.from[0]) * W, (mark.to[1] - mark.from[1]) * H));
+            const f = font(true);
+            const size = Math.max(7, Math.min(14, W * 0.016));
+            const tw = f.widthOfTextAtSize(label, size);
+            const mx = ((mark.from[0] + mark.to[0]) / 2) * W - tw / 2;
+            const my = (1 - (mark.from[1] + mark.to[1]) / 2) * H + size * 0.5;
+            const [px, py] = view.toPage(mx, my);
+            page.drawText(label, { x: px, y: py, size, font: f, color: rgb(r, g, b), rotate: degrees(view.rotation) });
+          }
+          continue;
+        }
         const { area } = mark;
         // The area's bottom-left, in the view's points (origin bottom-left).
         const vx = area.x * W;
         const vy = (1 - area.y - area.h) * H;
         const w = area.w * W;
         const h = area.h * H;
+        /** The area as a rectangle in the page's own points: a quarter-turn keeps it upright. */
+        const box = () => {
+          const [x1, y1] = view.toPage(vx, vy);
+          const [x2, y2] = view.toPage(vx + w, vy + h);
+          return { x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) };
+        };
         switch (mark.kind) {
           case 'image': {
             const image = await d.embedPng(mark.png);
@@ -552,19 +602,94 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
             page.drawImage(image, { x: px, y: py, width: w, height: h, rotate: degrees(view.rotation) });
             break;
           }
+          case 'picture': {
+            const image = mark.format === 'jpeg' ? await d.embedJpg(mark.bytes) : await d.embedPng(mark.bytes);
+            const [px, py] = view.toPage(vx, vy);
+            page.drawImage(image, { x: px, y: py, width: w, height: h, rotate: degrees(view.rotation) });
+            break;
+          }
           case 'highlight': {
-            const [x1, y1] = view.toPage(vx, vy);
-            const [x2, y2] = view.toPage(vx + w, vy + h);
             const [r, g, b] = mark.color;
-            page.drawRectangle({
-              x: Math.min(x1, x2),
-              y: Math.min(y1, y2),
-              width: Math.abs(x2 - x1),
-              height: Math.abs(y2 - y1),
-              color: rgb(r, g, b),
-              opacity: 0.45,
-              blendMode: BlendMode.Multiply,
-            });
+            if (mark.style === 'underline' || mark.style === 'strike') {
+              // A line under the words, or through their middle, as thick as a pen.
+              const yView = mark.style === 'underline' ? vy + h * 0.04 : vy + h * 0.42;
+              const [ax, ay] = view.toPage(vx, yView);
+              const [bx, by] = view.toPage(vx + w, yView);
+              page.pushOperators(
+                pushGraphicsState(),
+                setStrokingRgbColor(r, g, b),
+                setLineWidth(Math.max(0.8, Math.min(2.5, h * 0.08))),
+                moveTo(ax, ay),
+                lineTo(bx, by),
+                stroke(),
+                popGraphicsState(),
+              );
+              break;
+            }
+            page.drawRectangle({ ...box(), color: rgb(r, g, b), opacity: 0.45, blendMode: BlendMode.Multiply });
+            break;
+          }
+          case 'shape': {
+            const [r, g, b] = mark.color;
+            const rect = box();
+            const thick = Math.max(0.5, mark.width * W);
+            if (mark.shape === 'rect') {
+              page.drawRectangle({ ...rect, borderColor: rgb(r, g, b), borderWidth: thick });
+            } else {
+              page.drawEllipse({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, xScale: rect.width / 2, yScale: rect.height / 2, borderColor: rgb(r, g, b), borderWidth: thick });
+            }
+            break;
+          }
+          case 'stamp': {
+            const [r, g, b] = mark.color;
+            const text = mark.text.trim().toUpperCase();
+            const f = font(true);
+            assertDrawable(f, text);
+            const rect = box();
+            const frame = Math.max(1.2, h * 0.07);
+            page.drawRectangle({ x: rect.x + frame / 2, y: rect.y + frame / 2, width: rect.width - frame, height: rect.height - frame, borderColor: rgb(r, g, b), borderWidth: frame, opacity: 0, borderOpacity: 0.9 });
+            // The words fill the frame's width, centred, upright as the reader sees the page.
+            const size = Math.max(4, Math.min(h * 0.55, ((w - 4 * frame) / Math.max(1, f.widthOfTextAtSize(text, 1))) * 0.92));
+            const tw = f.widthOfTextAtSize(text, size);
+            const [px, py] = view.toPage(vx + (w - tw) / 2, vy + (h - size * 0.72) / 2);
+            page.drawText(text, { x: px, y: py, size, font: f, color: rgb(r, g, b), opacity: 0.9, rotate: degrees(view.rotation) });
+            break;
+          }
+          case 'note': {
+            // A real comment: readers list it and open it; the words can be any script.
+            const [x, y] = at(area.x, area.y);
+            const icon = 20;
+            const [r, g, b] = mark.color;
+            const annot = d.context.register(
+              d.context.obj({
+                Type: 'Annot',
+                Subtype: 'Text',
+                Rect: [x, y - icon, x + icon, y],
+                Contents: PDFHexString.fromText(mark.text),
+                Name: 'Comment',
+                C: [r, g, b],
+                F: 4,
+                Open: false,
+              }),
+            );
+            page.node.addAnnot(annot);
+            break;
+          }
+          case 'link': {
+            const url = mark.url.trim();
+            if (!/^(https?:\/\/|mailto:|tel:)/i.test(url)) throw new PdfError('A link must start with https://, http://, mailto: or tel:.', 'unknown');
+            const rect = box();
+            const annot = d.context.register(
+              d.context.obj({
+                Type: 'Annot',
+                Subtype: 'Link',
+                Rect: [rect.x, rect.y, rect.x + rect.width, rect.y + rect.height],
+                Border: [0, 0, 0],
+                F: 4,
+                A: { S: 'URI', URI: PDFString.of(url) },
+              }),
+            );
+            page.node.addAnnot(annot);
             break;
           }
           case 'text': {
@@ -574,6 +699,16 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
             const size = mark.size * W;
             const top = (1 - area.y) * H;
             const [r, g, b] = mark.color;
+            if (mark.boxed === true) {
+              // A text box: paper behind the words and a thin frame round them.
+              const pad = size * 0.35;
+              const widest = Math.max(...lines.map((l) => f.widthOfTextAtSize(l, size)));
+              const bw = widest + 2 * pad;
+              const bh = lines.length * size * 1.25 + pad * 1.2;
+              const [x1, y1] = view.toPage(vx - pad, top - bh + pad * 0.6);
+              const [x2, y2] = view.toPage(vx - pad + bw, top + pad * 0.6);
+              page.drawRectangle({ x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1), color: rgb(1, 0.995, 0.97), borderColor: rgb(r, g, b), borderWidth: Math.max(0.6, size * 0.06) });
+            }
             lines.forEach((line, i) => {
               if (line.trim().length === 0) return;
               // Matches the editor's CSS: line-height 1.25, baseline 0.97 em below the line's top.
@@ -1443,3 +1578,4 @@ function cleanDocument(doc: PDFDocument, opts: CleanOptions): CleanReport {
   }
   return { scripts, attachments, comments, metadata: opts.metadata };
 }
+

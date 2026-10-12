@@ -2114,7 +2114,11 @@ select.input option {
 }
 
 .editor[data-mode='sign'] .editor__layer,
-.editor[data-mode='add-text'] .editor__layer {
+.editor[data-mode='add-image'] .editor__layer,
+.editor[data-mode='add-text'] .editor__layer,
+.editor[data-tool='note'] .editor__layer,
+.editor[data-tool='stamp'] .editor__layer,
+.editor[data-tool='textbox'] .editor__layer {
   cursor: copy;
 }
 
@@ -2143,6 +2147,133 @@ select.input option {
 
 .editor__item--highlight {
   mix-blend-mode: multiply;
+}
+
+/* Underline and strike-through: a line where the words are, not a box. */
+.editor__item--underline,
+.editor__item--strike {
+  --ink: #c41a1f;
+}
+
+.editor__item--underline::after,
+.editor__item--strike::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: max(2px, calc(var(--page-w) * 0.003));
+  background: var(--ink);
+}
+
+.editor__item--underline::after {
+  bottom: 0;
+}
+
+.editor__item--strike::after {
+  top: 50%;
+}
+
+.editor__item--rect,
+.editor__item--ellipse {
+  border: max(2px, calc(var(--page-w) * 0.003)) solid var(--ink, #c41a1f);
+}
+
+.editor__item--ellipse {
+  border-radius: 50%;
+}
+
+.editor__item--link {
+  background: rgb(37 99 235 / 0.12);
+  outline: 2px dashed rgb(37 99 235 / 0.8);
+  outline-offset: -2px;
+}
+
+.editor__item--note {
+  width: calc(var(--page-w) * 0.05);
+  height: calc(var(--page-w) * 0.05);
+  border-radius: 4px 4px 4px 0;
+  background: var(--ink, #1240c0);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+}
+
+.editor__item--note::after {
+  content: '';
+  position: absolute;
+  inset: 28% 22%;
+  border-block: 2px solid rgb(255 255 255 / 0.9);
+}
+
+.editor__item--stamp {
+  display: grid;
+  place-items: center;
+  border: max(2px, calc(var(--page-w) * 0.006)) solid var(--ink, #c41a1f);
+  border-radius: 8px;
+  color: var(--ink, #c41a1f);
+  opacity: 0.9;
+}
+
+.editor__stamp-words {
+  font: 800 calc(var(--page-w) * 0.035) / 1 Helvetica, Arial, sans-serif;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.editor__item--boxed {
+  padding: 0.2em 0.35em;
+  margin: -0.2em -0.35em;
+  background: rgb(255 254 247);
+  border: max(1px, calc(var(--size) * var(--page-w) * 0.06)) solid currentColor;
+}
+
+.editor__line {
+  fill: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.editor__measure {
+  position: absolute;
+  transform: translate(-50%, -130%);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.92);
+  font: 700 12px/1.3 Helvetica, Arial, sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Add image: one big target to choose the picture, with a preview once chosen. */
+.picture-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 64px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed color-mix(in srgb, var(--icon-ink) 60%, transparent);
+  border-radius: var(--radius-m);
+  background: color-mix(in srgb, var(--icon-ink) 8%, transparent);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.picture-pick:has(input:focus-visible) {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+.picture-pick__stack {
+  display: grid;
+  gap: 2px;
+}
+
+.picture-pick__preview {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
 }
 
 .editor__item--text {
@@ -2344,6 +2475,30 @@ select.input option {
   border-radius: var(--radius-m);
   background: var(--glass);
   border: 1px solid var(--line);
+}
+
+.reader__comments-count {
+  margin: var(--space-1) var(--space-2) var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.reader__entry.reader__comment {
+  display: grid;
+  gap: 2px;
+  text-align: start;
+}
+
+.reader__comment-head {
+  color: var(--icon-ink);
+  font-size: var(--text-s);
+  font-weight: 700;
+}
+
+.reader__comment-text {
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .reader__outline ul {

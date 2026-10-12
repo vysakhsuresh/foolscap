@@ -10,18 +10,19 @@ Android app. `CLAUDE.md` is the brief and the rules; read it first.
 
 ## What is live
 
-All thirty-seven tools, in five families:
+All thirty-eight tools, in five families:
 
 | Family | Tools |
 |---|---|
 | Pages | Merge · Split (also at each chapter) · Organise pages · Extract or remove pages · Insert or replace pages · Crop pages · Bookmarks · Page labels · Split by size |
 | Convert and print | Compress (or to a size: 100 KB, 200 KB…) · PDF to Word (scans too) · PDF to Excel · PDF to PowerPoint · PDF to EPUB or web page · Word or Excel to PDF · Images to PDF · PDF to images · Pages per sheet · Extract images |
-| Mark up | Watermark · Page numbers (and Bates) · Sign · Mark up · Add text · Fill in a form · Page background · Header and footer |
+| Mark up | Watermark · Page numbers (and Bates) · Sign · Mark up (highlight, underline, strike out, pen, box, circle, arrow, line, measure, sticky note, text box, stamp, link) · Add image · Add text · Fill in a form · Page background · Header and footer |
 | Protect | Add a password (or restrict only) · Digital signature (your .pfx certificate) · Remove a password · Remove areas · Clean hidden data · Attachments |
 | Read | Read · Scan a document · Make searchable · Extract text |
 
 **Read** is a viewer: zoom that redraws, find, the document's own contents,
-night mode, print, read aloud (with a voice on the device only), and Then…
+night mode, a list of the document's comments, print, read aloud (with a
+voice on the device only), and Then…
 to any tool. **Scan** finds the sheet of paper in each
 photo, lets you drag its corners right, straightens it and cleans it up
 (colour, grey, or black and white that survives a shadow). **Make

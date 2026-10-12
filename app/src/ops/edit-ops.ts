@@ -4,7 +4,7 @@
  * marks and areas; these check them and hand them to the surgeon.
  */
 import type { FoolscapFile } from '../files/types';
-import type { Area, Mark, PdfDoc } from '../pdf';
+import { markPage, type Area, type Mark, type PdfDoc } from '../pdf';
 import { baseName, failed, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import { checkCancelled, type FillFormParams, type MarksParams, type Op, type OpContext, type Outcome, type RemoveAreasParams } from './op';
 import type { ToolId } from './tools';
@@ -18,9 +18,14 @@ function areaOk(area: Area, pageCount: number): boolean {
 }
 
 function markOk(mark: Mark, pageCount: number): boolean {
-  if (mark.kind === 'ink') {
-    return Number.isInteger(mark.page) && mark.page >= 0 && mark.page < pageCount && mark.points.length >= 2 && mark.points.every(inUnit);
+  if (mark.kind === 'ink' || mark.kind === 'line') {
+    const onPage = Number.isInteger(mark.page) && mark.page >= 0 && mark.page < pageCount;
+    if (mark.kind === 'ink') return onPage && mark.points.length >= 2 && mark.points.every(inUnit);
+    return onPage && [...mark.from, ...mark.to].every(inUnit) && (mark.from[0] !== mark.to[0] || mark.from[1] !== mark.to[1]);
   }
+  if (mark.kind === 'note' && mark.text.trim() === '') return false;
+  if (mark.kind === 'stamp' && mark.text.trim() === '') return false;
+  if (mark.kind === 'link' && !/^(https?:\/\/|mailto:|tel:)/i.test(mark.url.trim())) return false;
   return areaOk(mark.area, pageCount);
 }
 
@@ -65,7 +70,7 @@ function marksOp(tool: ToolId, title: string, suffix: string, nothing: string, d
   };
 }
 
-const pagesOf = (marks: readonly Mark[]): number => new Set(marks.map((m) => (m.kind === 'ink' ? m.page : m.area.page))).size;
+const pagesOf = (marks: readonly Mark[]): number => new Set(marks.map(markPage)).size;
 const onPages = (marks: readonly Mark[]): string => {
   const n = pagesOf(marks);
   return n === 1 ? '' : ` across ${plural(n, 'page')}`;
@@ -79,16 +84,51 @@ export const addTextOp = marksOp('add-text', 'Add text', 'with text', 'Tap the p
   `${plural(marks.length, 'piece')} of text added${onPages(marks)}`,
 );
 
-export const markUpOp = marksOp('mark-up', 'Mark up', 'marked up', 'Highlight or draw on the page first.', (marks) => {
-  const highlights = marks.filter((m) => m.kind === 'highlight').length;
-  const strokes = marks.length - highlights;
-  const parts = [highlights > 0 ? plural(highlights, 'highlight') : '', strokes > 0 ? plural(strokes, 'pen stroke') : ''].filter(Boolean);
-  return `${parts.join(' and ')}${onPages(marks)}`;
-});
-
-function pageOf(mark: Mark): number {
-  return mark.kind === 'ink' ? mark.page : mark.area.page;
+/** What each kind of mark is called in a sentence, singular and plural. */
+function nameOf(mark: Mark): [string, string] {
+  switch (mark.kind) {
+    case 'highlight':
+      return mark.style === 'underline' ? ['underline', 'underlines'] : mark.style === 'strike' ? ['strike-through', 'strike-throughs'] : ['highlight', 'highlights'];
+    case 'ink':
+      return ['pen stroke', 'pen strokes'];
+    case 'shape':
+      return mark.shape === 'rect' ? ['box', 'boxes'] : ['circle', 'circles'];
+    case 'line':
+      return mark.end === 'arrow' ? ['arrow', 'arrows'] : mark.end === 'measure' ? ['measurement', 'measurements'] : ['line', 'lines'];
+    case 'note':
+      return ['note', 'notes'];
+    case 'stamp':
+      return ['stamp', 'stamps'];
+    case 'link':
+      return ['link', 'links'];
+    case 'text':
+      return mark.boxed ? ['text box', 'text boxes'] : ['piece of text', 'pieces of text'];
+    case 'image':
+    case 'picture':
+      return ['picture', 'pictures'];
+  }
 }
+
+export function describeMarks(marks: readonly Mark[]): string {
+  const counts = new Map<string, { n: number; many: string }>();
+  for (const mark of marks) {
+    const [one, many] = nameOf(mark);
+    const entry = counts.get(one) ?? { n: 0, many };
+    entry.n++;
+    counts.set(one, entry);
+  }
+  const parts = [...counts.entries()].map(([one, { n, many }]) => plural(n, one, many));
+  const list = parts.length <= 1 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+  return `${list}${onPages(marks)}`;
+}
+
+export const addImageOp = marksOp('add-image', 'Add image', 'with picture', 'Choose a picture, then tap the page where it goes.', (marks) =>
+  `${plural(marks.length, 'picture')} placed${onPages(marks)}`,
+);
+
+export const markUpOp = marksOp('mark-up', 'Mark up', 'marked up', 'Highlight or draw on the page first.', describeMarks);
+
+const pageOf = markPage;
 
 /** 200 dots per inch: small print stays readable and a page stays well under a megabyte. */
 const REDACT_DPI = 200;

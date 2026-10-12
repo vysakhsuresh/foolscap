@@ -24,7 +24,7 @@ import {
 } from 'pdfjs-dist';
 import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './common';
 import { PDFJS_ASSETS } from './pdfjs-version';
-import { PdfError, type FormField, type LayoutItem, type OutlineItem, type PageInfo, type PdfEngine, type PdfView } from './types';
+import { PdfError, type FormField, type LayoutItem, type OutlineItem, type PdfComment, type PageInfo, type PdfEngine, type PdfView } from './types';
 
 interface RawOutline {
   readonly title?: unknown;
@@ -278,6 +278,48 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
       } finally {
         page.cleanup();
       }
+    },
+
+    async comments() {
+      const current = live();
+      const out: PdfComment[] = [];
+      const KINDS: Record<string, string> = {
+        Text: 'Note',
+        FreeText: 'Text box',
+        Highlight: 'Highlight',
+        Underline: 'Underline',
+        StrikeOut: 'Strike-through',
+        Squiggly: 'Squiggle',
+        Square: 'Box',
+        Circle: 'Circle',
+        Line: 'Line',
+        Polygon: 'Shape',
+        PolyLine: 'Line',
+        Ink: 'Drawing',
+        Stamp: 'Stamp',
+        Caret: 'Insert',
+        FileAttachment: 'Attached file',
+        Sound: 'Sound',
+      };
+      // Two thousand pages is plenty to look through; past that the list says what it found.
+      for (let index = 0; index < Math.min(current.numPages, 2000); index++) {
+        const page = await pageAt(index);
+        try {
+          for (const raw of await page.getAnnotations({ intent: 'display' })) {
+            const a = raw as { subtype?: string; contentsObj?: { str?: string }; titleObj?: { str?: string } };
+            const kind = KINDS[a.subtype ?? ''];
+            if (kind === undefined) continue;
+            const text = (a.contentsObj?.str ?? '').trim();
+            const author = (a.titleObj?.str ?? '').trim();
+            out.push({ page: index, kind, text, ...(author ? { author } : {}) });
+          }
+        } catch {
+          // A page whose comments cannot be read is passed over, not the whole list.
+        } finally {
+          page.cleanup();
+        }
+      }
+      return out;
     },
 
     async outline() {

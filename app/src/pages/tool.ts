@@ -29,7 +29,7 @@ import { createToolOptions, type ToolOptions } from '../ui/tool-options';
 
 mountShell();
 
-const EDITORS: ReadonlySet<ToolId> = new Set<ToolId>(['sign', 'add-text', 'mark-up', 'remove-areas']);
+const EDITORS: ReadonlySet<ToolId> = new Set<ToolId>(['sign', 'add-text', 'mark-up', 'remove-areas', 'add-image']);
 
 const toolId = document.body.dataset['tool'] as ToolId | undefined;
 const meta = toolId && LIVE_TOOLS.some((t) => t.id === toolId) ? toolById(toolId) : null;

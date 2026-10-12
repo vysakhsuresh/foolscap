@@ -49,6 +49,7 @@ const TOOLS = {
   'pdf-to-powerpoint': 'presentation',
   'pdf-to-epub': 'book-text',
   'office-to-pdf': 'file-output',
+  'add-image': 'image-plus',
   read: 'book-open',
   scan: 'scan-line',
   ocr: 'scan-text',
