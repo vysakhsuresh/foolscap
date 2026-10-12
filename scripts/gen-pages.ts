@@ -227,8 +227,15 @@ function toolPage(tool: ToolMeta): string {
     .map((t) => `<a class="related__item" href="/tools/${t.id}/">${svg(TOOL_ICONS[t.id], 'related__icon')}<span>${esc(t.title)}</span></a>`)
     .join('\n        ');
   const path = `/tools/${tool.id}/`;
-  const title = `${SEARCH_NAMES[tool.id]} online, free and private — Foolscap`;
-  const description = `${SEARCH_NAMES[tool.id]} in your browser. ${tool.summary}. Nothing is uploaded: free, no sign-up, no limits, no watermark.`;
+  // Search results cut a title at about 60 characters: the long form only when it fits.
+  const long = `${SEARCH_NAMES[tool.id]} online, free and private — Foolscap`;
+  const title = long.length <= 65 ? long : `${SEARCH_NAMES[tool.id]}, free and private — Foolscap`;
+  // Search results show about 160 characters of a description: the promise shortens before the summary does.
+  const description = [
+    `${SEARCH_NAMES[tool.id]} in your browser. ${tool.summary}. Nothing is uploaded: free, no sign-up, no limits, no watermark.`,
+    `${SEARCH_NAMES[tool.id]} in your browser. ${tool.summary}. Free, and nothing is uploaded.`,
+    `${tool.summary}. Free, in your browser, and nothing is uploaded.`,
+  ].find((d) => d.length <= 160) ?? `${tool.summary}. Nothing is uploaded.`;
   const copy = TOOL_COPY[tool.id];
   const guides = GUIDES.filter((g) => g.tool === tool.id || g.related.includes(tool.id)).sort((a, b) => Number(b.tool === tool.id) - Number(a.tool === tool.id)).slice(0, 4);
   const ld: object[] = [

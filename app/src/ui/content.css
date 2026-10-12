@@ -222,3 +222,18 @@
   min-height: var(--target);
   color: var(--whatsapp);
 }
+
+/* Inline links in running text keep a tap height of at least 24px. */
+.tool-help a,
+.faq a,
+.guide p a,
+.guide li a {
+  padding-block: 2px;
+}
+
+/* Short footer words (About, Terms) still make a 44px target. */
+.site-footer a,
+.site-footer .linklike {
+  min-width: var(--target);
+  justify-content: center;
+}

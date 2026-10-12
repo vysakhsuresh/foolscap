@@ -30,7 +30,8 @@ test('the home page and a guide load Google’s ad script, with no policy errors
     await expect.poll(() => page.evaluate(() => (window as Window & { __adsLoaded?: boolean }).__adsLoaded === true), { message: path }).toBe(true);
     expect(ads.some((u) => u.includes('adsbygoogle.js?client=ca-pub-')), path).toBe(true);
     expect(errors.pageErrors, path).toEqual([]);
-    expect(errors.consoleErrors, path).toEqual([]);
+    // The test serves the real address over http, where Chrome notes that it ignores Cross-Origin-Opener-Policy; production is https.
+    expect(errors.consoleErrors.filter((e) => !e.includes('Cross-Origin-Opener-Policy header has been ignored')), path).toEqual([]);
   }
 });
 
