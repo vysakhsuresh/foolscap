@@ -140,7 +140,14 @@ test('every tool page has a way home, bottom-left, that lands where you left the
   const box = (await fab.boundingBox())!;
   const viewport = page.viewportSize()!;
   expect(box.x).toBeLessThan(40);
-  expect(viewport.height - (box.y + box.height)).toBeLessThan(40);
+  // At the bottom on a laptop; on a phone just above the pinned button.
+  expect(viewport.height - (box.y + box.height)).toBeLessThan(viewport.width < 820 ? 120 : 40);
+  // The mark sits in the middle of the circle.
+  const mark = (await fab.locator('svg').boundingBox())!;
+  expect(Math.abs(mark.x + mark.width / 2 - (box.x + box.width / 2))).toBeLessThan(1.5);
+  // And the main button keeps the whole width it is given.
+  const run = (await page.getByTestId('run-button').boundingBox())!;
+  if (viewport.width < 820) expect(run.width).toBeGreaterThan(viewport.width - 40);
   // It stays there as the page scrolls.
   await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
   expect((await fab.boundingBox())!.y).toBeCloseTo(box.y, 0);
