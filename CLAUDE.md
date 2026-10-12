@@ -210,7 +210,11 @@ tool page; Get help stays in every footer.
 Touch targets at least 44px. Text contrast at least 4.5:1 — muted text is
 `#94a3b8` (7:1 on the ground); dark text on every gradient stop is 7:1 or
 more. Nothing smaller than 24px is drawn in a gradient. The mark is a white
-sheet wearing a neon fool's cap: the etymology, drawn.
+page with a folded corner on a cyan→violet tile, an F cut out of the page so
+the tile shows through; it reads at 16px. The name sits beside it, large.
+Facts (Free forever, No sign-up…) are plain text with a tick, never pills
+that look tappable; the nav marks the current page by colour, and a
+background appears only under the pointer or the keyboard.
 
 Copy is plain English in the Sheaf voice: short, confident, honest about
 costs ("a redacted page becomes a picture"). Every button is a verb.
@@ -281,3 +285,10 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   draws an empty box for anything else rather than refusing. The surgeon
   checks every character against the font's set and fails with
   `unsupported-text` in words; complex scripts arrive with shaping (stage 4).
+- **2026-10-13** New mark (page + cut-out F) replacing the fool's cap, which
+  read as odd. AdSense: verification only — `ads.txt` and the
+  `google-adsense-account` meta on every page, account
+  `ca-pub-6072772587431629` (the same as Layerbit). No ad code runs anywhere:
+  showing ads needs the home page's CSP opened to Google's ad scripts, which
+  waits on the owner's explicit decision. Tool and privacy pages keep the
+  strict policy regardless.

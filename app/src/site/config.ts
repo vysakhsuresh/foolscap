@@ -35,3 +35,17 @@ export const HELP = {
   whatsapp: 'https://wa.me/916282595823',
   coffee: 'https://www.buymeacoffee.com/layerbit',
 } as const;
+
+/**
+ * Google AdSense, the same account as layerbit.co.in. What is live today is
+ * only what lets Google verify the site: app/public/ads.txt and the
+ * google-adsense-account meta tag on every page. Neither makes a request.
+ *
+ * No ad code is loaded anywhere yet. Showing ads needs the home page's
+ * Content-Security-Policy to allow Google's ad scripts, which is a decision
+ * for the owner (see CLAUDE.md, promise 6): tool pages and the privacy page
+ * keep the strict policy whatever is decided.
+ */
+export const ADSENSE = {
+  client: 'ca-pub-6072772587431629',
+} as const;

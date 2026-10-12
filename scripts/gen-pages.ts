@@ -15,7 +15,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GROUPS, KEYWORDS, TOOLS, type GroupId, type ToolMeta } from '../app/src/ops/tools.ts';
-import { HELP } from '../app/src/site/config.ts';
+import { ADSENSE, HELP } from '../app/src/site/config.ts';
 import { GROUP_ICONS, TOOL_ICONS } from '../app/src/ui/tool-icons.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -28,15 +28,10 @@ const groupOf = (id: GroupId) => GROUPS.find((g) => g.id === id) ?? { id, title:
 
 // ---- The shell: one copy, every page ----
 
+// The mark: a page with its corner folded, and an F cut out of it so the
+// tile's colour shows through. Legible at 16 pixels in a browser tab.
 const MARK =
-  '<svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="34" height="34" aria-hidden="true" focusable="false">' +
-  '<defs><linearGradient id="mark-cap" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00f2fe"/><stop offset="1" stop-color="#4facfe"/></linearGradient></defs>' +
-  '<path d="M19 25h22l9 9v21a5 5 0 0 1-5 5H19a5 5 0 0 1-5-5V30a5 5 0 0 1 5-5Z" fill="currentColor"/>' +
-  '<path d="M41 25v9h9Z" fill="#94a3b8"/>' +
-  '<path d="M22 44h20M22 50h14" stroke="#64748b" stroke-width="3" stroke-linecap="round"/>' +
-  '<path d="M13 23C12 16 10 11 6 7c8 2 14 7 19 14Zm9 0C24 14 28 8 32 3c4 5 8 11 10 20Zm18 0c5-7 11-12 18-14-4 4-6 9-7 16Z" fill="url(#mark-cap)"/>' +
-  '<rect x="12" y="20" width="40" height="7" rx="3.5" fill="url(#mark-cap)"/>' +
-  '<circle cx="6" cy="7" r="3.4" fill="currentColor"/><circle cx="32" cy="3" r="3.4" fill="currentColor"/><circle cx="58" cy="7" r="3.4" fill="currentColor"/></svg>';
+  '<svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="40" height="40" aria-hidden="true" focusable="false"><defs><linearGradient id="mark-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00f2fe"/><stop offset=".5" stop-color="#4facfe"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#mark-g)"/><path d="M19 11h18l11 11v27a5 5 0 0 1-5 5H19a5 5 0 0 1-5-5V16a5 5 0 0 1 5-5Z" fill="#fff"/><path d="M37 11v7a4 4 0 0 0 4 4h7Z" fill="#c7d2fe"/><rect x="22" y="25" width="6" height="22" rx="3" fill="url(#mark-g)"/><rect x="22" y="25" width="18" height="6" rx="3" fill="url(#mark-g)"/><rect x="22" y="34.5" width="13" height="5.5" rx="2.75" fill="url(#mark-g)"/></svg>';
 
 const CUP =
   '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9h12v5a6 6 0 0 1-6 6h0a6 6 0 0 1-6-6V9ZM16 10.5h1.5a2.75 2.75 0 0 1 0 5.5H16M8 3c0 1.2 1 1.6 1 3M12 3c0 1.2 1 1.6 1 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -81,6 +76,7 @@ function head(title: string, description: string, script: string): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0a0c10">
+  <meta name="google-adsense-account" content="${ADSENSE.client}">
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}">
   <meta property="og:type" content="website">
@@ -211,8 +207,9 @@ for (const dir of existsSync(toolsDir) ? readdirSync(toolsDir) : []) {
 }
 
 // Home: the tool list between its markers, and the shell.
+const ADSENSE_META = `<meta name="google-adsense-account" content="${ADSENSE.client}">`;
 const shell = (html: string, current: 'tools' | 'privacy') =>
-  html
+  (html.includes('google-adsense-account') ? html : html.replace('<meta name="theme-color" content="#0a0c10">', `<meta name="theme-color" content="#0a0c10">\n  ${ADSENSE_META}`))
     .replace(/<header class="site-header"[\s\S]*?<\/header>/, header(current))
     .replace(/<footer class="site-footer"[\s\S]*?<\/footer>[\s\S]*?(<\/body>)/, `${FOOTER}\n$1`);
 
