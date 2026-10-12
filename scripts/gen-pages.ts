@@ -15,7 +15,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GROUPS, KEYWORDS, SEARCH_NAMES, TOOLS, type GroupId, type ToolMeta } from '../app/src/ops/tools.ts';
-import { ADSENSE, HELP, SITE_ORIGIN } from '../app/src/site/config.ts';
+import { ADSENSE, DESCRIPTION, HELP, MADE_BY, SHARE_TEXT, SITE_NAME, SITE_ORIGIN } from '../app/src/site/config.ts';
+import { GUIDES, type Guide } from '../app/src/site/guides.ts';
+import { TOOL_COPY } from '../app/src/site/tool-copy.ts';
 import { GROUP_ICONS, TOOL_ICONS } from '../app/src/ui/tool-icons.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,14 +56,18 @@ const HOME_FAB = (id: string) =>
   `<nav class="home-fab__nav" aria-label="Back to all tools"><a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools"><svg class="home-fab__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">${CAP_GRADIENT('fab-g')}${CAP_DRAWING('url(#fab-g)')}</svg><span class="home-fab__label">All tools</span></a></nav>`;
 
 
-function header(current: 'tools' | 'privacy'): string {
+type Section = 'tools' | 'guides' | 'privacy' | 'none';
+
+function header(current: Section): string {
   const t = current === 'tools' ? ' aria-current="page"' : '';
+  const g = current === 'guides' ? ' aria-current="page"' : '';
   const p = current === 'privacy' ? ' aria-current="page"' : '';
   return `<header class="site-header" data-testid="site-header">
     <div class="wrap site-header__row">
       <a class="brand" href="/">${MARK}<span>Foolscap</span></a>
       <nav class="site-nav" data-testid="site-nav" aria-label="Site">
         <a href="/#tools"${t}>Tools</a>
+        <a href="/guides/"${g}>Guides</a>
         <a href="/private/"${p}>Privacy</a>
       </nav>
       <a class="support" data-testid="support" href="${HELP.coffee}" target="_blank" rel="noopener" aria-label="Buy me a coffee">${CUP}<span class="support__text">Buy me a coffee</span></a>
@@ -69,10 +75,14 @@ function header(current: 'tools' | 'privacy'): string {
   </header>`;
 }
 
+// "Tell a friend": a plain wa.me link with the site's address in it. Nothing
+// is fetched or sent until it is tapped, and it carries nothing from the page.
+const SHARE_URL = `https://wa.me/?text=${encodeURIComponent(`${SHARE_TEXT} ${SITE_ORIGIN ?? ''}/`.trim())}`;
+
 const FOOTER = `<footer class="site-footer" data-testid="site-footer">
     <div class="wrap site-footer__row">
       <p>© 2026 Foolscap · from <a href="https://layerbit.co.in" rel="noopener">Layerbit</a></p>
-      <p class="site-footer__links"><a href="/private/">Privacy</a><button class="linklike" type="button" popovertarget="help-panel">Get help</button><a href="${HELP.coffee}" target="_blank" rel="noopener">Buy me a coffee</a></p>
+      <p class="site-footer__links"><a href="/guides/">Guides</a><a href="/about/">About</a><a href="/private/">Privacy</a><a href="/terms/">Terms</a><a href="/contact/">Contact</a><button class="linklike" type="button" popovertarget="help-panel">Get help</button><a href="${HELP.coffee}" target="_blank" rel="noopener">Buy me a coffee</a><a class="share-link" data-testid="share-whatsapp" href="${SHARE_URL}" target="_blank" rel="noopener">Tell a friend on WhatsApp</a></p>
     </div>
   </footer>
   <button class="help-orb" type="button" popovertarget="help-panel" data-testid="help-orb" aria-label="Get help">
@@ -87,7 +97,55 @@ const FOOTER = `<footer class="site-footer" data-testid="site-footer">
     <a class="help-option help-option--whatsapp" data-testid="help-whatsapp" href="${HELP.whatsapp}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.8L4 20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 9.5c.3 1.8 2.2 4 4 4.6l1.2-1.1 1.8.8c0 1-.9 1.7-2 1.7-3 0-5.9-2.9-5.9-5.9 0-1.1.7-2 1.7-2l.8 1.8Z" fill="currentColor"/></svg>Chat on WhatsApp</a>
   </div>`;
 
-function head(title: string, description: string, script: string): string {
+interface HeadOptions {
+  /** The page's path from the root, '/tools/merge/'. Null for a page with no address of its own (404). */
+  readonly path: string | null;
+  readonly script: string;
+  /** Structured data for search engines, one object per type. */
+  readonly ld?: readonly object[];
+  readonly noindex?: boolean;
+  /** Open Graph type: 'website', or 'article' for a guide. */
+  readonly kind?: 'website' | 'article';
+}
+
+const absolute = (path: string) => `${SITE_ORIGIN ?? ''}${path}`;
+const OG_IMAGE = '/brand/og.png';
+
+/** JSON for a <script type="application/ld+json"> block: no "<" can close the tag early. */
+const ldJson = (data: object) => JSON.stringify({ '@context': 'https://schema.org', ...data }).replace(/</g, '\\u003c');
+
+/**
+ * What search engines and link previews read: the canonical address, Open
+ * Graph and Twitter cards, and structured data. Written between markers so
+ * the hand-written pages (home, privacy) get the same block, regenerated.
+ */
+function seo(title: string, description: string, o: Pick<HeadOptions, 'path' | 'ld' | 'noindex' | 'kind'>): string {
+  const lines = ['<!-- seo:start (generated by scripts/gen-pages.ts) -->'];
+  if (o.noindex) lines.push('<meta name="robots" content="noindex">');
+  if (SITE_ORIGIN !== null && o.path !== null) lines.push(`<link rel="canonical" href="${absolute(o.path)}">`);
+  lines.push(
+    `<meta property="og:type" content="${o.kind ?? 'website'}">`,
+    `<meta property="og:site_name" content="${SITE_NAME}">`,
+    `<meta property="og:title" content="${esc(title)}">`,
+    `<meta property="og:description" content="${esc(description)}">`,
+    '<meta property="og:locale" content="en_IN">',
+  );
+  if (SITE_ORIGIN !== null) {
+    if (o.path !== null) lines.push(`<meta property="og:url" content="${absolute(o.path)}">`);
+    lines.push(
+      `<meta property="og:image" content="${absolute(OG_IMAGE)}">`,
+      '<meta property="og:image:width" content="1200">',
+      '<meta property="og:image:height" content="630">',
+      `<meta property="og:image:alt" content="${SITE_NAME}: PDF tools that can’t upload your files">`,
+    );
+  }
+  lines.push('<meta name="twitter:card" content="summary_large_image">');
+  for (const data of o.ld ?? []) lines.push(`<script type="application/ld+json">${ldJson(data)}</script>`);
+  lines.push('<!-- seo:end -->');
+  return lines.join('\n  ');
+}
+
+function head(title: string, description: string, o: HeadOptions): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -97,13 +155,42 @@ function head(title: string, description: string, script: string): string {
   <meta name="google-adsense-account" content="${ADSENSE.client}">
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="${esc(title)}">
-  <meta property="og:description" content="${esc(description)}">
+  ${seo(title, description, o)}
   ${ICONS}
-  <meta name="theme-color" content="#0a0c10">
-  <script type="module" src="${script}"></script>
+  <script type="module" src="${o.script}"></script>
 </head>`;
+}
+
+/** Plain text with `[words](/tools/id/)` links, as HTML. Only links inside this site are made. */
+function rich(text: string): string {
+  let out = '';
+  let at = 0;
+  for (const m of text.matchAll(/\[([^\]]+)\]\((\/(?:tools|guides)\/[a-z0-9-]+\/)\)/g)) {
+    out += esc(text.slice(at, m.index)) + `<a href="${m[2]}">${esc(m[1] ?? '')}</a>`;
+    at = (m.index ?? 0) + m[0].length;
+  }
+  return out + esc(text.slice(at));
+}
+
+/** The same text with the link syntax dropped, for meta tags and structured data. */
+const plain = (text: string) => text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+
+const ORGANIZATION = { '@type': 'Organization', name: SITE_NAME, url: absolute('/'), logo: absolute('/brand/icon-512.png'), parentOrganization: { '@type': 'Organization', name: MADE_BY.name, url: MADE_BY.url } };
+
+const breadcrumbs = (trail: ReadonlyArray<readonly [string, string]>) => ({
+  '@type': 'BreadcrumbList',
+  itemListElement: trail.map(([name, path], i) => ({ '@type': 'ListItem', position: i + 1, name, item: absolute(path) })),
+});
+
+const faqLd = (faq: ReadonlyArray<{ readonly q: string; readonly a: string }>) => ({
+  '@type': 'FAQPage',
+  mainEntity: faq.map(({ q, a }) => ({ '@type': 'Question', name: plain(q), acceptedAnswer: { '@type': 'Answer', text: plain(a) } })),
+});
+
+function faqHtml(faq: ReadonlyArray<{ readonly q: string; readonly a: string }>): string {
+  return `<div class="faq">
+        ${faq.map(({ q, a }) => `<details class="faq__item"><summary>${esc(q)}</summary><p>${rich(a)}</p></details>`).join('\n        ')}
+      </div>`;
 }
 
 const PROMISE = 'In your browser; nothing is uploaded. Free, no sign-up, no limits, no watermark.';
@@ -139,7 +226,43 @@ function toolPage(tool: ToolMeta): string {
   const related = siblings
     .map((t) => `<a class="related__item" href="/tools/${t.id}/">${svg(TOOL_ICONS[t.id], 'related__icon')}<span>${esc(t.title)}</span></a>`)
     .join('\n        ');
-  return `${head(`${SEARCH_NAMES[tool.id]} online, free and private — Foolscap`, `${SEARCH_NAMES[tool.id]} in your browser. ${tool.summary}. Nothing is uploaded: free, no sign-up, no limits, no watermark.`, '/src/pages/tool.ts')}
+  const path = `/tools/${tool.id}/`;
+  const title = `${SEARCH_NAMES[tool.id]} online, free and private — Foolscap`;
+  const description = `${SEARCH_NAMES[tool.id]} in your browser. ${tool.summary}. Nothing is uploaded: free, no sign-up, no limits, no watermark.`;
+  const copy = TOOL_COPY[tool.id];
+  const guides = GUIDES.filter((g) => g.tool === tool.id || g.related.includes(tool.id)).sort((a, b) => Number(b.tool === tool.id) - Number(a.tool === tool.id)).slice(0, 4);
+  const ld: object[] = [
+    {
+      '@type': 'WebApplication',
+      name: `${SEARCH_NAMES[tool.id]} — ${SITE_NAME}`,
+      url: absolute(path),
+      description: `${tool.summary}. In your browser; nothing is uploaded.`,
+      applicationCategory: 'UtilitiesApplication',
+      operatingSystem: 'Any, in a web browser',
+      browserRequirements: 'A current Chrome, Edge, Firefox or Safari',
+      isAccessibleForFree: true,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
+      publisher: ORGANIZATION,
+    },
+    breadcrumbs([['Home', '/'], [group.title, `/#${group.id}`], [tool.title, path]]),
+  ];
+  if (copy) ld.push(faqLd(copy.faq));
+  const help =
+    copy || guides.length > 0
+      ? `<section class="tool-help" aria-labelledby="tool-help-title">
+      <h2 class="tool-help__title" id="tool-help-title">About ${esc(tool.title)}</h2>
+      ${copy ? `<p class="tool-help__about">${rich(copy.about)}</p>\n      ${faqHtml(copy.faq)}` : ''}
+      ${
+        guides.length > 0
+          ? `<h3 class="tool-help__subtitle">Guides</h3>
+      <ul class="guide-links">
+        ${guides.map((g) => `<li><a href="/guides/${g.slug}/">${esc(g.h1)}</a></li>`).join('\n        ')}
+      </ul>`
+          : ''
+      }
+    </section>`
+      : '';
+  return `${head(title, description, { path, script: '/src/pages/tool.ts', ld })}
 <body data-tool="${tool.id}" data-group="${tool.group}" data-page="tool">
   ${header('tools')}
   <main class="wrap tool" data-app>
@@ -166,6 +289,7 @@ function toolPage(tool: ToolMeta): string {
         <a class="related__item related__item--all" href="/#tools"><span>All tools</span><span aria-hidden="true">→</span></a>
       </div>
     </nav>
+    ${help}
   </main>
   ${FOOTER}
   ${HOME_FAB(tool.id)}
@@ -219,6 +343,213 @@ function homeTools(): string {
     <!-- tools:end -->`;
 }
 
+// ---- Reading pages: guides, About, Terms, Contact, not found ----
+
+interface ArticleOptions {
+  readonly title: string;
+  readonly description: string;
+  readonly path: string | null;
+  readonly section: Section;
+  readonly body: string;
+  readonly ld?: readonly object[];
+  readonly noindex?: boolean;
+  readonly kind?: 'website' | 'article';
+  /** Only the guides carry ads (AD_PAGES in site/config.ts); the policy on every other path refuses them. */
+  readonly ads?: boolean;
+}
+
+function articlePage(o: ArticleOptions): string {
+  return `${head(o.title, o.description, { path: o.path, script: '/src/pages/article.ts', ld: o.ld, noindex: o.noindex, kind: o.kind })}
+<body data-page="article"${o.ads ? ' data-ads="on"' : ''}>
+  ${header(o.section)}
+  <main class="wrap">
+    ${o.body}
+  </main>
+  ${FOOTER}
+</body>
+</html>
+`;
+}
+
+const toolTile = (t: ToolMeta) => `<a class="related__item" href="/tools/${t.id}/">${svg(TOOL_ICONS[t.id], 'related__icon')}<span>${esc(t.title)}</span></a>`;
+const guideCard = (g: Guide) =>
+  `<a class="guide-card" href="/guides/${g.slug}/" data-group="${toolById(g.tool).group}"><span class="guide-card__title">${esc(g.h1)}</span><span class="guide-card__summary">${esc(g.description)}</span></a>`;
+const toolById = (id: ToolMeta['id']): ToolMeta => {
+  const tool = TOOLS.find((t) => t.id === id);
+  if (!tool) throw new Error(`no tool ${id}`);
+  return tool;
+};
+
+const SAFE_NOTE = `<div class="callout"><p><strong>Your file stays on your device.</strong> Foolscap does the work inside your browser, so nothing is uploaded and there is nothing for anyone to keep. <a href="/private/">How you can check</a></p></div>`;
+
+function guidePage(g: Guide): string {
+  const tool = toolById(g.tool);
+  const path = `/guides/${g.slug}/`;
+  const group = groupOf(tool.group);
+  const others = [
+    ...GUIDES.filter((o) => o !== g && o.tool === g.tool),
+    ...GUIDES.filter((o) => o !== g && o.tool !== g.tool && toolById(o.tool).group === tool.group),
+    ...GUIDES.filter((o) => o !== g && toolById(o.tool).group !== tool.group),
+  ].slice(0, 5);
+  const tools = [tool, ...g.related.map(toolById)].filter((t, i, all) => t.status === 'live' && all.indexOf(t) === i);
+  const body = `<article class="prose guide" data-testid="guide" data-group="${tool.group}">
+      <nav class="trail" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/guides/">Guides</a><span aria-hidden="true">/</span><span>${esc(group.title)}</span></nav>
+      <h1>${esc(g.h1)}</h1>
+      <p class="lead">${rich(g.intro)}</p>
+      <p class="guide__cta"><a class="button" data-testid="guide-cta" href="/tools/${tool.id}/">${esc(tool.title)}<span aria-hidden="true"> →</span></a><span class="guide__promise">Free. Nothing is uploaded.</span></p>
+      <h2>How to do it</h2>
+      <ol class="guide__steps">
+        ${g.steps.map((step) => `<li>${rich(step)}</li>`).join('\n        ')}
+      </ol>
+      ${g.sections.map((section) => `<h2>${esc(section.heading)}</h2>\n      ${section.paragraphs.map((p) => `<p>${rich(p)}</p>`).join('\n      ')}`).join('\n      ')}
+      <h2>Questions people ask</h2>
+      ${faqHtml(g.faq)}
+      ${SAFE_NOTE}
+      <h2>Tools for this</h2>
+      <div class="related__list">
+        ${tools.map(toolTile).join('\n        ')}
+      </div>
+      ${others.length > 0 ? `<h2>More guides</h2>\n      <ul class="guide-links">\n        ${others.map((o) => `<li><a href="/guides/${o.slug}/">${esc(o.h1)}</a></li>`).join('\n        ')}\n      </ul>` : ''}
+    </article>`;
+  return articlePage({
+    title: `${g.title} — ${SITE_NAME}`,
+    description: g.description,
+    path,
+    section: 'guides',
+    kind: 'article',
+    ads: true,
+    body,
+    ld: [
+      { '@type': 'HowTo', name: plain(g.h1), description: plain(g.intro), tool: { '@type': 'HowToTool', name: `${SITE_NAME} ${tool.title}` }, step: g.steps.map((text, i) => ({ '@type': 'HowToStep', position: i + 1, text: plain(text) })) },
+      faqLd(g.faq),
+      breadcrumbs([['Home', '/'], ['Guides', '/guides/'], [plain(g.h1), path]]),
+    ],
+  });
+}
+
+function guidesIndex(): string {
+  const groups = GROUPS.map((group) => {
+    const inGroup = GUIDES.filter((g) => toolById(g.tool).group === group.id);
+    if (inGroup.length === 0) return '';
+    return `<section class="guide-group" aria-labelledby="guides-${group.id}">
+        <h2 id="guides-${group.id}">${esc(group.title)}</h2>
+        <div class="guide-grid">
+          ${inGroup.map(guideCard).join('\n          ')}
+        </div>
+      </section>`;
+  })
+    .filter(Boolean)
+    .join('\n      ');
+  return articlePage({
+    title: 'PDF guides: compress, unlock, convert, sign — Foolscap',
+    description: `${GUIDES.length} short guides to the PDF jobs people search for most: compress to 100 KB, open an Aadhaar PDF, bank statement to Excel, sign, merge.`,
+    path: '/guides/',
+    section: 'guides',
+    ads: true,
+    body: `<div class="guides" data-testid="guides-index">
+      <h1 class="guides__title">Guides</h1>
+      <p class="lead">Short, straight answers to the PDF jobs people ask about most, each with the free tool that does it. Nothing you open is ever uploaded.</p>
+      ${groups}
+    </div>`,
+    ld: [
+      { '@type': 'CollectionPage', name: 'Foolscap guides', url: absolute('/guides/'), hasPart: GUIDES.map((g) => ({ '@type': 'HowTo', name: plain(g.h1), url: absolute(`/guides/${g.slug}/`) })) },
+      breadcrumbs([['Home', '/'], ['Guides', '/guides/']]),
+    ],
+  });
+}
+
+const aboutPage = () =>
+  articlePage({
+    title: 'About Foolscap: free PDF tools that never upload',
+    description: 'Who makes Foolscap, why the tools run in your browser instead of on a server, and how a free site with no sign-up and no limits pays for itself.',
+    path: '/about/',
+    section: 'none',
+    body: `<article class="prose" data-testid="about">
+      <h1>About Foolscap</h1>
+      <p class="lead">Foolscap does to PDFs what the big PDF sites do — merge, compress, sign, unlock, convert — except the work happens inside your browser, and your file never leaves your device.</p>
+      <h2>Why it exists</h2>
+      <p>Most PDF sites upload your file to their server, do the work there and send it back. That is why they cap the free tier and charge for the second task: every file costs them something. It also means a stranger’s computer holds your salary slip, your lease or your bank statement for a while.</p>
+      <p>Browsers are now strong enough to do the work themselves. So Foolscap is a folder of files — pages, scripts and fonts — that your browser downloads once and runs. There is no server to send anything to, which is also why there is no file-size limit, no daily limit and no account.</p>
+      <h2>Who makes it</h2>
+      <p>Foolscap is made by <a href="${MADE_BY.url}" rel="noopener">${MADE_BY.name}</a>, in India. It is the web version of Sheaf, our Android PDF app, and follows the same rules.</p>
+      <h2>How it stays free</h2>
+      <p>The home page and the guides show adverts from Google. The tool pages never do: their security policy makes it impossible for any outside script to run where your documents are. If Foolscap saves you time, you can also <a href="${HELP.coffee}" rel="noopener">buy us a coffee</a>.</p>
+      <h2>The promises</h2>
+      <ul>
+        <li>Free, with no paid tier.</li>
+        <li>No sign-up, no account, no login.</li>
+        <li>No watermark or branding on your documents.</li>
+        <li>Nothing you open is uploaded, logged or kept.</li>
+        <li>No limits on file size or number of files beyond what your device can do.</li>
+      </ul>
+      <p><a class="button" href="/#tools">Pick a tool</a></p>
+    </article>`,
+    ld: [{ '@type': 'AboutPage', name: 'About Foolscap', url: absolute('/about/'), about: ORGANIZATION }, breadcrumbs([['Home', '/'], ['About', '/about/']])],
+  });
+
+const termsPage = () =>
+  articlePage({
+    title: 'Terms of use — Foolscap',
+    description: 'The terms for using Foolscap: free PDF tools that run in your browser. What we promise, what you are responsible for, and the adverts on some pages.',
+    path: '/terms/',
+    section: 'none',
+    body: `<article class="prose" data-testid="terms">
+      <h1>Terms of use</h1>
+      <p class="lead">Short and plain. By using this site you agree to these terms.</p>
+      <h2>The service</h2>
+      <p>Foolscap gives you tools that work on documents inside your own browser. We never receive your files, so we cannot see, keep, recover or delete them. Keep your own copy of anything important: every tool makes a new file and never changes the one you picked, but a browser or a device can still fail.</p>
+      <h2>Your documents</h2>
+      <p>Use the tools only on documents you have the right to work on. You are responsible for what you make with them — for example, a signature you place, a password you remove or a form you fill in. Removing a password is for files whose password you already know.</p>
+      <h2>No warranty</h2>
+      <p>The tools are provided free and as they are. We work hard to make them correct and test them on real documents, but we cannot promise any result is right for your purpose. Check what matters — a figure in a converted spreadsheet, a page in a merged file — before you rely on it. To the extent the law allows, we are not liable for any loss from using the site.</p>
+      <h2>Adverts</h2>
+      <p>The home page and the guides show adverts served by Google. Tool pages never do. How Google uses information on these pages is explained on our <a href="/private/">privacy page</a>.</p>
+      <h2>Changes</h2>
+      <p>We may change these terms or the site. The current terms are always on this page.</p>
+      <h2>Contact</h2>
+      <p>Questions about these terms: <a href="mailto:${HELP.email}">${HELP.email}</a>. These terms are governed by the laws of India.</p>
+    </article>`,
+    ld: [breadcrumbs([['Home', '/'], ['Terms', '/terms/']])],
+  });
+
+const contactPage = () =>
+  articlePage({
+    title: 'Contact Foolscap — email or WhatsApp',
+    description: 'Get help with Foolscap’s free PDF tools, report a problem or ask for a tool, by email or WhatsApp. Please never send us your documents.',
+    path: '/contact/',
+    section: 'none',
+    body: `<article class="prose" data-testid="contact">
+      <h1>Contact us</h1>
+      <p class="lead">Ask anything, report something that went wrong, or tell us which tool you need next.</p>
+      <div class="contact-options">
+        <a class="help-option" href="mailto:${HELP.email}?subject=Foolscap"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v12H3zM3 7l9 6 9-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>Email ${HELP.email}</a>
+        <a class="help-option help-option--whatsapp" href="${HELP.whatsapp}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.8L4 20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 9.5c.3 1.8 2.2 4 4 4.6l1.2-1.1 1.8.8c0 1-.9 1.7-2 1.7-3 0-5.9-2.9-5.9-5.9 0-1.1.7-2 1.7-2l.8 1.8Z" fill="currentColor"/></svg>Chat on WhatsApp</a>
+      </div>
+      <h2>Please don’t send your documents</h2>
+      <p>We never need them to help, and we would rather not hold them. If a file goes wrong, tell us which tool you used, what you expected, and what happened instead — the browser and phone you used helps too.</p>
+      <p>Made by <a href="${MADE_BY.url}" rel="noopener">${MADE_BY.name}</a>.</p>
+    </article>`,
+    ld: [{ '@type': 'ContactPage', name: 'Contact Foolscap', url: absolute('/contact/'), about: { ...ORGANIZATION, email: HELP.email } }, breadcrumbs([['Home', '/'], ['Contact', '/contact/']])],
+  });
+
+const notFoundPage = () =>
+  articlePage({
+    title: 'Page not found — Foolscap',
+    description: 'That page is not here. Every Foolscap tool is one tap away from the home page.',
+    path: null,
+    section: 'none',
+    noindex: true,
+    body: `<article class="prose" data-testid="not-found">
+      <h1>That page isn’t here</h1>
+      <p class="lead">The address may have a typo, or the page has moved. Every tool is on the home page.</p>
+      <p><a class="button" href="/#tools">See all tools</a></p>
+      <h2>Most used</h2>
+      <div class="related__list">
+        ${(['merge', 'compress', 'pdf-to-excel', 'sign', 'remove-password', 'images-to-pdf'] as const).map((id) => toolTile(toolById(id))).join('\n        ')}
+      </div>
+    </article>`,
+  });
+
 // ---- Write ----
 
 function writeIfChanged(path: string, content: string): boolean {
@@ -240,29 +571,86 @@ for (const dir of existsSync(toolsDir) ? readdirSync(toolsDir) : []) {
   }
 }
 
-// Home: the tool list between its markers, and the shell.
+// Home: the tool list and the guides between their markers, and the shell.
 const ADSENSE_META = `<meta name="google-adsense-account" content="${ADSENSE.client}">`;
-const shell = (html: string, current: 'tools' | 'privacy') =>
-  (html.includes('google-adsense-account') ? html : html.replace('<meta name="theme-color" content="#0a0c10">', `<meta name="theme-color" content="#0a0c10">\n  ${ADSENSE_META}`))
-    .replace(/(?:<link rel="(?:icon|apple-touch-icon|manifest)"[^>]*>\s*)+/, `${ICONS}\n  `)
+const unescape = (s: string) => s.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+
+/** The hand-written pages get the generated shell and the same search-engine block as every other page. */
+function shell(html: string, current: Section, path: string, ld: readonly object[] = []): string {
+  const title = unescape(/<title>([\s\S]*?)<\/title>/.exec(html)?.[1] ?? SITE_NAME);
+  const description = unescape(/<meta name="description" content="([^"]*)">/.exec(html)?.[1] ?? DESCRIPTION);
+  return (html.includes('google-adsense-account') ? html : html.replace('<meta name="theme-color" content="#0a0c10">', `<meta name="theme-color" content="#0a0c10">\n  ${ADSENSE_META}`))
+    .replace(/<!-- seo:start[\s\S]*?<!-- seo:end -->\s*/, '')
+    .replace(/<meta property="og:[^"]*" content="[^"]*">\s*/g, '')
+    .replace(/(?:<link rel="(?:icon|apple-touch-icon|manifest)"[^>]*>\s*)+/, `${seo(title, description, { path, ld })}\n  ${ICONS}\n  `)
     .replace(/<header class="site-header"[\s\S]*?<\/header>/, header(current))
     .replace(/<footer class="site-footer"[\s\S]*?<\/footer>[\s\S]*?(<\/body>)/, `${FOOTER}\n$1`);
+}
+
+function homeGuides(): string {
+  return `<!-- guides:start (generated by scripts/gen-pages.ts) -->
+    <section class="section" id="guides" aria-labelledby="guides-title">
+      <h2 class="section__title" id="guides-title">Guides</h2>
+      <div class="guide-grid">
+        ${GUIDES.slice(0, 8).map(guideCard).join('\n        ')}
+      </div>
+      <p><a class="button button--ghost" href="/guides/">See all ${GUIDES.length} guides</a></p>
+    </section>
+    <!-- guides:end -->`;
+}
+
+const HOME_DESCRIPTION = `Free PDF tools in your browser: merge, compress, sign, edit, unlock, convert to Word or Excel — ${live.length} in all. Nothing is uploaded. No sign-up.`;
+const HOME_LD: object[] = [
+  { '@type': 'WebSite', name: SITE_NAME, url: absolute('/'), description: DESCRIPTION, inLanguage: 'en', publisher: ORGANIZATION },
+  ORGANIZATION,
+  {
+    '@type': 'WebApplication',
+    name: SITE_NAME,
+    url: absolute('/'),
+    applicationCategory: 'UtilitiesApplication',
+    operatingSystem: 'Any, in a web browser',
+    isAccessibleForFree: true,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
+    featureList: live.map((t) => t.title).join(', '),
+  },
+];
 
 const homePath = resolve(APP, 'index.html');
 let home = readFileSync(homePath, 'utf8');
 if (home.includes('<!-- tools:start')) home = home.replace(/<!-- tools:start[\s\S]*?<!-- tools:end -->/, homeTools());
 else home = home.replace(/<section class="section section--tight" id="tools"[\s\S]*?<\/section>\s*(?=<section)/, `${homeTools()}\n\n    `);
-if (writeIfChanged(homePath, shell(home, 'tools'))) changed++;
+if (home.includes('<!-- guides:start')) home = home.replace(/<!-- guides:start[\s\S]*?<!-- guides:end -->/, homeGuides());
+else home = home.replace(/(\s*)(<section class="section" aria-labelledby="how-title">)/, `$1${homeGuides()}\n\n    $2`);
+home = home.replace(/<meta name="description" content="[^"]*">/, `<meta name="description" content="${esc(HOME_DESCRIPTION)}">`).replace(/<body[^>]*>/, '<body data-page="home" data-ads="on">');
+if (writeIfChanged(homePath, shell(home, 'tools', '/', HOME_LD))) changed++;
 
 const privatePath = resolve(APP, 'private', 'index.html');
-if (writeIfChanged(privatePath, shell(readFileSync(privatePath, 'utf8'), 'privacy'))) changed++;
+if (writeIfChanged(privatePath, shell(readFileSync(privatePath, 'utf8'), 'privacy', '/private/', [breadcrumbs([['Home', '/'], ['Privacy', '/private/']])]))) changed++;
 
-// ---- For search engines, once there is a domain ----
+// The reading pages, all generated.
+const guidesDir = resolve(APP, 'guides');
+if (writeIfChanged(resolve(guidesDir, 'index.html'), guidesIndex())) changed++;
+for (const g of GUIDES) if (writeIfChanged(resolve(guidesDir, g.slug, 'index.html'), guidePage(g))) changed++;
+for (const dir of existsSync(guidesDir) ? readdirSync(guidesDir) : []) {
+  if (dir !== 'index.html' && !GUIDES.some((g) => g.slug === dir)) {
+    rmSync(resolve(guidesDir, dir), { recursive: true, force: true });
+    changed++;
+  }
+}
+if (writeIfChanged(resolve(APP, 'about', 'index.html'), aboutPage())) changed++;
+if (writeIfChanged(resolve(APP, 'terms', 'index.html'), termsPage())) changed++;
+if (writeIfChanged(resolve(APP, 'contact', 'index.html'), contactPage())) changed++;
+// Cloudflare Pages serves 404.html, with a 404 status, for any address that is
+// not a file. Without it, Pages would answer every unknown address with the
+// home page and a 200, which search engines count against a site.
+if (writeIfChanged(resolve(APP, '404.html'), notFoundPage())) changed++;
+
+// ---- For search engines ----
 // A sitemap and robots.txt's pointer to it need absolute URLs, so they wait
-// for SITE_ORIGIN (site/config.ts). Until then robots.txt only allows all.
+// for SITE_ORIGIN (site/config.ts). Without one robots.txt only allows all.
 {
   const publicDir = resolve(APP, 'public');
-  const paths = ['/', '/private/', ...live.map((t) => `/tools/${t.id}/`)];
+  const paths = ['/', '/guides/', ...GUIDES.map((g) => `/guides/${g.slug}/`), ...live.map((t) => `/tools/${t.id}/`), '/about/', '/contact/', '/private/', '/terms/'];
   const robots = SITE_ORIGIN === null ? 'User-agent: *\nAllow: /\n' : `User-agent: *\nAllow: /\n\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`;
   if (writeIfChanged(resolve(publicDir, 'robots.txt'), robots)) changed++;
   const sitemapPath = resolve(publicDir, 'sitemap.xml');
@@ -275,4 +663,4 @@ if (writeIfChanged(privatePath, shell(readFileSync(privatePath, 'utf8'), 'privac
   }
 }
 
-console.log(`pages: ${live.length} tool pages, home and privacy checked; ${changed} file${changed === 1 ? '' : 's'} written`);
+console.log(`pages: ${live.length} tool pages, ${GUIDES.length} guides, home, privacy, about, terms, contact and 404 checked; ${changed} file${changed === 1 ? '' : 's'} written`);

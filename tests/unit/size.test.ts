@@ -82,6 +82,8 @@ describeBuilt('each tool page', () => {
       it('loads its scripts and styles from this origin', () => {
         expect(assets.length).toBeGreaterThan(0);
         for (const tag of html.match(/<(script|link)\b[^>]*>/gi) ?? []) {
+          // The canonical link names the page's own address; nothing is fetched from it.
+          if (/^<link rel="canonical"/i.test(tag)) continue;
           expect(tag, 'every script and stylesheet must be a path on this origin').not.toMatch(/(src|href)="https?:/i);
         }
       });

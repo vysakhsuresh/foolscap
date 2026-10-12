@@ -9,6 +9,15 @@ import { serviceWorker } from './scripts/vite-sw';
 const here = dirname(fileURLToPath(import.meta.url));
 const page = (...parts: string[]) => resolve(here, 'app', ...parts);
 
+/** Every index.html below app/ (tools, guides, privacy, about…), outside the source and public folders. */
+function pagesUnder(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (!entry.isDirectory() || ['src', 'public', 'node_modules'].includes(entry.name)) return [];
+    const sub = resolve(dir, entry.name);
+    return [...(existsSync(resolve(sub, 'index.html')) ? [resolve(sub, 'index.html')] : []), ...pagesUnder(sub)];
+  });
+}
+
 // The app lives in app/ so the entry pages sit together, and the build output
 // goes to dist/, which is what Cloudflare Pages publishes.
 // Cloudflare Pages serves the site at the root. The GitHub Pages preview serves
@@ -35,20 +44,18 @@ export default defineConfig({
     target: 'es2022',
     rollupOptions: {
       // Every page has to be listed: Vite builds index.html and nothing else by
-      // default. The tool pages are found on disk (scripts/gen-pages.ts writes
-      // one per live tool), so a new tool cannot silently go missing from dist/.
+      // default. The pages are found on disk (scripts/gen-pages.ts writes one
+      // per live tool and per guide), so a new page cannot go missing from dist/.
       input: {
         home: page('index.html'),
-        private: page('private', 'index.html'),
-        ...Object.fromEntries(
-          readdirSync(page('tools'))
-            .filter((id) => existsSync(page('tools', id, 'index.html')))
-            .map((id) => [`tool-${id}`, page('tools', id, 'index.html')]),
-        ),
+        notFound: page('404.html'),
+        ...Object.fromEntries(pagesUnder(page()).map((file) => [file.slice(page().length + 1, -'/index.html'.length).replace(/\//g, '-'), file])),
       },
     },
   },
   worker: { format: 'es' },
   server: { host: '127.0.0.1' },
-  preview: { host: '127.0.0.1' },
+  // allowedHosts: the e2e maps the real domain to the preview server to check
+  // that ads load there and only on the pages that may carry them.
+  preview: { host: '127.0.0.1', allowedHosts: ['foolscap.co.in', 'www.foolscap.co.in'] },
 });

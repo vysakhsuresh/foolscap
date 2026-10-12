@@ -44,8 +44,8 @@ of a proof. We beat both with four things:
    never overwrite a file that already exists, even in a folder you chose.
 5. No limits on file count, file size or number of jobs beyond what the
    visitor's own device can do — and when the device cannot, we say so.
-6. Ads, if ever, on guide and landing pages only. Never on a tool page: the
-   tool pages' CSP makes a third-party script impossible, which is the point.
+6. Ads on the home page and guides only. Never on a tool page: the tool
+   pages' CSP makes a third-party script impossible, which is the point.
 7. Analytics, if ever, cookieless and on guide pages only. Never a file name,
    never a page count, never anything a visitor typed.
 8. A file's name, size, page count or contents never go to `console.*`, into
@@ -296,6 +296,18 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
 
 - **2026-10-10** Name is Foolscap; the Android app stays Sheaf. Domain not yet
   bought: `SITE_ORIGIN` is null until it is.
+- **2026-10-12** Domain bought: foolscap.co.in (`SITE_ORIGIN`). At the owner's
+  word ("AdSense compatible, close every loop") ads are on: the home page and
+  the guides only (`AD_PAGES`), Auto ads, loaded by `ui/ads.ts` after load
+  and only on the real domain. Cloudflare joins a header two matching blocks
+  set, so the CSP left `/*`: tool pages and every asset path get the strict
+  policy, `/` and `/guides/*` an ad policy (https scripts, inline, eval;
+  framing, plugins, forms and base still locked), and a rules test fails if
+  any path the build writes has neither. The privacy page carries Google's
+  required cookie disclosure. SEO: 40 guides and per-tool help as data,
+  canonical, Open Graph image, structured data, sitemap, About, Terms,
+  Contact, a real 404, a WhatsApp "Tell a friend" link in every footer; the
+  GitHub Pages preview is noindex.
 - **2026-10-10** `@cantoo/pdf-lib` over `pdf-lib`: maintained, MIT, and it
   encrypts and decrypts, so passwords need no WASM.
 - **2026-10-10** The CSP is served on every path, including `/assets/*`,

@@ -55,9 +55,12 @@ settings in `ui/tool-options.ts`, and an icon in `ui/tool-icons.ts`.
 
 - There is no server. The site is a folder of files on Cloudflare Pages; a
   test fails if a `functions/` directory or a `_worker.js` ever appears.
-- Every page is served with a Content-Security-Policy (`app/public/_headers`)
-  that allows connections to this origin only. The policy covers the workers
-  that hold the document bytes, not just the pages.
+- Every tool page, and every script, worker and asset, is served with a
+  Content-Security-Policy (`app/public/_headers`) that allows connections to
+  this origin only. The policy covers the workers that hold the document
+  bytes, not just the pages. The home page and the guides carry Google ads
+  under a looser policy of their own; they take no files, and a unit test
+  fails if any other path the build writes is left without the strict one.
 - The end-to-end tests load a tool page, cut the network
   (`context.setOffline(true)`), and run every tool. They also record every
   request from every page and assert each one went to this origin.
@@ -137,10 +140,24 @@ through `.github/workflows/pages.yml` (unit tests first, then a build with
 send headers, so the preview carries the page-level policy as a `<meta>` tag;
 the workers' policy and `frame-ancestors` only exist on Cloudflare.
 
-**Home:** Cloudflare Pages, free plan. Build command `npm run build`, output directory
-`dist`, Node 22. `app/public/_headers` is applied automatically. Set
-`SITE_ORIGIN` in `app/src/site/config.ts` once the domain exists, so pages
-carry canonical URLs.
+**Home:** https://foolscap.co.in on Cloudflare Pages, free plan. Connect the
+GitHub repository; build command `npm run build`, output directory `dist`,
+environment variable `NODE_VERSION=22`. `app/public/_headers` and
+`_redirects` are applied automatically, and `dist/404.html` answers any
+unknown address with a real 404. Add `foolscap.co.in` and
+`www.foolscap.co.in` as custom domains, and a Cloudflare redirect rule from
+www to the bare domain.
+
+**Search and ads.** `SITE_ORIGIN` in `app/src/site/config.ts` writes the
+canonical links, Open Graph tags, `sitemap.xml` and the sitemap line in
+`robots.txt`. Every page carries structured data (WebApplication, HowTo,
+FAQPage, BreadcrumbList) and the link-preview image `brand/og.png`. The 40
+guides (`app/src/site/guides.ts`) and the help under each tool
+(`app/src/site/tool-copy.ts`) are data; `scripts/gen-pages.ts` writes the
+pages. AdSense (`ui/ads.ts`) loads only on the home page and the guides, only
+on the real domain, after the page has loaded; placement is Auto ads in the
+AdSense dashboard, and the consent message for Europe is set there under
+Privacy & messaging. The GitHub Pages preview is marked noindex.
 
 ## Licences
 

@@ -9,7 +9,9 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseHeaders } from '../../scripts/vite-cf-headers';
+import { headersFor, parseHeaders } from '../../scripts/vite-cf-headers';
+import { LIVE_TOOLS } from '../../app/src/ops/tools';
+import { AD_PAGE_CSP, AD_PAGES, TOOL_PAGE_CSP } from '../../app/src/site/config';
 
 const ROOT = resolve(__dirname, '../..');
 const APP = join(ROOT, 'app');
@@ -310,7 +312,8 @@ describe('the HTML the CSP would block', () => {
       for (const tag of tags) {
         const line = html.slice(0, html.indexOf(tag)).split('\n').length;
         if (/\sstyle\s*=/i.test(tag)) bad.push(`${s.file}:${line}: inline style: ${tag}`);
-        if (/^<script\b/i.test(tag) && !/\ssrc\s*=/i.test(tag)) bad.push(`${s.file}:${line}: inline script: ${tag}`);
+        // Structured data for search engines is a data block, not a script: the browser never runs it and the CSP does not apply.
+        if (/^<script\b/i.test(tag) && !/\ssrc\s*=/i.test(tag) && !/\stype="application\/ld\+json"/i.test(tag)) bad.push(`${s.file}:${line}: inline script: ${tag}`);
         if (/\son[a-z]+\s*=/i.test(tag)) bad.push(`${s.file}:${line}: inline handler: ${tag}`);
       }
       return bad;
@@ -321,20 +324,68 @@ describe('the HTML the CSP would block', () => {
 
 describe('the headers', () => {
   const blocks = parseHeaders(readFileSync(join(APP, 'public', '_headers'), 'utf8'));
-  const everywhere = blocks.find((b) => b.pattern === '/*');
+  const STRICT = TOOL_PAGE_CSP;
+  const policyAt = (path: string) => headersFor(blocks, path)['Content-Security-Policy'];
 
-  it('has a /* block with a Content-Security-Policy', () => {
-    expect(everywhere, '_headers needs a /* block: a worker gets its CSP from its own response under /assets/').toBeDefined();
-    expect(everywhere?.headers['Content-Security-Policy']).toBeTruthy();
+  it('never puts a policy on /*: Cloudflare would join it to every other one', () => {
+    const everywhere = blocks.find((b) => b.pattern === '/*');
+    expect(everywhere?.headers['Content-Security-Policy']).toBeUndefined();
   });
 
-  it("the policy keeps connect-src 'self' and allows no inline, no eval and no other origin", () => {
-    const csp = everywhere?.headers['Content-Security-Policy'] ?? '';
-    expect(csp).toContain("connect-src 'self'");
-    expect(csp).not.toContain("'unsafe-inline'");
+  it("the strict policy keeps connect-src 'self' and allows no inline, no eval and no other origin", () => {
+    expect(STRICT).toContain("connect-src 'self'");
+    expect(STRICT).not.toContain("'unsafe-inline'");
     // 'wasm-unsafe-eval' is a different keyword and is what pdf.js's decoders need.
-    expect(csp).not.toContain("'unsafe-eval'");
-    expect(csp).not.toMatch(/\bhttps?:/);
+    expect(STRICT).not.toContain("'unsafe-eval'");
+    expect(STRICT).not.toMatch(/\bhttps?:/);
+  });
+
+  it('every tool page, script, worker and asset gets exactly the strict policy', () => {
+    const paths = [
+      ...LIVE_TOOLS.map((t) => `/tools/${t.id}/`),
+      '/assets/op.worker-abc.js',
+      '/assets/tool-abc.js',
+      '/pdfjs/cmaps/x.bcmap',
+      '/tesseract/7/worker.min.js',
+      '/fonts/space-grotesk-latin.woff2',
+      '/brand/og.png',
+      '/private/',
+      '/about/',
+      '/terms/',
+      '/contact/',
+      '/sw.js',
+    ];
+    for (const path of paths) expect(policyAt(path), path).toBe(STRICT);
+  });
+
+  it('every page and folder the site ships is covered by a policy', () => {
+    // Anything under app/ that becomes a page or a folder of files must get
+    // the strict policy, unless it is one of the ad pages. Top-level files
+    // like robots.txt carry no script and need none.
+    const top = [
+      ...readdirSync(APP, { withFileTypes: true }).filter((e) => e.isDirectory() && !['src', 'public'].includes(e.name)).map((e) => `/${e.name}/`),
+      ...readdirSync(join(APP, 'public'), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => `/${e.name}/`),
+      '/assets/',
+      '/sw.js',
+    ];
+    for (const path of top) {
+      const isAdPage = AD_PAGES.some((p) => new RegExp(`^${p.replace(/\*/g, '.*')}$`).test(path));
+      expect(policyAt(path), path).toBe(isAdPage ? AD_PAGE_CSP : STRICT);
+    }
+  });
+
+  it('only the ad pages get the ad policy, and it still locks framing, plugins, forms and base', () => {
+    expect(policyAt('/')).toBe(AD_PAGE_CSP);
+    expect(policyAt('/guides/')).toBe(AD_PAGE_CSP);
+    expect(policyAt('/guides/compress-pdf-to-100kb/')).toBe(AD_PAGE_CSP);
+    for (const d of ["frame-ancestors 'none'", "base-uri 'none'", "form-action 'none'", "object-src 'none'"]) expect(AD_PAGE_CSP).toContain(d);
+  });
+
+  it('every built HTML page that loads ads is an ad page, and no tool page script can', () => {
+    const pages = HTML_FILES.filter((s) => /data-ads="on"/.test(s.raw)).map((s) => s.file);
+    for (const file of pages) expect(file, `${file} carries ads but is not under AD_PAGES`).toMatch(/^app\/(index\.html|guides\/)/);
+    const importers = SRC_FILES.filter((s) => /from '(?:\.\.\/ui\/ads|\.\/ads)'/.test(s.code)).map((s) => s.file).sort();
+    expect(importers).toEqual(['app/src/pages/article.ts', 'app/src/pages/home.ts']);
   });
 });
 

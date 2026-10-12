@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { OP_IDS } from '../../app/src/ops';
 import { LIVE_TOOLS, TOOLS, toolPath } from '../../app/src/ops/tools';
 import * as config from '../../app/src/site/config';
-import { parseHeaders } from '../../scripts/vite-cf-headers';
+import { headersFor, parseHeaders } from '../../scripts/vite-cf-headers';
 
 const ROOT = resolve(__dirname, '../..');
 const APP = join(ROOT, 'app');
@@ -60,17 +60,16 @@ describe('tools.ts', () => {
 });
 
 describe('site/config.ts', () => {
-  it('TOOL_PAGE_CSP is the policy _headers really serves', () => {
+  it('TOOL_PAGE_CSP and AD_PAGE_CSP are the policies _headers really serves', () => {
     const blocks = parseHeaders(readFileSync(join(APP, 'public', '_headers'), 'utf8'));
-    const served = blocks.find((b) => b.pattern === '/*')?.headers['Content-Security-Policy'];
-    expect(served, '_headers needs a /* block with a Content-Security-Policy').toBeTruthy();
-
     const constant = (config as unknown as Record<string, unknown>)['TOOL_PAGE_CSP'];
     expect(
       constant,
       'app/src/site/config.ts must export TOOL_PAGE_CSP: the literal Content-Security-Policy value from app/public/_headers, which the privacy page quotes.',
     ).toBeTypeOf('string');
-    expect(constant).toBe(served);
+    expect(headersFor(blocks, '/tools/merge/')['Content-Security-Policy']).toBe(constant);
+    expect(headersFor(blocks, '/private/')['Content-Security-Policy']).toBe(constant);
+    expect(headersFor(blocks, '/')['Content-Security-Policy']).toBe(config.AD_PAGE_CSP);
   });
 
   it('names the site without promising a domain it does not have', () => {
@@ -88,5 +87,29 @@ describe('the page-side op table', () => {
       const op = getOp(id);
       expect(OP_META[id], id).toEqual({ arity: op.arity, ...(op.engine ? { engine: true } : {}), ...(op.ocr ? { ocr: true } : {}) });
     }
+  });
+});
+
+describe('the _headers emulator behaves like Cloudflare', () => {
+  it('joins a header two blocks set, and `!` detaches one', () => {
+    const blocks = parseHeaders('/*\n  X-A: one\n  X-B: keep\n/x/*\n  X-A: two\n/x/y\n  ! X-B\n');
+    expect(headersFor(blocks, '/x/z')).toEqual({ 'X-A': 'one, two', 'X-B': 'keep' });
+    expect(headersFor(blocks, '/x/y')).toEqual({ 'X-A': 'one, two' });
+    expect(headersFor(blocks, '/other')).toEqual({ 'X-A': 'one', 'X-B': 'keep' });
+  });
+});
+
+describe('ads', () => {
+  it('load only on the real address', async () => {
+    const { adsAllowedOn, ADSENSE_SRC } = await import('../../app/src/ui/ads');
+    expect(adsAllowedOn('foolscap.co.in')).toBe(true);
+    expect(adsAllowedOn('www.foolscap.co.in')).toBe(true);
+    for (const host of ['localhost', '127.0.0.1', 'vysakhsuresh.github.io', 'foolscap.pages.dev', 'evilfoolscap.co.in']) expect(adsAllowedOn(host), host).toBe(false);
+    expect(ADSENSE_SRC).toBe(`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${config.ADSENSE.client}`);
+  });
+
+  it('ads.txt names the same publisher', () => {
+    const ads = readFileSync(join(APP, 'public', 'ads.txt'), 'utf8');
+    expect(ads).toContain(`google.com, ${config.ADSENSE.client.replace('ca-', '')}, DIRECT, f08c47fec0942fa0`);
   });
 });

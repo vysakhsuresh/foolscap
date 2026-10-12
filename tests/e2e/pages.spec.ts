@@ -6,6 +6,7 @@
 import { expect, test } from '@playwright/test';
 import { TOOLS, toolById } from '../../app/src/ops/tools';
 import { encryptedPdf, pagesPdf } from '../fixtures/pdfs';
+import { GUIDES } from '../../app/src/site/guides';
 import { ALL_PAGES, TOOL_IDS, openPage, openTool } from './helpers';
 
 const MIN_TARGET = 44;
@@ -88,7 +89,7 @@ for (const id of TOOL_IDS) {
 
 // The owner's rules for the shell: links are never underlined, Buy me a coffee
 // goes to Layerbit's page, and Get help opens Email and WhatsApp with no script.
-for (const path of ['/', '/private/', '/tools/merge/']) {
+for (const path of ['/', '/private/', '/tools/merge/', '/guides/', `/guides/${GUIDES[0]?.slug ?? ''}/`, '/about/']) {
   test(`${path} underlines no link and carries Support and Get help`, async ({ page }) => {
     await page.goto(path);
     const underlined = await page.$$eval('a', (as) =>

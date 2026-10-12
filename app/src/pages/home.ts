@@ -3,9 +3,11 @@
  * static HTML (scripts/gen-pages.ts), so the page works and reads with no
  * script; this only filters it as you type.
  */
+import { loadAds } from '../ui/ads';
 import { mountShell } from '../ui/shell';
 
 mountShell();
+loadAds();
 
 const finder = document.querySelector<HTMLElement>('[data-finder]');
 const input = document.querySelector<HTMLInputElement>('[data-testid="tool-search"]');

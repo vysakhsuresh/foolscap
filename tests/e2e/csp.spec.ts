@@ -1,29 +1,33 @@
 /**
- * The policy is served on every path, blocks what it says it blocks, and is
- * quoted verbatim on the privacy page — so what a visitor reads there is what
- * their browser enforces.
+ * The strict policy is served on every tool page and every asset, blocks what
+ * it says it blocks, and is quoted verbatim on the privacy page — so what a
+ * visitor reads there is what their browser enforces. The home page and the
+ * guides, which carry ads and take no files, get the ad policy and only that.
  */
 import { expect, test } from '@playwright/test';
+import { AD_PAGE_CSP, TOOL_PAGE_CSP } from '../../app/src/site/config';
+import { GUIDES } from '../../app/src/site/guides';
 import { ALL_PAGES, collectErrors, openPage, openTool } from './helpers';
 
 const HEADER = 'content-security-policy';
 
-test('the same policy is served for pages and for assets', async ({ page }) => {
+test('tool pages and their assets get the strict policy; only the home page and guides get the ad policy', async ({ page }) => {
   await openTool(page, 'merge');
   const script = await page.locator('script[src^="/assets/"]').first().getAttribute('src');
   expect(script, 'the tool page loads a module from /assets/').toBeTruthy();
 
-  const policies = new Map<string, string>();
-  for (const path of ['/', '/private/', '/tools/merge/', script ?? '']) {
+  for (const path of ['/private/', '/tools/merge/', '/tools/sign/', '/about/', script ?? '', '/sw.js', '/fonts/space-grotesk-latin.woff2']) {
     const response = await page.request.get(path);
     expect(response.ok(), `${path} responds`).toBe(true);
-    policies.set(path, response.headers()[HEADER] ?? '');
+    expect(response.headers()[HEADER], `${path} carries the strict policy`).toBe(TOOL_PAGE_CSP);
   }
-  const values = [...policies.values()];
-  expect(values[0], 'a Content-Security-Policy header is served').toBeTruthy();
-  for (const [path, value] of policies) expect(value, `${path} carries the same policy`).toBe(values[0]);
-  expect(values[0]).toContain("connect-src 'self'");
-  expect(values[0]).not.toContain('unsafe-inline');
+  for (const path of ['/', '/guides/', `/guides/${GUIDES[0]?.slug ?? ''}/`]) {
+    const response = await page.request.get(path);
+    expect(response.ok(), `${path} responds`).toBe(true);
+    expect(response.headers()[HEADER], `${path} carries the ad policy, once`).toBe(AD_PAGE_CSP);
+  }
+  expect(TOOL_PAGE_CSP).toContain("connect-src 'self'");
+  expect(TOOL_PAGE_CSP).not.toContain('unsafe-inline');
 });
 
 test('a tool page cannot reach another origin', async ({ page }) => {

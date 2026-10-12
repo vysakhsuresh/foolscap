@@ -7,8 +7,10 @@
  *
  * Supports the subset of the _headers syntax this site uses: a path pattern on
  * its own line (`/tools/*`), followed by indented `Name: value` lines. `*`
- * matches any run of characters. Later blocks add to earlier ones; a repeated
- * header name replaces the earlier value, as on Cloudflare.
+ * matches any run of characters. Every matching block applies, and a header
+ * named by two of them is sent once with both values joined by ", ", as on
+ * Cloudflare (for a Content-Security-Policy that is two policies, both
+ * enforced). `! Name` in a block removes that header set by earlier blocks.
  *
  * Dev (`vite dev`) is deliberately left alone: Vite's HMR injects inline
  * styles that a strict CSP would block. The built site is what ships, so the
@@ -22,22 +24,28 @@ export interface HeaderBlock {
   pattern: string;
   regex: RegExp;
   headers: Record<string, string>;
+  /** Header names this block detaches (`! Name`). */
+  detach: string[];
 }
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 export function parseHeaders(text: string): HeaderBlock[] {
-  const blocks: Array<{ pattern: string; headers: Record<string, string> }> = [];
-  let current: { pattern: string; headers: Record<string, string> } | null = null;
+  const blocks: Array<{ pattern: string; headers: Record<string, string>; detach: string[] }> = [];
+  let current: { pattern: string; headers: Record<string, string>; detach: string[] } | null = null;
   for (const raw of text.split('\n')) {
     const line = raw.replace(/\s+$/, '');
     if (!line.trim() || line.trim().startsWith('#')) continue;
     if (!/^\s/.test(line)) {
-      current = { pattern: line.trim(), headers: {} };
+      current = { pattern: line.trim(), headers: {}, detach: [] };
       blocks.push(current);
       continue;
     }
     if (!current) continue;
+    if (line.trim().startsWith('!')) {
+      current.detach.push(line.trim().slice(1).trim());
+      continue;
+    }
     const i = line.indexOf(':');
     if (i < 0) continue;
     current.headers[line.slice(0, i).trim()] = line.slice(i + 1).trim();
@@ -50,7 +58,19 @@ export function parseHeaders(text: string): HeaderBlock[] {
 
 export function headersFor(blocks: HeaderBlock[], path: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const b of blocks) if (b.regex.test(path)) Object.assign(out, b.headers);
+  const key = (name: string) => Object.keys(out).find((k) => k.toLowerCase() === name.toLowerCase());
+  for (const b of blocks) {
+    if (!b.regex.test(path)) continue;
+    for (const name of b.detach) {
+      const k = key(name);
+      if (k !== undefined) delete out[k];
+    }
+    for (const [name, value] of Object.entries(b.headers)) {
+      const k = key(name);
+      if (k === undefined) out[name] = value;
+      else out[k] = `${out[k]}, ${value}`;
+    }
+  }
   return out;
 }
 

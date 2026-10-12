@@ -5,6 +5,7 @@
  */
 import './tokens.css';
 import './components.css';
+import './content.css';
 
 export function mountShell(): void {
   keepForOffline();

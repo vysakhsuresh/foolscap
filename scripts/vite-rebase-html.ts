@@ -9,7 +9,9 @@
  * Under a non-root base the site is the GitHub Pages preview, which cannot send
  * headers. There the page-level policy is added as a <meta> tag, so the preview
  * still refuses third-party connections from the page itself. (A meta policy
- * cannot cover workers or frame-ancestors; Cloudflare's header does.)
+ * cannot cover workers or frame-ancestors; Cloudflare's header does.) The
+ * preview is a copy, so every page also asks search engines not to index it:
+ * the real site is the one at SITE_ORIGIN.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -25,7 +27,7 @@ export function rebaseHtml(base: string): Plugin {
       if (base === '/') return;
       try {
         const blocks = parseHeaders(readFileSync(resolve(config.publicDir, '_headers'), 'utf8'));
-        csp = (headersFor(blocks, '/')['Content-Security-Policy'] ?? '')
+        csp = (headersFor(blocks, '/tools/')['Content-Security-Policy'] ?? '')
           .split(';')
           .map((d) => d.trim())
           .filter((d) => d && !d.startsWith('frame-ancestors'))
@@ -42,9 +44,8 @@ export function rebaseHtml(base: string): Plugin {
         const rebased = html.replace(/(\s(?:href|src))="\/(?!\/)([^"]*)"/g, (whole, attr: string, rest: string) =>
           `/${rest}`.startsWith(prefix) ? whole : `${attr}="${prefix}${rest}"`,
         );
-        return csp
-          ? rebased.replace('<meta charset="utf-8">', `<meta charset="utf-8">\n  <meta http-equiv="Content-Security-Policy" content="${csp}">`)
-          : rebased;
+        const extra = [csp ? `<meta http-equiv="Content-Security-Policy" content="${csp}">` : '', '<meta name="robots" content="noindex">'].filter(Boolean);
+        return rebased.replace('<meta charset="utf-8">', ['<meta charset="utf-8">', ...extra].join('\n  '));
       },
     },
   };
