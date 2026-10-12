@@ -5,7 +5,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { TOOLS } from '../../app/src/ops/tools';
-import { pagesPdf } from '../fixtures/pdfs';
+import { encryptedPdf, pagesPdf } from '../fixtures/pdfs';
 import { ALL_PAGES, TOOL_IDS, openPage, openTool } from './helpers';
 
 const MIN_TARGET = 44;
@@ -200,4 +200,22 @@ test('Enter in the finder opens the first tool that matches', async ({ page }) =
   await page.getByTestId('tool-search').fill('lock');
   await page.getByTestId('tool-search').press('Enter');
   await expect(page).toHaveURL(/\/tools\/add-password\/$/);
+});
+
+test('a locked file must be unlocked before the tool runs, and the box says so', async ({ page }) => {
+  await openTool(page, 'watermark');
+  await page.getByTestId('file-input').setInputFiles([{ name: 'Locked.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await encryptedPdf('tea', 1)) }]);
+  await expect(page.getByTestId('file-password')).toBeVisible();
+  await expect(page.getByTestId('run-button')).toBeDisabled();
+  await expect(page.locator('.run__note')).toHaveText('Type the password for the locked file, then tap Unlock.');
+  await page.getByTestId('file-password').fill('tea');
+  await page.getByTestId('file-unlock').click();
+  await expect(page.getByTestId('run-button')).toBeEnabled();
+});
+
+test('the drop box is one control: the keyboard reaches the file picker itself', async ({ page }) => {
+  await openTool(page, 'merge');
+  await page.getByTestId('file-input').focus();
+  await expect(page.getByTestId('file-input')).toBeFocused();
+  expect(await page.getByTestId('drop-zone').getAttribute('role')).toBeNull();
 });

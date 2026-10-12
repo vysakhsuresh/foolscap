@@ -1040,6 +1040,13 @@ select.input option {
   box-shadow: 0 0 30px var(--tool-glow);
 }
 
+/* The hidden file input holds the keyboard focus; the box shows it. */
+.drop-zone:has(input:focus-visible) {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+  border-color: var(--tool-b);
+}
+
 .drop-zone.is-over {
   border-style: solid;
   border-color: var(--tool-a);
@@ -2640,4 +2647,8 @@ select.input option {
 /* The way home sits at the bottom-left: the footer leaves it room. */
 body[data-page='tool'] .site-footer {
   padding-bottom: calc(var(--space-6) + 76px);
+}
+
+.home-fab__nav {
+  display: contents;
 }

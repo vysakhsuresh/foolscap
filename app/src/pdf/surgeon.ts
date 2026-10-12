@@ -109,12 +109,53 @@ export function createSurgeon(): PdfSurgeon {
  */
 async function load(data: Uint8Array, password: string | undefined): Promise<PDFDocument> {
   try {
+    const doc = await loadOnce(data, password);
+    // A catalog with no /Type loads "fine" and fails at the first look at its pages.
+    doc.getPageCount();
+    return doc;
+  } catch (error) {
+    // A file a reader shows but whose catalog has lost its /Type: pdf-lib
+    // then treats the catalog as a plain dictionary and cannot find the pages.
+    const labelled = labelCatalog(data);
+    if (labelled === null || !(error instanceof TypeError)) throw error;
+    return loadOnce(labelled, password);
+  }
+}
+
+async function loadOnce(data: Uint8Array, password: string | undefined): Promise<PDFDocument> {
+  try {
     return await PDFDocument.load(data, { updateMetadata: false, ...(password === undefined ? {} : { password }) });
   } catch (error) {
     const needsPassword = error instanceof EncryptedPDFError || /needs password/i.test(error instanceof Error ? error.message : '');
     if (password !== undefined || !needsPassword) throw error;
     return PDFDocument.load(data, { updateMetadata: false, password: '' });
   }
+}
+
+/**
+ * The bytes with "/Type /Catalog" written into the trailer's /Root object
+ * when it lacks a /Type, or null when there is nothing to repair. pdf-lib
+ * reads objects in file order rather than by the cross-reference offsets, so
+ * the inserted bytes do not throw anything else off.
+ */
+function labelCatalog(data: Uint8Array): Uint8Array | null {
+  const text = new TextDecoder('latin1').decode(data);
+  const roots = [...text.matchAll(/\/Root\s+(\d+)\s+(\d+)\s+R/g)];
+  const root = roots[roots.length - 1];
+  if (!root) return null;
+  const head = new RegExp(`(?:^|[\\s>])${root[1]}\\s+${root[2]}\\s+obj\\s*<<`, 'g');
+  let match: RegExpExecArray | null = null;
+  for (let m = head.exec(text); m !== null; m = head.exec(text)) match = m;
+  if (!match) return null;
+  const at = match.index + match[0].length;
+  const body = text.slice(at, text.indexOf('endobj', at));
+  if (/\/Type\s*\/Catalog/.test(body)) return null;
+  const insert = new TextEncoder().encode(' /Type /Catalog ');
+  const out = new Uint8Array(data.length + insert.length);
+  out.set(data.subarray(0, at), 0);
+  out.set(insert, at);
+  out.set(data.subarray(at), at + insert.length);
+  return out;
 }
 
 /**

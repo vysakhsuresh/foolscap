@@ -14,8 +14,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { GROUPS, KEYWORDS, TOOLS, type GroupId, type ToolMeta } from '../app/src/ops/tools.ts';
-import { ADSENSE, HELP } from '../app/src/site/config.ts';
+import { GROUPS, KEYWORDS, SEARCH_NAMES, TOOLS, type GroupId, type ToolMeta } from '../app/src/ops/tools.ts';
+import { ADSENSE, HELP, SITE_ORIGIN } from '../app/src/site/config.ts';
 import { GROUP_ICONS, TOOL_ICONS } from '../app/src/ui/tool-icons.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -51,7 +51,7 @@ const ICONS = `<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 
 // Back to the tools, from the bottom-left of every tool page, to the spot you left.
 const HOME_FAB = (id: string) =>
-  `<a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools"><svg class="home-fab__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">${CAP_GRADIENT('fab-g')}${CAP_DRAWING('url(#fab-g)')}</svg><span class="home-fab__label">All tools</span></a>`;
+  `<nav class="home-fab__nav" aria-label="Back to all tools"><a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools"><svg class="home-fab__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">${CAP_GRADIENT('fab-g')}${CAP_DRAWING('url(#fab-g)')}</svg><span class="home-fab__label">All tools</span></a></nav>`;
 
 
 function header(current: 'tools' | 'privacy'): string {
@@ -130,7 +130,7 @@ function toolPage(tool: ToolMeta): string {
   const related = siblings
     .map((t) => `<a class="related__item" href="/tools/${t.id}/">${svg(TOOL_ICONS[t.id], 'related__icon')}<span>${esc(t.title)}</span></a>`)
     .join('\n        ');
-  return `${head(`${tool.title} — Foolscap`, `${tool.summary}. ${PROMISE}`, '/src/pages/tool.ts')}
+  return `${head(`${SEARCH_NAMES[tool.id]} online, free and private — Foolscap`, `${SEARCH_NAMES[tool.id]} in your browser. ${tool.summary}. Nothing is uploaded: free, no sign-up, no limits, no watermark.`, '/src/pages/tool.ts')}
 <body data-tool="${tool.id}" data-group="${tool.group}" data-page="tool">
   ${header('tools')}
   <main class="wrap tool" data-app>
@@ -139,11 +139,11 @@ function toolPage(tool: ToolMeta): string {
       <h1 class="tool__title" data-testid="tool-title">${esc(tool.title)}</h1>
       <p class="tool__summary">${esc(tool.summary)}. Nothing is uploaded: the work happens on this device.</p>
     </header>
-    <label class="drop-zone" data-testid="drop-zone" for="file-input" tabindex="0" role="button" aria-describedby="drop-hint">
+    <label class="drop-zone" data-testid="drop-zone" for="file-input">
       ${svg(TOOL_ICONS[tool.id], 'drop-zone__icon')}
       <span class="drop-zone__title">${zone.title}</span>
       <span class="drop-zone__hint" id="drop-hint">${zone.hint}</span>
-      <input class="visually-hidden" id="file-input" data-testid="file-input" type="file" accept="${zone.accept}"${zone.multiple ? ' multiple' : ''} tabindex="-1">
+      <input class="visually-hidden" id="file-input" data-testid="file-input" type="file" accept="${zone.accept}"${zone.multiple ? ' multiple' : ''} aria-describedby="drop-hint">
     </label>
     <div data-slot="body"></div>
     <nav class="related" aria-labelledby="related-title">
@@ -243,5 +243,23 @@ if (writeIfChanged(homePath, shell(home, 'tools'))) changed++;
 
 const privatePath = resolve(APP, 'private', 'index.html');
 if (writeIfChanged(privatePath, shell(readFileSync(privatePath, 'utf8'), 'privacy'))) changed++;
+
+// ---- For search engines, once there is a domain ----
+// A sitemap and robots.txt's pointer to it need absolute URLs, so they wait
+// for SITE_ORIGIN (site/config.ts). Until then robots.txt only allows all.
+{
+  const publicDir = resolve(APP, 'public');
+  const paths = ['/', '/private/', ...live.map((t) => `/tools/${t.id}/`)];
+  const robots = SITE_ORIGIN === null ? 'User-agent: *\nAllow: /\n' : `User-agent: *\nAllow: /\n\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`;
+  if (writeIfChanged(resolve(publicDir, 'robots.txt'), robots)) changed++;
+  const sitemapPath = resolve(publicDir, 'sitemap.xml');
+  if (SITE_ORIGIN === null) {
+    if (existsSync(sitemapPath)) rmSync(sitemapPath);
+  } else {
+    const urls = paths.map((p) => `  <url><loc>${SITE_ORIGIN}${p}</loc></url>`).join('\n');
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+    if (writeIfChanged(sitemapPath, xml)) changed++;
+  }
+}
 
 console.log(`pages: ${live.length} tool pages, home and privacy checked; ${changed} file${changed === 1 ? '' : 's'} written`);

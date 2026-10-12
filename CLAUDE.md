@@ -339,3 +339,12 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   capped page, one line) replaces the jester picture, and the tool icons are
   Lucide's, drawn in each family's colour on a faint tile, as on Layerbit.
   ISC added to the allowed licences for Lucide.
+- **2026-10-13** A full test pass beyond the suite: 43 awkward real PDFs (the
+  pdf.js corpus) through every tool in Node and the drawing tools in the
+  browser; an axe-core audit of every page; the GitHub Pages base path end to
+  end. Found and fixed: a catalog with no /Type (pdf-lib cannot find its
+  pages; the surgeon now labels it and retries), the drop zone's nested
+  button, the way-home pill outside a landmark, the reader's unfocusable
+  scroller, and running a tool on a still-locked file. Page titles now lead
+  with what people search ("Compress PDF online, free and private");
+  sitemap.xml and the robots.txt pointer are generated once SITE_ORIGIN is set.

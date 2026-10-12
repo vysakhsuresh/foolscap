@@ -14,12 +14,9 @@ export function bindDropZone(zone: HTMLElement, input: HTMLInputElement, onFiles
     if (files.length > 0) onFiles(files);
   });
 
-  zone.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' || ev.key === ' ') {
-      ev.preventDefault();
-      input.click();
-    }
-  });
+  // The file input itself takes the keyboard focus (it is hidden, not
+  // removed), so Enter and Space open the picker natively and a screen reader
+  // hears one control, not a button wrapped round another.
 
   let depth = 0;
   zone.addEventListener('dragenter', (ev) => {

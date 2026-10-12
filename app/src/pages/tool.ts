@@ -143,6 +143,14 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       return id === 'merge' ? 'Add at least one more PDF to merge.' : `Add ${more} more ${noun}${more === 1 ? '' : 's'}.`;
     }
     if (arity.kind === 'one' && n !== 1) return `${tool.title} works on one file at a time.`;
+    // A locked file is asked for its password on its own row; running first would only fail.
+    const locked = entries.filter((e) => e.errorCode === 'encrypted' || e.errorCode === 'wrong-password').length;
+    if (locked > 0 && (arity.kind !== 'each' || locked === n)) {
+      return locked === 1 ? 'Type the password for the locked file, then tap Unlock.' : 'Type the passwords for the locked files, then tap Unlock.';
+    }
+    if (entries.every((e) => e.error !== undefined && e.errorCode !== 'encrypted' && e.errorCode !== 'wrong-password')) {
+      return n === 1 ? "This file couldn't be read. Pick another one." : 'None of these files could be read.';
+    }
     if (grid && grid.count() === 0) return 'Every page is deleted. Restore at least one.';
     if (panel && n === 1 && entries[0]?.pages !== undefined) return panel.problem() ?? '';
     if (scanner) return scanner.problem() ?? '';
@@ -306,7 +314,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     await grid?.destroy();
     await panel?.destroy();
     await ws?.clear();
-    zone.focus();
+    input.focus();
   }
 
   function showOutcomes(outcomes: readonly Outcome[], counts: ReadonlyMap<string, number>): void {

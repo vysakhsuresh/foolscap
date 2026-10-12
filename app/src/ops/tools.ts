@@ -147,6 +147,41 @@ export const toolById = (id: ToolId): ToolMeta => {
 };
 
 /** Honours the build's base path, so links work at the root and under /foolscap/ alike. */
+/**
+ * What people type into a search box for each tool, which is rarely our own
+ * word for it: "jpg to pdf", not "images to PDF". Page titles and
+ * descriptions lead with these, so a search lands on the right page.
+ */
+export const SEARCH_NAMES: Record<ToolId, string> = {
+  merge: 'Merge PDF',
+  split: 'Split PDF',
+  organise: 'Rearrange, rotate and delete PDF pages',
+  'extract-pages': 'Extract or remove PDF pages',
+  'insert-pages': 'Insert pages into a PDF',
+  crop: 'Crop PDF',
+  'split-by-size': 'Split PDF by file size',
+  compress: 'Compress PDF',
+  'images-to-pdf': 'JPG to PDF',
+  'pdf-to-images': 'PDF to JPG and PNG',
+  'n-up': 'Print several PDF pages per sheet',
+  'extract-images': 'Extract images from PDF',
+  watermark: 'Add a watermark to PDF',
+  'page-numbers': 'Add page numbers to PDF',
+  sign: 'Sign PDF',
+  'mark-up': 'Highlight and draw on PDF',
+  'add-text': 'Add text to PDF',
+  'fill-form': 'Fill PDF form',
+  'header-footer': 'Add header and footer to PDF',
+  'add-password': 'Password protect PDF',
+  'remove-password': 'Remove PDF password',
+  'remove-areas': 'Redact PDF',
+  'document-details': 'Edit or remove PDF metadata',
+  read: 'Online PDF reader',
+  scan: 'Scan to PDF',
+  ocr: 'OCR PDF: make a scan searchable',
+  'extract-text': 'PDF to text',
+};
+
 export const toolPath = (id: ToolId): string => `${import.meta.env.BASE_URL}tools/${id}/`;
 
 export const LIVE_TOOLS: readonly ToolMeta[] = TOOLS.filter((t) => t.status === 'live');

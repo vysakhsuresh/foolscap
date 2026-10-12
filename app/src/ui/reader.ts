@@ -79,7 +79,8 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   ]);
   const outline = el('nav', { class: 'reader__outline', testid: 'reader-outline', attrs: { 'aria-label': 'Contents' } });
   outline.hidden = true;
-  const pages = el('div', { class: 'reader__pages', testid: 'reader-pages' });
+  // Focusable, so the keyboard can scroll it sideways when zoomed in.
+  const pages = el('div', { class: 'reader__pages', testid: 'reader-pages', attrs: { tabindex: '0', role: 'region', 'aria-label': 'Pages' } });
   const root = el('section', { class: 'reader', testid: 'reader', attrs: { 'aria-label': 'The document' } }, [bar, outline, where, pages]);
   root.hidden = true;
 
