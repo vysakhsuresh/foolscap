@@ -30,7 +30,8 @@ export function createFormPanel(onChange: () => void): FormPanel {
   const root = el('section', { class: 'form-panel', attrs: { 'aria-label': 'The form' } }, [list, seal.root]);
   root.hidden = true;
   let state: 'empty' | 'loading' | 'none' | 'ready' = 'empty';
-  let read: Array<() => [string, string | boolean]> = [];
+  /** Each field's name, what it held when the file was opened, and what it holds now. */
+  let read: Array<{ readonly name: string; readonly was: string | boolean; now(): string | boolean }> = [];
 
   return {
     root,
@@ -65,18 +66,25 @@ export function createFormPanel(onChange: () => void): FormPanel {
         const testid = `form-field-${f.name}`;
         switch (f.kind) {
           case 'text': {
+            const max = f.maxLength === undefined ? {} : { maxlength: String(f.maxLength) };
             const input = f.multiline
-              ? el('textarea', { class: 'input', testid, attrs: { id, rows: '3' }, on: { input: onChange } })
-              : el('input', { class: 'input', testid, attrs: { id, type: 'text', autocomplete: 'off' }, on: { input: onChange } });
+              ? el('textarea', { class: 'input', testid, attrs: { id, rows: '3', ...max }, on: { input: onChange } })
+              : el('input', { class: 'input', testid, attrs: { id, type: 'text', autocomplete: 'off', ...max }, on: { input: onChange } });
             input.value = f.value;
-            list.append(el('label', { class: 'field' }, [el('span', { class: 'field__label', text: label }), input]));
-            read.push(() => [f.name, input.value]);
+            list.append(
+              el('label', { class: 'field' }, [
+                el('span', { class: 'field__label', text: label }),
+                input,
+                f.maxLength === undefined ? null : el('span', { class: 'field__hint', text: `Up to ${f.maxLength} characters.` }),
+              ]),
+            );
+            read.push({ name: f.name, was: f.value, now: () => input.value });
             break;
           }
           case 'check': {
             const input = el('input', { testid, attrs: { type: 'checkbox', ...(f.checked ? { checked: '' } : {}) }, on: { change: onChange } });
             list.append(el('label', { class: 'check' }, [input, el('span', { class: 'check__label', text: label })]));
-            read.push(() => [f.name, input.checked]);
+            read.push({ name: f.name, was: f.checked, now: () => input.checked });
             break;
           }
           case 'choice': {
@@ -86,7 +94,7 @@ export function createFormPanel(onChange: () => void): FormPanel {
               [el('option', { text: '—', attrs: { value: '' } }), ...f.options.map((o) => el('option', { text: o, attrs: { value: o, ...(o === f.value ? { selected: '' } : {}) } }))],
             );
             list.append(el('label', { class: 'field' }, [el('span', { class: 'field__label', text: label }), input]));
-            read.push(() => [f.name, input.value]);
+            read.push({ name: f.name, was: f.value, now: () => input.value });
             break;
           }
         }
@@ -95,7 +103,11 @@ export function createFormPanel(onChange: () => void): FormPanel {
       state = 'ready';
       onChange();
     },
-    params: () => ({ values: Object.fromEntries(read.map((r) => r())), seal: seal.checked() }),
+    // Only the answers that changed travel: a field left alone is left exactly as it was.
+    params: () => ({
+      values: Object.fromEntries(read.flatMap((r) => (r.now() === r.was ? [] : [[r.name, r.now()]]))),
+      seal: seal.checked(),
+    }),
     problem() {
       switch (state) {
         case 'empty':
@@ -104,7 +116,7 @@ export function createFormPanel(onChange: () => void): FormPanel {
         case 'none':
           return 'This PDF has no fields to fill in.';
         case 'ready':
-          return null;
+          return read.some((r) => r.now() !== r.was) || seal.checked() ? null : 'Type your answers first.';
       }
     },
     async destroy() {

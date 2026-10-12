@@ -13,7 +13,7 @@ import { getOp } from '../../app/src/ops';
 import type { OpContext, Outcome } from '../../app/src/ops/op';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
 import type { PdfEngine } from '../../app/src/pdf/types';
-import { bloatedPdf, outlinedPdf, pagesPdf, pdfInfo, stampsIn } from '../fixtures/pdfs';
+import { TINY_JPEG, bloatedPdf, outlinedPdf, pagesPdf, pdfInfo, stampsIn } from '../fixtures/pdfs';
 
 let engine: PdfEngine;
 
@@ -139,5 +139,45 @@ describe('the reader', () => {
     const view = await engine.open(await pagesPdf(2));
     expect(await view.outline()).toEqual([]);
     await view.close();
+  });
+});
+
+describe('compress, images it must leave alone', () => {
+  it('re-encodes a plain photo, and leaves one with a mask exactly as it was', async () => {
+    const { PDFName, PDFRawStream } = await import('@cantoo/pdf-lib');
+    const { zlibSync } = await import('fflate');
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    const page = doc.addPage([200, 200]);
+    const noise = (n: number) => {
+      const px = new Uint8Array(n * n * 3);
+      for (let i = 0; i < px.length; i += 65536) crypto.getRandomValues(px.subarray(i, i + 65536));
+      return zlibSync(px);
+    };
+    const image = (extra: Record<string, unknown>) =>
+      doc.context.register(doc.context.stream(noise(200), { Type: 'XObject', Subtype: 'Image', Width: 200, Height: 200, ColorSpace: 'DeviceRGB', BitsPerComponent: 8, Filter: 'FlateDecode', ...extra } as never));
+    const stencil = doc.context.register(doc.context.stream(new Uint8Array(200 * 25), { Type: 'XObject', Subtype: 'Image', Width: 200, Height: 200, ImageMask: true, BitsPerComponent: 1 } as never));
+    const plain = image({});
+    const masked = image({ Mask: stencil });
+    page.node.setXObject(PDFName.of('A'), plain);
+    page.node.setXObject(PDFName.of('B'), masked);
+    page.node.addContentStream(doc.context.register(doc.context.stream('q 100 0 0 100 0 0 cm /A Do Q q 100 0 0 100 100 0 cm /B Do Q')));
+
+    const pdf = await createSurgeon().open(await doc.save());
+    let asked = 0;
+    const report = await pdf.compress(async () => {
+      asked++;
+      return { bytes: TINY_JPEG, width: 1, height: 1 };
+    });
+    expect(asked).toBe(1);
+    expect(report.replaced).toBe(1);
+    const out = await PDFDocument.load(await pdf.save(), { updateMetadata: false });
+    const filters = new Map<string, string>();
+    for (const [, object] of out.context.enumerateIndirectObjects()) {
+      if (!(object instanceof PDFRawStream)) continue;
+      if (object.dict.lookup(PDFName.of('Subtype'))?.toString() !== '/Image' || object.dict.has(PDFName.of('ImageMask'))) continue;
+      filters.set(object.dict.has(PDFName.of('Mask')) ? 'masked' : 'plain', String(object.dict.lookup(PDFName.of('Filter'))));
+    }
+    expect(filters.get('plain')).toBe('/DCTDecode');
+    expect(filters.get('masked')).toBe('/FlateDecode');
   });
 });

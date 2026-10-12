@@ -149,6 +149,7 @@ export const fillFormOp: Op<FillFormParams> = {
   title: (params) => (params.seal ? 'Fill in and seal' : 'Fill in a form'),
   run: (inputs, params, ctx) =>
     withOne(inputs, ctx, async (doc, input) => {
+      if (Object.keys(params.values).length === 0 && !params.seal) return refused([input], 'Nothing was changed. Type your answers first.');
       const filled = Object.values(params.values).filter((v) => v !== '' && v !== false).length;
       doc.fillForm(params.values, params.seal);
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);

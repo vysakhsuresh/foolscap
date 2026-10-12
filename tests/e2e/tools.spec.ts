@@ -438,3 +438,64 @@ test('make searchable leaves a file that already has text alone, and says so', a
   await run(page);
   await expect(page.getByTestId('failure-item')).toContainText('already has text');
 });
+
+// ---- With the keyboard alone ----
+
+test('sign with the keyboard: type the name, Enter on the page, arrows to move it', async ({ page }) => {
+  await openTool(page, 'sign');
+  await pick(page, [{ name: 'Lease.pdf', bytes: await pagesPdf(1) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+  await page.getByTestId('signature-typed').fill('Anjali Menon');
+  await page.getByTestId('editor-layer').focus();
+  await page.keyboard.press('Enter');
+  const item = page.getByTestId('editor-item');
+  await expect(item).toHaveCount(1);
+  const top = () => item.evaluate((e) => parseFloat((e as HTMLElement).style.top));
+  const before = await top();
+  await item.focus();
+  await page.keyboard.press('Shift+ArrowDown');
+  await expect.poll(top).toBeCloseTo(before + 5, 1);
+  await results(page);
+  await expect(page.getByTestId('result-detail')).toHaveText('Signed on page 1');
+});
+
+test('remove areas with the keyboard: Enter marks an area, and Delete takes it back', async ({ page }) => {
+  await openTool(page, 'remove-areas');
+  await pick(page, [{ name: 'Statement.pdf', bytes: await pagesPdf(1) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+  await page.getByTestId('editor-layer').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('editor-item')).toHaveCount(1);
+  await page.keyboard.press('Delete');
+  await expect(page.getByTestId('editor-item')).toHaveCount(0);
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('editor-item')).toHaveCount(1);
+  await results(page);
+  await expect(page.getByTestId('result-detail')).toContainText('1 area removed');
+});
+
+test('a scan corner can be moved with the arrow keys, and keeps the focus while it moves', async ({ page }) => {
+  await openTool(page, 'scan');
+  await page.getByTestId('file-input').setInputFiles([{ name: 'IMG_0001.png', mimeType: 'image/png', buffer: Buffer.from(paperPhotoPng()) }]);
+  await expect(page.locator('[data-testid="scan-card"][data-found="true"]')).toHaveCount(1);
+  const handle = page.getByTestId('scan-handle-0');
+  await handle.focus();
+  const left = () => handle.evaluate((e) => parseFloat((e as HTMLElement).style.left));
+  const before = await left();
+  await page.keyboard.press('Shift+ArrowRight');
+  await page.keyboard.press('Shift+ArrowRight');
+  await expect(handle).toBeFocused();
+  await expect.poll(left).toBeCloseTo(before + 10, 1);
+});
+
+test('text that ran past the page edge is still written, not dropped', async ({ page }) => {
+  await openTool(page, 'add-text');
+  await pick(page, [{ name: 'Form.pdf', bytes: await pagesPdf(1) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+  await page.getByTestId('opt-size-large').check();
+  await page.getByTestId('opt-text').fill('Flat 4B, Palm Grove Apartments, Marine Drive, Ernakulam, Kerala 682031, India');
+  await page.getByTestId('editor-layer').focus();
+  await page.keyboard.press('Enter');
+  await results(page);
+  await expect(page.getByTestId('result-detail')).toHaveText('1 piece of text added');
+});

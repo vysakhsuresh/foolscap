@@ -8,7 +8,7 @@ import type { PdfView } from '../pdf';
 import { PageSelection } from '../pdf/page-selection';
 import { baseName, failed, forEachPdf, megabytes, ordinal, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import { canDecode, shrink } from './images';
-import { checkCancelled, type CompressParams, type NoParams, type Op, type OpContext, type Outcome, type PdfToImagesParams } from './op';
+import { checkCancelled, type CompressParams, type NoParams, type OcrReader, type Op, type OpContext, type Outcome, type PdfToImagesParams } from './op';
 import { PAGES_HELP } from './pages-ops';
 
 async function openView(ctx: OpContext, input: FoolscapFile): Promise<PdfView> {
@@ -177,7 +177,12 @@ export const ocrOp: Op<NoParams> = {
   title: () => 'Make searchable',
   async run(inputs, _params, ctx) {
     const outcomes: Outcome[] = [];
-    const reader = ctx.ocr ? await ctx.ocr() : null;
+    let reader: OcrReader | null = null;
+    try {
+      reader = ctx.ocr ? await ctx.ocr() : null;
+    } catch {
+      reader = null;
+    }
     if (reader === null) return inputs.map((input) => refused([input], "The text reader couldn't start in this browser."));
     for (const [f, input] of inputs.entries()) {
       checkCancelled(ctx.signal);

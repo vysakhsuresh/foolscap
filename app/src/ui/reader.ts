@@ -39,6 +39,7 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   let observer: IntersectionObserver | null = null;
   let abort = new AbortController();
   const texts = new Map<number, string>();
+  let findTimer: ReturnType<typeof setTimeout> | null = null;
   let hits: number[] = [];
   let hit = -1;
   let drawing = 0;
@@ -208,7 +209,12 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
 
   // ---- Find ----
 
+  let searchRun = 0;
+
   async function search(): Promise<void> {
+    if (findTimer !== null) clearTimeout(findTimer);
+    findTimer = null;
+    const run = ++searchRun;
     const query = find.value.trim().toLocaleLowerCase();
     for (const slot of slots) slot.root.classList.remove('is-hit', 'is-current');
     hits = [];
@@ -220,7 +226,7 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
     const v = view;
     let matches = 0;
     for (let i = 0; i < v.pageCount; i++) {
-      if (find.value.trim().toLocaleLowerCase() !== query || view !== v) return; // typed again, or closed
+      if (run !== searchRun || view !== v) return; // searched again, or closed
       if (i % 20 === 0) findCount.textContent = `Searching… page ${i + 1} of ${v.pageCount}`;
       let text = texts.get(i);
       if (text === undefined) {
@@ -230,6 +236,7 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
           text = '';
         }
         texts.set(i, text);
+        if (run !== searchRun) return;
       }
       let from = 0;
       let here = 0;
@@ -259,7 +266,6 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
     goTo(index);
   }
 
-  let findTimer: ReturnType<typeof setTimeout> | null = null;
   find.addEventListener('input', () => {
     if (findTimer !== null) clearTimeout(findTimer);
     findTimer = setTimeout(() => void search(), 300);

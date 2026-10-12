@@ -40,7 +40,8 @@ interface RawField {
   readonly multiline?: boolean;
   readonly multipleSelection?: boolean;
   readonly exportValues?: unknown;
-  readonly items?: ReadonlyArray<{ readonly exportValue?: unknown }>;
+  readonly items?: ReadonlyArray<{ readonly exportValue?: unknown; readonly displayValue?: unknown }>;
+  readonly charLimit?: unknown;
   readonly page?: number;
 }
 
@@ -278,7 +279,14 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
         const value = typeof first.value === 'string' ? first.value : '';
         switch (first.type) {
           case 'text':
-            out.push({ kind: 'text', name, value, multiline: first.multiline === true, page });
+            out.push({
+              kind: 'text',
+              name,
+              value,
+              multiline: first.multiline === true,
+              page,
+              ...(typeof first.charLimit === 'number' && first.charLimit > 0 ? { maxLength: first.charLimit } : {}),
+            });
             break;
           case 'checkbox':
             out.push({ kind: 'check', name, checked: value !== '' && value !== 'Off', page });
@@ -291,8 +299,15 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
           case 'combobox':
           case 'listbox': {
             if (first.multipleSelection === true) break;
-            const options = (first.items ?? []).map((item) => item.exportValue).filter((v): v is string => typeof v === 'string' && v.length > 0);
-            if (options.length > 0) out.push({ kind: 'choice', name, value: options.includes(value) ? value : '', options, page });
+            // People read the display text ("Tamil Nadu"), and pdf-lib selects by it;
+            // the export value ("TN") is only what the form stores.
+            const items = (first.items ?? []).flatMap((item) => {
+              const shown = typeof item.displayValue === 'string' && item.displayValue.length > 0 ? item.displayValue : item.exportValue;
+              return typeof shown === 'string' && shown.length > 0 ? [{ shown, stored: item.exportValue }] : [];
+            });
+            const options = items.map((i) => i.shown);
+            const current = items.find((i) => i.stored === value || i.shown === value)?.shown ?? '';
+            if (options.length > 0) out.push({ kind: 'choice', name, value: current, options, page });
             break;
           }
         }

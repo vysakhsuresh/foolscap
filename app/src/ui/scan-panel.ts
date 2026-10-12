@@ -166,8 +166,11 @@ export function createScanPanel(onChange: () => void): ScanPanel {
     sync(files, ws) {
       const byId = new Map(cards.map((c) => [c.id, c]));
       const next = files.map((f) => byId.get(f.id) ?? card(f, ws));
+      const same = next.length === cards.length && next.every((c, i) => c === cards[i]);
       cards = next;
-      list.replaceChildren(...cards.map((c) => c.root));
+      // Touch the list only when the pages or their order changed: moving a
+      // card out and back in would take the keyboard focus off its handles.
+      if (!same) list.replaceChildren(...cards.map((c) => c.root));
       cards.forEach((c, i) => {
         const n = c.root.querySelector('.scan-card__number');
         if (n) n.textContent = `Page ${i + 1}`;

@@ -19,20 +19,31 @@ let current: { readonly jobId: string; readonly controller: AbortController } | 
 
 // Memoised for the worker's life: the pdf.js chunk is imported once, and only when a tool rasterises.
 let enginePromise: Promise<PdfEngine> | null = null;
+// A start that failed is not remembered: the next run tries again.
 const engine = (): Promise<PdfEngine> =>
-  (enginePromise ??= import('../pdf/engine-worker').then(async (m) => {
-    const created = m.createEngine();
-    await created.ready;
-    return created;
-  }));
+  (enginePromise ??= import('../pdf/engine-worker')
+    .then(async (m) => {
+      const created = m.createEngine();
+      await created.ready;
+      return created;
+    })
+    .catch((error: unknown) => {
+      enginePromise = null;
+      throw error;
+    }));
 
 let ocrPromise: Promise<OcrReader> | null = null;
 const ocr = (): Promise<OcrReader> =>
-  (ocrPromise ??= import('../ocr/ocr').then(async (m) => {
-    const created = m.createOcr();
-    await created.ready;
-    return created;
-  }));
+  (ocrPromise ??= import('../ocr/ocr')
+    .then(async (m) => {
+      const created = m.createOcr();
+      await created.ready;
+      return created;
+    })
+    .catch((error: unknown) => {
+      ocrPromise = null;
+      throw error;
+    }));
 
 async function init(message: Extract<ToWorker, { type: 'init' }>): Promise<void> {
   workspace = createWorkerWorkspace(message.backend, scope.navigator, message.port);

@@ -66,6 +66,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   let items: Item[] = [];
   let selected: Item | null = null;
   let renderToken = 0;
+  let dragging = false;
 
   // ---- The page ----
   const canvas = el('canvas', { class: 'editor__canvas', attrs: { 'aria-hidden': 'true' } });
@@ -74,7 +75,11 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   ink.setAttribute('viewBox', '0 0 1000 1000');
   ink.setAttribute('preserveAspectRatio', 'none');
   ink.setAttribute('aria-hidden', 'true');
-  const layer = el('div', { class: 'editor__layer', testid: 'editor-layer', attrs: { role: 'application', 'aria-label': 'The page. Tap or drag on it.' } });
+  const layer = el('div', {
+    class: 'editor__layer',
+    testid: 'editor-layer',
+    attrs: { role: 'application', tabindex: '0', 'aria-label': 'The page. Tap or drag on it, or press Enter to put something in the middle; arrow keys move what is selected.' },
+  });
   const sheet = el('div', { class: 'editor__page', testid: 'editor-page' }, [canvas, ink, layer]);
   const stage = el('div', { class: 'editor__stage' }, [sheet]);
 
@@ -110,15 +115,47 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       el('div', { class: 'pad__head' }, [el('span', { class: 'field__label', text: 'Draw your signature' }), clear]),
       el('div', { class: 'pad__area' }, [pad, el('span', { class: 'pad__line', attrs: { 'aria-hidden': 'true' } })]),
     ]);
-    tools.append(padBox, inkChoice.root);
-    bindPad(pad, () => inkChoice?.value() ?? 'blue', (made) => {
+    // Or typed: the name in a handwriting face, drawn on the same pad. For a
+    // keyboard, a screen reader, or a hand that would rather not.
+    const typed = el('input', {
+      class: 'input',
+      testid: 'signature-typed',
+      attrs: { id: 'signature-typed', type: 'text', autocomplete: 'name', placeholder: 'Or type your name' },
+    });
+    tools.append(padBox, el('label', { class: 'field' }, [el('span', { class: 'visually-hidden', text: 'Or type your name' }), typed]), inkChoice.root);
+    const take = (made: { png: Uint8Array; src: string; aspect: number } | null) => {
       signature = made;
       onChange();
       sync();
+    };
+    bindPad(pad, () => inkChoice?.value() ?? 'blue', (made) => {
+      typed.value = '';
+      take(made);
+    });
+    typed.addEventListener('input', () => {
+      const c = pad.getContext('2d');
+      if (!c) return;
+      c.clearRect(0, 0, pad.width, pad.height);
+      const name = typed.value.trim();
+      if (name.length === 0) {
+        take(null);
+        return;
+      }
+      let size = 110;
+      c.fillStyle = css(INKS[inkChoice?.value() ?? 'blue']);
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      do {
+        c.font = `italic 500 ${size}px "Segoe Script", "Brush Script MT", "Snell Roundhand", "URW Chancery L", cursive`;
+        size -= 6;
+      } while (c.measureText(name).width > pad.width * 0.9 && size > 24);
+      c.fillText(name, pad.width / 2, pad.height * 0.55);
+      take(trim(pad));
     });
     clear.addEventListener('click', () => {
       const c = pad.getContext('2d');
       c?.clearRect(0, 0, pad.width, pad.height);
+      typed.value = '';
       signature = null;
       onChange();
       sync();
@@ -143,7 +180,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     tools.append(el('div', { class: 'field-row' }, [toolChoice.root, markerChoice.root, penChoice.root]));
   } else {
     tools.append(
-      note('Drag across anything that should go: a number, a name, a photo. Every page you mark becomes a picture of itself with those parts painted out, so the hidden words cannot be copied, searched or recovered. Its other text stops being selectable too.'),
+      note('Drag across anything that should go: a number, a name, a photo. Every page you mark becomes a picture of itself with those parts painted out, so the hidden words cannot be copied, searched or recovered. Its other text stops being selectable, and any form answers on that page go too.'),
     );
   }
 
@@ -173,25 +210,39 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
 
   // ---- Drawing the current page ----
 
-  async function show(index: number): Promise<void> {
+  /** The width the page is drawn at, in CSS pixels, for a page of this shape. */
+  const layoutWidth = (aspect: number): number =>
+    Math.floor(Math.min(Math.max(240, stage.clientWidth || root.clientWidth || 320), 760, (window.innerHeight * MAX_HEIGHT) / aspect));
+  let drawnWidth = 0;
+
+  /**
+   * Draws page `index`. `keep` holds on to the selection: a re-draw because
+   * the window changed size (a phone's address bar sliding away does that)
+   * must not take the words you are typing away from the text you placed.
+   */
+  async function show(index: number, keep = false): Promise<void> {
     if (!view) return;
-    current = clamp(index, 0, view.pageCount - 1);
-    select(null);
+    const target = clamp(index, 0, view.pageCount - 1);
+    current = target;
+    const held = keep ? selected : null;
+    if (!keep) select(null);
     const token = ++renderToken;
-    const info = await view.page(current);
+    const info = await view.page(target);
+    // A later show() has started since: its page, not this one, decides the shape.
+    if (token !== renderToken) return;
     const sideways = info.rotation === 90 || info.rotation === 270;
     const w = sideways ? info.height : info.width;
     const h = sideways ? info.width : info.height;
     pageAspect = h / w;
-    aspects.set(current, pageAspect);
-    const room = Math.max(240, stage.clientWidth || root.clientWidth || 320);
-    const cssW = Math.floor(Math.min(room, 760, (window.innerHeight * MAX_HEIGHT) / pageAspect));
+    aspects.set(target, pageAspect);
+    const cssW = layoutWidth(pageAspect);
+    drawnWidth = cssW;
     sheet.style.setProperty('width', `${cssW}px`);
     sheet.style.setProperty('height', `${Math.round(cssW * pageAspect)}px`);
     sheet.style.setProperty('--page-w', `${cssW}px`);
     const dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
     try {
-      const bitmap = await view.render(current, { width: Math.round(cssW * dpr) });
+      const bitmap = await view.render(target, { width: Math.round(cssW * dpr) });
       if (token !== renderToken) {
         bitmap.close();
         return;
@@ -204,6 +255,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       // The page stays blank; the marks can still be placed and the op will say if the file is unreadable.
     }
     placeAll();
+    if (held && items.includes(held)) select(held);
     sync();
   }
 
@@ -303,7 +355,18 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       if (ev.key === 'Delete' || ev.key === 'Backspace') {
         ev.preventDefault();
         remove(item);
+        layer.focus();
+        return;
       }
+      const step = ev.shiftKey ? 0.05 : 0.01;
+      const dx = ev.key === 'ArrowLeft' ? -step : ev.key === 'ArrowRight' ? step : 0;
+      const dy = ev.key === 'ArrowUp' ? -step : ev.key === 'ArrowDown' ? step : 0;
+      if (dx === 0 && dy === 0) return;
+      ev.preventDefault();
+      item.area.x = clamp(item.area.x + dx, 0, Math.max(0, 1 - item.area.w));
+      item.area.y = clamp(item.area.y + dy, 0, Math.max(0, 1 - item.area.h));
+      position(item);
+      onChange();
     });
     item.el.addEventListener('focus', () => select(item));
     const handle = item.el.querySelector<HTMLElement>('.editor__resize');
@@ -334,6 +397,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     const x0 = ev.clientX;
     const y0 = ev.clientY;
     target.setPointerCapture?.(ev.pointerId);
+    dragging = true;
     const onMove = (e: PointerEvent) => {
       if (e.pointerId !== ev.pointerId) return;
       move((e.clientX - x0) / box.width, (e.clientY - y0) / box.height, start);
@@ -343,6 +407,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       target.removeEventListener('pointermove', onMove as EventListener);
       target.removeEventListener('pointerup', onUp as EventListener);
       target.removeEventListener('pointercancel', onUp as EventListener);
+      dragging = false;
       end?.();
       onChange();
     };
@@ -356,16 +421,13 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     return [clamp((ev.clientX - box.left) / box.width, 0, 1), clamp((ev.clientY - box.top) / box.height, 0, 1)];
   };
 
-  layer.addEventListener('pointerdown', (ev) => {
-    if (!view || ev.button > 0) return;
-    ev.preventDefault();
-    const [px, py] = pointAt(ev);
-    select(null);
+  /** Puts a signature or a piece of text at (px, py). False when there is nothing to put down yet. */
+  function placeAt(px: number, py: number): boolean {
     switch (mode) {
       case 'sign': {
         if (signature === null) {
-          hint.textContent = 'Draw your signature in the box first.';
-          return;
+          hint.textContent = 'Draw or type your signature in the box first.';
+          return false;
         }
         const w = 0.32;
         const h = (w / signature.aspect) / pageAspect;
@@ -374,7 +436,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         box.prepend(el('img', { class: 'editor__img', attrs: { src: signature.src, alt: '' } }));
         box.append(el('span', { class: 'editor__resize', attrs: { 'aria-hidden': 'true' } }));
         addItem({ kind: 'image', area, png: signature.png, src: signature.src, el: box });
-        return;
+        return true;
       }
       case 'add-text': {
         const text = textBox?.value.trim() ? textBox.value : 'Your text';
@@ -389,8 +451,23 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         position(item);
         textBox?.focus({ preventScroll: true });
         textBox?.select();
-        return;
+        return true;
       }
+      default:
+        return false;
+    }
+  }
+
+  layer.addEventListener('pointerdown', (ev) => {
+    if (!view || ev.button > 0) return;
+    ev.preventDefault();
+    const [px, py] = pointAt(ev);
+    select(null);
+    switch (mode) {
+      case 'sign':
+      case 'add-text':
+        placeAt(px, py);
+        return;
       case 'mark-up':
         if (toolChoice?.value() === 'pen') {
           const line = document.createElementNS(SVG, 'polyline');
@@ -420,6 +497,30 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       case 'remove-areas':
         rect(ev, px, py, 'cover');
     }
+  });
+
+  // The keyboard: Enter on the page puts something in its middle; the arrow
+  // keys then move whatever is selected (Shift for bigger steps).
+  layer.addEventListener('keydown', (ev) => {
+    if (!view || (ev.key !== 'Enter' && ev.key !== ' ')) return;
+    ev.preventDefault();
+    select(null);
+    if (mode === 'sign' || mode === 'add-text') {
+      placeAt(0.5, 0.5);
+      return;
+    }
+    if (mode === 'mark-up' && toolChoice?.value() === 'pen') {
+      hint.textContent = 'The pen needs a finger or a mouse. The highlighter works from the keyboard.';
+      return;
+    }
+    const kind = mode === 'remove-areas' ? 'cover' : 'highlight';
+    const color = MARKERS[markerChoice?.value() ?? 'yellow'];
+    const box = boxElement(kind, kind === 'cover' ? 'Area to remove' : 'Highlight');
+    if (kind === 'highlight') box.style.setProperty('background-color', css(color, 0.45));
+    const area: MutableArea = { page: current, x: 0.3, y: 0.45, w: 0.4, h: 0.06 };
+    const item: Item = kind === 'cover' ? { kind, area, el: box } : { kind, area, color, el: box };
+    addItem(item);
+    item.el.focus();
   });
 
   /** Drag out a rectangle from (px, py); a tap that makes no area makes nothing. */
@@ -464,7 +565,11 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   const onResize = () => {
     if (resizeTimer !== null) clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => void show(current), 200);
+    resizeTimer = setTimeout(() => {
+      // Only when the page would really be drawn at a new size, and never mid-drag.
+      if (dragging || layoutWidth(pageAspect) === drawnWidth) return;
+      void show(current, true);
+    }, 200);
   };
   window.addEventListener('resize', onResize);
 
@@ -486,11 +591,12 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         case 'text': {
           if (item.text.trim().length === 0) break;
           if (WIN_ANSI.test(item.text)) {
-            out.push({ kind: 'text', area: { ...item.area }, text: item.text, size: item.size, color: item.color });
+            // A line longer than the page runs off its edge, as the editor shows; the box itself is capped.
+            out.push({ kind: 'text', area: { ...item.area, w: Math.min(item.area.w, 1), h: Math.min(item.area.h, 1) }, text: item.text, size: item.size, color: item.color });
           } else {
             // Malayalam, Hindi, Arabic, emoji: the browser shapes them, and they go in as a picture of the words.
             const picture = textPicture(item.text, item.size, item.color, pageWidthPx(), aspects.get(item.area.page) ?? pageAspect);
-            if (picture) out.push({ kind: 'image', area: { ...item.area, w: picture.w, h: picture.h }, png: picture.png });
+            if (picture) out.push({ kind: 'image', area: { ...item.area, w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png });
           }
           break;
         }

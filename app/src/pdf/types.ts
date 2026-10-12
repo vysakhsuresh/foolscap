@@ -268,7 +268,7 @@ export interface OutlineItem {
 
 /** A form field as the page shows it to fill in. */
 export type FormField =
-  | { readonly kind: 'text'; readonly name: string; readonly value: string; readonly multiline: boolean; readonly page: number }
+  | { readonly kind: 'text'; readonly name: string; readonly value: string; readonly multiline: boolean; readonly page: number; readonly maxLength?: number }
   | { readonly kind: 'check'; readonly name: string; readonly checked: boolean; readonly page: number }
   | { readonly kind: 'choice'; readonly name: string; readonly value: string; readonly options: readonly string[]; readonly page: number };
 

@@ -3,7 +3,7 @@
  * what they drew is read back with pdf.js. Remove areas needs a canvas, so it
  * is covered by the e2e.
  */
-import { PDFDocument } from '@cantoo/pdf-lib';
+import { PDFDocument, PDFHexString, PDFName } from '@cantoo/pdf-lib';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { FoolscapFile } from '../../app/src/files/types';
 import { createMemoryWorkspace } from '../../app/src/files/workspace-memory';
@@ -11,7 +11,7 @@ import { getOp } from '../../app/src/ops';
 import type { OpContext, Outcome } from '../../app/src/ops/op';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
 import type { Mark, PdfEngine } from '../../app/src/pdf/types';
-import { formPdf, noisePng, pagesPdf, rotatedPdf, stampsIn } from '../fixtures/pdfs';
+import { TINY_JPEG, formPdf, noisePng, pagesPdf, rotatedPdf, stampsIn } from '../fixtures/pdfs';
 
 let engine: PdfEngine;
 
@@ -166,5 +166,115 @@ describe('the invisible text layer', () => {
     const view = await engine.open(await pdf.save());
     expect(await view.text(0)).toMatch(/Invoice\s*4821/);
     await view.close();
+  });
+});
+
+describe('remove areas leaves nothing behind', () => {
+  /** Every string and every decoded stream in the file, as one searchable text. */
+  async function everything(bytes: Uint8Array): Promise<string> {
+    const { PDFRawStream, decodePDFRawStream } = await import('@cantoo/pdf-lib');
+    const doc = await PDFDocument.load(bytes, { updateMetadata: false });
+    let all = '';
+    for (const [, object] of doc.context.enumerateIndirectObjects()) {
+      if (object instanceof PDFRawStream) {
+        try {
+          all += new TextDecoder('latin1').decode(decodePDFRawStream(object).decode());
+        } catch {
+          all += new TextDecoder('latin1').decode(object.getContents());
+        }
+        all += object.dict.toString();
+      } else {
+        all += object.toString();
+      }
+    }
+    return all.toUpperCase();
+  }
+
+  /** Whether `text` is in there in any of the ways a PDF writes it: plain, hex, or UTF-16 hex. */
+  const holds = (all: string, text: string): boolean => {
+    const hex = [...text].map((c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('').toUpperCase();
+    const utf16 = [...text].map((c) => c.charCodeAt(0).toString(16).padStart(4, '0')).join('').toUpperCase();
+    return all.includes(text.toUpperCase()) || all.includes(hex) || all.includes(utf16);
+  };
+
+  it('the swapped page keeps none of its words, its form answers or its tags; other pages keep theirs', async () => {
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    const font = await doc.embedFont('Helvetica');
+    const one = doc.addPage([300, 300]);
+    one.drawText('SECRET ACCOUNT 4471', { x: 20, y: 250, size: 14, font });
+    const two = doc.addPage([300, 300]);
+    two.drawText('KEEP THIS PAGE', { x: 20, y: 250, size: 14, font });
+    const form = doc.getForm();
+    const name = form.createTextField('applicant');
+    name.setText('Ravi Kumar');
+    name.addToPage(one, { x: 20, y: 200, width: 150, height: 20 });
+    const other = form.createTextField('city');
+    other.setText('Kochi');
+    other.addToPage(two, { x: 20, y: 200, width: 150, height: 20 });
+    doc.catalog.set(PDFName.of('StructTreeRoot'), doc.context.register(doc.context.obj({ Type: 'StructTreeRoot', K: doc.context.obj({ S: 'P', ActualText: PDFHexString.fromText('SECRET ACCOUNT 4471') }) })));
+
+    const before = await everything(await doc.save());
+    expect(holds(before, 'SECRET')).toBe(true);
+    expect(holds(before, 'Ravi Kumar')).toBe(true);
+
+    const surgeon = createSurgeon();
+    const pdf = await surgeon.open(await doc.save());
+    await pdf.replaceWithImage(0, TINY_JPEG);
+    const out = await pdf.save();
+    const after = await everything(out);
+    expect(holds(after, 'SECRET')).toBe(false);
+    expect(holds(after, 'Ravi Kumar')).toBe(false);
+    expect(holds(after, 'KEEP THIS PAGE')).toBe(true);
+    expect(holds(after, 'Kochi')).toBe(true);
+    const reread = await PDFDocument.load(out, { updateMetadata: false });
+    expect(reread.getForm().getFields().map((f) => f.getName())).toEqual(['city']);
+    expect(reread.getPageCount()).toBe(2);
+  });
+});
+
+describe('fill in a form, the awkward cases', () => {
+  async function stateForm(): Promise<Uint8Array> {
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    const page = doc.addPage([400, 300]);
+    const form = doc.getForm();
+    const state = form.createDropdown('state');
+    state.addToPage(page, { x: 20, y: 240, width: 160, height: 22 });
+    // Stored codes, shown names: what Indian government forms do.
+    state.acroField.dict.set(PDFName.of('Opt'), doc.context.obj([[PDFHexString.fromText('KL'), PDFHexString.fromText('Kerala')], [PDFHexString.fromText('TN'), PDFHexString.fromText('Tamil Nadu')]]));
+    const pin = form.createTextField('pin');
+    pin.setMaxLength(6);
+    pin.addToPage(page, { x: 20, y: 200, width: 100, height: 22 });
+    const note = form.createTextField('note');
+    note.addToPage(page, { x: 20, y: 160, width: 200, height: 22 });
+    return doc.save();
+  }
+
+  it('shows a dropdown by its names, and the chosen name is what gets saved', async () => {
+    const h = harness();
+    const input = await h.add('State form.pdf', await stateForm());
+    const view = await engine.open(await h.bytesOf(input));
+    const fields = await view.fields();
+    await view.close();
+    expect(fields.find((f) => f.name === 'state')).toMatchObject({ options: ['Kerala', 'Tamil Nadu'] });
+    expect(fields.find((f) => f.name === 'pin')).toMatchObject({ maxLength: 6 });
+    const outcome = only(await getOp('fill-form').run([input], { values: { state: 'Tamil Nadu' }, seal: false }, h.ctx));
+    const after = await engine.open(await h.bytesOf(outcome.file));
+    expect((await after.fields()).find((f) => f.name === 'state')).toMatchObject({ value: 'Tamil Nadu' });
+    await after.close();
+  });
+
+  it('says plainly when an answer is longer than its box', async () => {
+    const h = harness();
+    const input = await h.add('State form.pdf', await stateForm());
+    const outcomes = await getOp('fill-form').run([input], { values: { pin: '6820011' }, seal: false }, h.ctx);
+    expect(outcomes[0]).toMatchObject({ kind: 'failed' });
+    expect(JSON.stringify(outcomes[0])).toContain('longer than its box allows (6 characters)');
+  });
+
+  it('refuses when nothing was changed and nothing is to be sealed', async () => {
+    const h = harness();
+    const input = await h.add('State form.pdf', await stateForm());
+    const outcomes = await getOp('fill-form').run([input], { values: {}, seal: false }, h.ctx);
+    expect(JSON.stringify(outcomes[0])).toContain('Nothing was changed');
   });
 });

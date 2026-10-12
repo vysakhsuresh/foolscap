@@ -175,6 +175,9 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
   let doc: PDFDocument | null = initial;
   const fonts = new Map<'regular' | 'bold', PDFFont>();
   let drawable: Set<number> | null = null;
+  /** Annotations on pages Remove areas turned into pictures; non-empty means save() finishes the job. */
+  const removedWidgets = new Set<string>();
+  let replaced = false;
 
   const font = (bold: boolean): PDFFont => {
     const key = bold ? 'bold' : 'regular';
@@ -453,6 +456,9 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       // Normalise first, so pdf-lib does not later wrap the new contents in the old ones.
       node.normalize();
       const { context } = d;
+      const annots = node.lookup(PDFName.of('Annots'));
+      if (annots instanceof PDFArray) for (const a of annots.asArray()) if (a instanceof PDFRef) removedWidgets.add(a.toString());
+      node.delete(PDFName.of('StructParents'));
       node.set(PDFName.of('Contents'), context.obj([]));
       node.set(PDFName.of('Resources'), context.obj({ Font: {}, XObject: {}, ExtGState: {} }));
       node.set(PDFName.of('Annots'), context.obj([]));
@@ -460,6 +466,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       page.setRotation(degrees(0));
       page.setMediaBox(0, 0, view.width, view.height);
       page.drawImage(image, { x: 0, y: 0, width: view.width, height: view.height });
+      replaced = true;
     },
 
     fillForm(values, seal) {
@@ -472,6 +479,10 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         if (field instanceof PDFTextField) {
           const text = typeof value === 'string' ? value : '';
           assertDrawable(f, text.replace(/\n/g, ''));
+          const max = field.getMaxLength();
+          if (max !== undefined && text.length > max) {
+            throw new PdfError(`One answer is longer than its box allows (${max} characters). Shorten it and try again.`, 'unknown');
+          }
           field.setText(text.length > 0 ? text : undefined);
         } else if (field instanceof PDFCheckBox) {
           if (value === true) field.check();
@@ -620,6 +631,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
 
     async save(opts) {
       const d = live();
+      if (replaced) finishRedaction(d, removedWidgets);
       const encrypt = opts?.encrypt;
       if (encrypt !== undefined) {
         if (encrypt.userPassword.length === 0) throw new Error('A password cannot be empty.');
@@ -755,22 +767,37 @@ function tileCentres(view: PageView, width: number, size: number): Array<[number
  */
 /** An image found in the document, with the stream it came from, for Compress to replace. */
 interface FoundImage {
-  readonly image: ExtractedImage;
+  readonly image: Omit<ExtractedImage, 'bytes'>;
+  /** The picture as a file, made only when asked for: Compress skips most images without ever decoding them. */
+  bytes(): Uint8Array | null;
   readonly ref: PDFRef | undefined;
   readonly stream: PDFRawStream;
   /** Undefined for a JPEG in a colour space a browser cannot be trusted to decode (CMYK, Lab, indexed). */
   readonly channels: 1 | 3 | undefined;
 }
 
-function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: number; found: FoundImage[] } {
+function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage[]; skipped: number; found: FoundImage[] } {
   const { context } = doc;
   const seen = new Set<string>();
   const images: ExtractedImage[] = [];
   const found: FoundImage[] = [];
   let skipped = 0;
-  const push = (image: ExtractedImage, stream: PDFRawStream, ref: PDFRef | undefined, channels: 1 | 3 | undefined): void => {
-    images.push(image);
-    found.push({ image, ref, stream, channels });
+  const push = (
+    image: Omit<ExtractedImage, 'bytes'>,
+    make: () => Uint8Array | null,
+    stream: PDFRawStream,
+    ref: PDFRef | undefined,
+    channels: 1 | 3 | undefined,
+  ): void => {
+    if (eager) {
+      const bytes = make();
+      if (bytes === null) {
+        skipped++;
+        return;
+      }
+      images.push({ ...image, bytes });
+    }
+    found.push({ image, bytes: make, ref, stream, channels });
   };
 
   const name = (value: unknown): string | undefined => (value instanceof PDFName ? value.decodeText() : undefined);
@@ -809,11 +836,11 @@ function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: n
       return;
     }
     if (only === 'DCTDecode') {
-      push({ page, bytes: stream.getContents(), ext: 'jpg', width, height }, stream, ref, channelsOf(dict));
+      push({ page, ext: 'jpg', width, height }, () => stream.getContents(), stream, ref, channelsOf(dict));
       return;
     }
     if (only === 'JPXDecode') {
-      push({ page, bytes: stream.getContents(), ext: 'jp2', width, height }, stream, ref, undefined);
+      push({ page, ext: 'jp2', width, height }, () => stream.getContents(), stream, ref, undefined);
       return;
     }
     const channels = channelsOf(dict);
@@ -832,7 +859,7 @@ function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: n
           skipped++;
           return;
         }
-        push({ page, bytes: pngFromIdat({ width, height, channels }, stream.getContents()), ext: 'png', width, height }, stream, ref, channels);
+        push({ page, ext: 'png', width, height }, () => pngFromIdat({ width, height, channels }, stream.getContents()), stream, ref, channels);
         return;
       }
       if (predictor !== 1) {
@@ -843,10 +870,14 @@ function extractImages(doc: PDFDocument): { images: ExtractedImage[]; skipped: n
       skipped++;
       return;
     }
-    const pixels = filters.length === 0 ? stream.getContents() : decodePDFRawStream(stream).decode();
-    const png = pngFromPixels({ width, height, channels }, pixels);
-    if (png === null) skipped++;
-    else push({ page, bytes: png, ext: 'png', width, height }, stream, ref, channels);
+    const raw = filters.length === 0;
+    push(
+      { page, ext: 'png', width, height },
+      () => pngFromPixels({ width, height, channels }, raw ? stream.getContents() : decodePDFRawStream(stream).decode()),
+      stream,
+      ref,
+      channels,
+    );
   };
 
   const walk = (resources: PDFDict | undefined, page: number, depth: number): void => {
@@ -896,16 +927,31 @@ async function compressDocument(
   signal: AbortSignal | undefined,
 ): Promise<CompressReport> {
   const { context } = doc;
-  const { found } = extractImages(doc);
+  const { found } = extractImages(doc, false);
   let photos = 0;
   let replaced = 0;
-  for (const { image, ref, stream, channels } of found) {
+  for (const { image, bytes, ref, stream, channels } of found) {
     if (signal?.aborted) break;
     if (ref === undefined || channels === undefined || image.ext === 'jp2') continue;
     const dict = stream.dict;
-    if (dict.has(PDFName.of('Decode')) || dict.lookup(PDFName.of('Mask')) instanceof PDFArray) continue;
+    // Lossy pixels would break a /Decode array, and a mask (stencil or colour
+    // key) is drawn against the exact pixels; a soft mask with /Matte needs
+    // the image and the mask the same size. All of those stay as they are.
+    if (dict.has(PDFName.of('Decode')) || dict.has(PDFName.of('Mask'))) continue;
+    const smask = dict.lookup(PDFName.of('SMask'));
+    if (smask instanceof PDFRawStream && smask.dict.has(PDFName.of('Matte'))) continue;
+    // A small photo has little to give and a lot to lose; skip it before decoding anything.
+    if (stream.getContents().length < 24_000) continue;
     photos++;
-    const next = await recompress(image);
+    let picture: Uint8Array | null;
+    try {
+      picture = bytes();
+    } catch {
+      continue;
+    }
+    if (picture === null) continue;
+    const next = await recompress({ ...image, bytes: picture });
+    picture = null;
     if (next === null || next.bytes.length >= stream.getContents().length * 0.9) continue;
     const entries: Record<string, unknown> = {
       Type: 'XObject',
@@ -926,7 +972,37 @@ async function compressDocument(
     replaced++;
   }
 
-  // Everything reachable from the trailer stays; everything else goes.
+  const dropped = dropUnreachable(context);
+
+  let deflated = 0;
+  for (const [ref, object] of context.enumerateIndirectObjects()) {
+    if (!(object instanceof PDFRawStream)) continue;
+    const dict = object.dict;
+    if (dict.has(PDFName.of('Filter'))) continue;
+    const type = dict.lookup(PDFName.of('Type'));
+    // XMP metadata is meant to be readable without a PDF library; leave it plain.
+    if (type instanceof PDFName && type.decodeText() === 'Metadata') continue;
+    const contents = object.getContents();
+    if (contents.length < 256) continue;
+    const packed = zlibSync(contents, { level: 9 });
+    if (packed.length >= contents.length * 0.9) continue;
+    const next = PDFRawStream.of(dict.clone(context), packed);
+    next.dict.set(PDFName.of('Filter'), PDFName.of('FlateDecode'));
+    next.dict.delete(PDFName.of('DecodeParms'));
+    context.assign(ref, next);
+    deflated++;
+  }
+
+  return { photos, replaced, dropped, deflated };
+}
+
+/**
+ * Deletes every object nothing points at, from the trailer down. pdf-lib
+ * writes every object it holds, so anything unlinked but not deleted would
+ * still be in the file: for Compress that is waste, for Remove areas it would
+ * be the very words that were removed.
+ */
+function dropUnreachable(context: PDFDocument['context']): number {
   const reachable = new Set<string>();
   const stack: unknown[] = [context.trailerInfo.Root, context.trailerInfo.Info, context.trailerInfo.Encrypt];
   while (stack.length > 0) {
@@ -951,25 +1027,40 @@ async function compressDocument(
       dropped++;
     }
   }
+  return dropped;
+}
 
-  let deflated = 0;
-  for (const [ref, object] of context.enumerateIndirectObjects()) {
-    if (!(object instanceof PDFRawStream)) continue;
-    const dict = object.dict;
-    if (dict.has(PDFName.of('Filter'))) continue;
-    const type = dict.lookup(PDFName.of('Type'));
-    // XMP metadata is meant to be readable without a PDF library; leave it plain.
-    if (type instanceof PDFName && type.decodeText() === 'Metadata') continue;
-    const contents = object.getContents();
-    if (contents.length < 256) continue;
-    const packed = zlibSync(contents, { level: 9 });
-    if (packed.length >= contents.length * 0.9) continue;
-    const next = PDFRawStream.of(dict.clone(context), packed);
-    next.dict.set(PDFName.of('Filter'), PDFName.of('FlateDecode'));
-    next.dict.delete(PDFName.of('DecodeParms'));
-    context.assign(ref, next);
-    deflated++;
+/**
+ * After pages were swapped for pictures: the form fields whose every widget
+ * sat on those pages go (their values are text too), and so does the
+ * structure tree, whose entries can carry a page's words as /Alt or
+ * /ActualText. Then everything left unlinked is deleted.
+ */
+function finishRedaction(doc: PDFDocument, removedWidgets: ReadonlySet<string>): void {
+  const { context } = doc;
+  const acroForm = doc.catalog.lookup(PDFName.of('AcroForm'));
+  if (acroForm instanceof PDFDict) {
+    // Returns true when the field (or widget) at `ref` has nothing left on any page.
+    const prune = (ref: unknown, depth: number): boolean => {
+      if (depth > 32) return false;
+      if (ref instanceof PDFRef && removedWidgets.has(ref.toString())) return true;
+      const node = ref instanceof PDFRef ? context.lookup(ref) : ref;
+      if (!(node instanceof PDFDict)) return false;
+      const kids = node.lookup(PDFName.of('Kids'));
+      if (!(kids instanceof PDFArray)) return false;
+      const keep = kids.asArray().filter((kid) => !prune(kid, depth + 1));
+      if (keep.length === kids.size()) return false;
+      if (keep.length === 0) return true;
+      node.set(PDFName.of('Kids'), context.obj(keep));
+      return false;
+    };
+    const fields = acroForm.lookup(PDFName.of('Fields'));
+    if (fields instanceof PDFArray) {
+      const keep = fields.asArray().filter((field) => !prune(field, 0));
+      acroForm.set(PDFName.of('Fields'), context.obj(keep));
+    }
   }
-
-  return { photos, replaced, dropped, deflated };
+  doc.catalog.delete(PDFName.of('StructTreeRoot'));
+  doc.catalog.delete(PDFName.of('MarkInfo'));
+  dropUnreachable(context);
 }
