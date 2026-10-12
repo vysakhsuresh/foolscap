@@ -58,7 +58,7 @@ async function main() {
       '// Written by scripts/copy-pdfjs-assets.mjs from the installed pdfjs-dist. Do not edit.',
       `export const PDFJS_VERSION = '${version}';`,
       '/** Where the engine fetches cmaps, standard fonts, wasm decoders and ICC profiles. Every URL ends in a slash. */',
-      `export const PDFJS_ASSETS = '/pdfjs/${version}/';`,
+      `export const PDFJS_ASSETS = \`\${import.meta.env.BASE_URL}pdfjs/${version}/\`;`,
       '',
     ].join('\n'),
   );

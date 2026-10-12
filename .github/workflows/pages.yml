@@ -1,0 +1,51 @@
+# Publishes the preview at https://vysakhsuresh.github.io/foolscap/ on every push to main.
+#
+# The real home is Cloudflare Pages, which serves app/public/_headers. GitHub
+# Pages cannot send headers, so the preview build adds the page-level policy
+# as a <meta> tag instead (scripts/vite-rebase-html.ts). The unit tests run
+# first: a red build never reaches the preview.
+name: Preview on GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck and unit tests
+        run: npm run typecheck && npm run test:unit
+
+      - name: Build for /foolscap/
+        run: npm run build
+        env:
+          FOOLSCAP_BASE: /foolscap/
+
+      - name: Publish dist/ to the gh-pages branch
+        run: |
+          touch dist/.nojekyll
+          cd dist
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Preview of ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

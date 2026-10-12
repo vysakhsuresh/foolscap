@@ -103,7 +103,13 @@ tests/        unit, e2e, fixtures
 
 ## Deploying
 
-Cloudflare Pages, free plan. Build command `npm run build`, output directory
+**Preview:** every push to `main` publishes https://vysakhsuresh.github.io/foolscap/
+through `.github/workflows/pages.yml` (unit tests first, then a build with
+`FOOLSCAP_BASE=/foolscap/`, then the `gh-pages` branch). GitHub Pages cannot
+send headers, so the preview carries the page-level policy as a `<meta>` tag;
+the workers' policy and `frame-ancestors` only exist on Cloudflare.
+
+**Home:** Cloudflare Pages, free plan. Build command `npm run build`, output directory
 `dist`, Node 22. `app/public/_headers` is applied automatically. Set
 `SITE_ORIGIN` in `app/src/site/config.ts` once the domain exists, so pages
 carry canonical URLs.

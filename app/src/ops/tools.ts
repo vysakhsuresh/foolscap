@@ -108,6 +108,7 @@ export const toolById = (id: ToolId): ToolMeta => {
   return meta;
 };
 
-export const toolPath = (id: ToolId): string => `/tools/${id}/`;
+/** Honours the build's base path, so links work at the root and under /foolscap/ alike. */
+export const toolPath = (id: ToolId): string => `${import.meta.env.BASE_URL}tools/${id}/`;
 
 export const LIVE_TOOLS: readonly ToolMeta[] = TOOLS.filter((t) => t.status === 'live');
