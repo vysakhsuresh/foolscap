@@ -6,7 +6,7 @@
 import type { FoolscapFile } from '../files/types';
 import { markPage, type Area, type Mark, type PdfDoc } from '../pdf';
 import { baseName, failed, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
-import { checkCancelled, type FillFormParams, type MarksParams, type Op, type OpContext, type Outcome, type RemoveAreasParams } from './op';
+import { checkCancelled, type CreateFormParams, type EditImagesParams, type FillFormParams, type MarksParams, type Op, type OpContext, type Outcome, type RemoveAreasParams } from './op';
 import type { ToolId } from './tools';
 
 const LOCKED = ', still locked with the same password';
@@ -106,6 +106,8 @@ function nameOf(mark: Mark): [string, string] {
     case 'image':
     case 'picture':
       return ['picture', 'pictures'];
+    case 'fill':
+      return ['patch', 'patches'];
   }
 }
 
@@ -125,6 +127,68 @@ export function describeMarks(marks: readonly Mark[]): string {
 export const addImageOp = marksOp('add-image', 'Add image', 'with picture', 'Choose a picture, then tap the page where it goes.', (marks) =>
   `${plural(marks.length, 'picture')} placed${onPages(marks)}`,
 );
+
+export const editTextOp = marksOp('edit-text', 'Edit text', 'edited', 'Tap a line of text and change it first.', (marks) => {
+  const lines = marks.filter((m) => m.kind === 'fill').length;
+  return `${plural(lines, 'line')} changed${onPages(marks)}`;
+});
+
+const FIELD_WORDS: Record<'text' | 'multiline' | 'check' | 'choice', [string, string]> = {
+  text: ['text field', 'text fields'],
+  multiline: ['paragraph field', 'paragraph fields'],
+  check: ['tick box', 'tick boxes'],
+  choice: ['choice list', 'choice lists'],
+};
+
+export const createFormOp: Op<CreateFormParams> = {
+  tool: 'create-form',
+  arity: { kind: 'one' },
+  title: () => 'Create a form',
+  run: (inputs, params, ctx) =>
+    withOne(inputs, ctx, async (doc, input) => {
+      const fields = params.fields.filter((f) => areaOk(f.area, doc.pageCount) && f.name.trim() !== '');
+      if (fields.length === 0) return refused([input], 'Draw a field on the page first.');
+      doc.addFields(fields);
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+      const counts = new Map<string, { n: number; many: string }>();
+      for (const f of fields) {
+        const [one, many] = FIELD_WORDS[f.kind];
+        const entry = counts.get(one) ?? { n: 0, many };
+        entry.n++;
+        counts.set(one, entry);
+      }
+      const parts = [...counts.entries()].map(([one, { n, many }]) => plural(n, one, many));
+      const list = parts.length <= 1 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+      return store(ctx, 'create-form', [input], `${baseName(input.name)} (form).pdf`, bytes, `${list} added: anyone can fill it in, in any PDF reader${relocked ? LOCKED : ''}`);
+    }),
+};
+
+export const editImagesOp: Op<EditImagesParams> = {
+  tool: 'edit-images',
+  arity: { kind: 'one' },
+  title: () => 'Edit pictures',
+  run: (inputs, params, ctx) =>
+    withOne(inputs, ctx, async (doc, input) => {
+      const byPage = new Map<number, EditImagesParams['edits'][number][]>();
+      for (const e of params.edits) {
+        if (!areaOk(e.area, doc.pageCount)) continue;
+        byPage.set(e.area.page, [...(byPage.get(e.area.page) ?? []), e]);
+      }
+      let done = 0;
+      for (const [page, edits] of byPage) done += await doc.editImages(page, edits);
+      if (done === 0) return refused([input], 'Those pictures could not be found in the page’s drawing, so nothing was changed. A picture inside a drawing or a scan cannot be edited on its own.');
+      const count = (action: string) => params.edits.filter((e) => e.action === action).length;
+      const parts = [
+        count('delete') > 0 ? `${plural(count('delete'), 'picture')} taken out` : '',
+        count('move') > 0 ? `${plural(count('move'), 'picture')} moved` : '',
+        count('replace') > 0 ? `${plural(count('replace'), 'picture')} replaced` : '',
+      ].filter(Boolean);
+      const missed = params.edits.length - done;
+      const detail = `${parts.join(', ')}${missed > 0 ? `; ${plural(missed, 'change')} could not be made` : ''}`;
+      const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+      return store(ctx, 'edit-images', [input], `${baseName(input.name)} (pictures edited).pdf`, bytes, `${detail}${relocked ? LOCKED : ''}`);
+    }),
+};
 
 export const markUpOp = marksOp('mark-up', 'Mark up', 'marked up', 'Highlight or draw on the page first.', describeMarks);
 
@@ -187,13 +251,27 @@ export const fillFormOp: Op<FillFormParams> = {
   tool: 'fill-form',
   arity: { kind: 'one' },
   title: (params) => (params.seal ? 'Fill in and seal' : 'Fill in a form'),
-  run: (inputs, params, ctx) =>
-    withOne(inputs, ctx, async (doc, input) => {
+  async run(inputs, params, ctx) {
+    const outcomes = await fillForm(inputs, params, ctx);
+    const input = inputs[0];
+    if (params.answers === undefined || input === undefined || outcomes[0]?.kind !== 'produced') return outcomes;
+    // The answers, by field name, in a file the next run can read back.
+    const json = JSON.stringify({ kind: 'Form answers', fields: params.answers }, null, 2);
+    const count = Object.values(params.answers).filter((v) => v !== '' && v !== false).length;
+    outcomes.push(
+      await store(ctx, 'fill-form', [input], `${baseName(input.name)} answers.json`, new TextEncoder().encode(json), `${plural(count, 'answer')} saved: open the form here again and choose this file to fill it in one go`, 'other'),
+    );
+    return outcomes;
+  },
+};
+
+function fillForm(inputs: readonly FoolscapFile[], params: FillFormParams, ctx: OpContext): Promise<Outcome[]> {
+  return withOne(inputs, ctx, async (doc, input) => {
       if (Object.keys(params.values).length === 0 && !params.seal) return refused([input], 'Nothing was changed. Type your answers first.');
       const filled = Object.values(params.values).filter((v) => v !== '' && v !== false).length;
       doc.fillForm(params.values, params.seal);
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
       const sealed = params.seal ? ', sealed so the answers can no longer be changed' : ', still editable';
       return store(ctx, 'fill-form', [input], `${baseName(input.name)} (filled).pdf`, bytes, `${plural(filled, 'answer')}${sealed}${relocked ? LOCKED : ''}`);
-    }),
-};
+    });
+}

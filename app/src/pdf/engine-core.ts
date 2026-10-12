@@ -14,6 +14,7 @@ import {
   InvalidPDFException,
   PasswordException,
   PasswordResponses,
+  OPS,
   RenderingCancelledException,
   Util,
   VerbosityLevel,
@@ -24,7 +25,8 @@ import {
 } from 'pdfjs-dist';
 import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './common';
 import { PDFJS_ASSETS } from './pdfjs-version';
-import { PdfError, type FormField, type LayoutItem, type OutlineItem, type PdfComment, type PageInfo, type PdfEngine, type PdfView } from './types';
+import { multiply, unitBox, type Matrix } from './content-stream';
+import { PdfError, type Area, type FormField, type LayoutItem, type OutlineItem, type PdfComment, type PageInfo, type PdfEngine, type PdfView } from './types';
 
 interface RawOutline {
   readonly title?: unknown;
@@ -273,6 +275,50 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
           });
         }
         return { width: viewport.width, height: viewport.height, items };
+      } catch (error) {
+        throw toRenderError(error);
+      } finally {
+        page.cleanup();
+      }
+    },
+
+    async images(index) {
+      const page = await pageAt(index);
+      try {
+        const viewport = page.getViewport({ scale: 1 });
+        const list = await page.getOperatorList();
+        const out: Area[] = [];
+        let ctm: Matrix = [1, 0, 0, 1, 0, 0];
+        const stack: Matrix[] = [];
+        let forms = 0;
+        for (let k = 0; k < list.fnArray.length; k++) {
+          const fn = list.fnArray[k];
+          const args = list.argsArray[k] as unknown[] | null;
+          if (fn === OPS.beginAnnotation) break;
+          if (fn === OPS.save) stack.push(ctm);
+          else if (fn === OPS.restore) ctm = stack.pop() ?? ctm;
+          else if (fn === OPS.transform && args && args.length >= 6) ctm = multiply(args.slice(0, 6) as unknown as Matrix, ctm);
+          else if (fn === OPS.paintFormXObjectBegin) {
+            forms++;
+            stack.push(ctm);
+            const m = args?.[0];
+            if (Array.isArray(m) && m.length === 6) ctm = multiply(m as unknown as Matrix, ctm);
+          } else if (fn === OPS.paintFormXObjectEnd) {
+            forms = Math.max(0, forms - 1);
+            ctm = stack.pop() ?? ctm;
+          } else if (forms === 0 && (fn === OPS.paintImageXObject || fn === OPS.paintImageMaskXObject)) {
+            const [x0, y0, x1, y1] = unitBox(ctm);
+            const [ax, ay] = viewport.convertToViewportPoint(x0, y0);
+            const [bx, by] = viewport.convertToViewportPoint(x1, y1);
+            const x = Math.min(ax, bx) / viewport.width;
+            const y = Math.min(ay, by) / viewport.height;
+            const w = Math.abs(bx - ax) / viewport.width;
+            const h = Math.abs(by - ay) / viewport.height;
+            // A picture too small to see (a dot, a rule drawn as an image) is not offered.
+            if (w > 0.01 && h > 0.01) out.push({ page: index, x, y, w, h });
+          }
+        }
+        return out;
       } catch (error) {
         throw toRenderError(error);
       } finally {

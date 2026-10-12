@@ -211,7 +211,7 @@ export const pdfToPowerPointOp = converter<Record<string, never>>(
 // ---- And back: Word and Excel to PDF ----
 
 /** The browser draws a line the PDF fonts cannot (Malayalam, Hindi, emoji), in the worker. */
-const paintLine: LinePainter = async (text, style, scale) => {
+export const paintLine: LinePainter = async (text, style, scale) => {
   if (typeof OffscreenCanvas === 'undefined') return null;
   const px = style.size * scale;
   const family = style.family === 'serif' ? 'serif' : style.family === 'mono' ? 'monospace' : 'sans-serif';

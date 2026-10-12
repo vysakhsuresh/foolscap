@@ -79,6 +79,8 @@ export interface FieldOptions {
   readonly autocomplete?: string;
   /** A bare input with an aria-label, to sit inside a choice card. */
   readonly bare?: boolean;
+  /** Words that end up on the page: underline misspellings as you type. */
+  readonly spellcheck?: boolean;
 }
 
 export interface Field {
@@ -104,6 +106,8 @@ export function field(name: string, opts: FieldOptions, onChange: () => void): F
       ...(opts.min !== undefined ? { min: String(opts.min) } : {}),
       ...(opts.max !== undefined ? { max: String(opts.max) } : {}),
       ...(opts.bare ? { 'aria-label': opts.label } : {}),
+      // Words people write onto a page are checked by the browser's own spell checker.
+      ...(opts.spellcheck ? { spellcheck: 'true' } : {}),
     },
     on: { input: onChange },
   });

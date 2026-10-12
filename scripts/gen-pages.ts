@@ -148,12 +148,16 @@ function toolPage(tool: ToolMeta): string {
       <h1 class="tool__title" data-testid="tool-title">${esc(tool.title)}</h1>
       <p class="tool__summary">${esc(tool.summary)}. Nothing is uploaded: the work happens on this device.</p>
     </header>
-    <label class="drop-zone" data-testid="drop-zone" for="file-input">
+    ${
+      tool.input === 'none'
+        ? ''
+        : `<label class="drop-zone" data-testid="drop-zone" for="file-input">
       ${svg(TOOL_ICONS[tool.id], 'drop-zone__icon')}
       <span class="drop-zone__title">${zone.title}</span>
       <span class="drop-zone__hint" id="drop-hint">${zone.hint}</span>
       <input class="visually-hidden" id="file-input" data-testid="file-input" type="file"${zone.accept ? ` accept="${zone.accept}"` : ''}${zone.multiple ? ' multiple' : ''} aria-describedby="drop-hint">
-    </label>
+    </label>`
+    }
     <div data-slot="body"></div>
     <nav class="related" aria-labelledby="related-title">
       <h2 class="related__title" id="related-title">${siblings.length > 0 ? `More in ${esc(group.title)}` : 'More tools'}</h2>

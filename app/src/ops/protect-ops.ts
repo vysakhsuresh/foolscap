@@ -98,3 +98,28 @@ export const documentDetailsOp: Op<DocumentDetailsParams> = {
     });
   },
 };
+
+export const pdfAOp: Op<NoParams> = {
+  tool: 'pdf-a',
+  arity: { kind: 'each' },
+  title: () => 'Archive copy (PDF/A)',
+  async run(inputs, _params, ctx) {
+    return forEachPdf(inputs, ctx, async (doc, input) => {
+      const report = doc.makeArchival();
+      // An archive copy is never locked: the standard forbids it, so it opens for whoever keeps it.
+      const bytes = await doc.save();
+      const took = [
+        report.scripts > 0 ? plural(report.scripts, 'script or action', 'scripts and actions') : '',
+        report.attachments > 0 ? plural(report.attachments, 'attached file') : '',
+      ].filter(Boolean);
+      const parts = ['PDF/A-2b archive copy: colour profile and archive details added'];
+      if (took.length > 0) parts.push(`${took.join(' and ')} taken out, as the standard asks`);
+      if (doc.wasEncrypted) parts.push('the password is gone, as archives must open for anyone');
+      if (report.fontsMissing > 0) {
+        parts.push(`${plural(report.fontsMissing, 'font')} the file uses ${report.fontsMissing === 1 ? 'is' : 'are'} not inside it, so a strict checker will flag that; saving it again from the program that made it, with fonts embedded, fixes it`);
+      }
+      return store(ctx, 'pdf-a', [input], `${baseName(input.name)} (PDF-A).pdf`, bytes, parts.join('; '));
+    });
+  },
+};
+

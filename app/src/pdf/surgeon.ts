@@ -59,6 +59,8 @@ import { signDetached } from '../sign/cms';
 import { readIdentity } from '../sign/identity';
 import { signPdf } from './sign-pdf';
 import { layoutFlow } from './surgeon-flow';
+import { srgbProfile } from './icc';
+import { drawCalls, invert, multiply, unitBox, type Matrix } from './content-stream';
 import {
   PdfError,
   type Box,
@@ -629,6 +631,11 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
             page.drawRectangle({ ...box(), color: rgb(r, g, b), opacity: 0.45, blendMode: BlendMode.Multiply });
             break;
           }
+          case 'fill': {
+            const [r, g, b] = mark.color;
+            page.drawRectangle({ ...box(), color: rgb(r, g, b) });
+            break;
+          }
           case 'shape': {
             const [r, g, b] = mark.color;
             const rect = box();
@@ -741,6 +748,217 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       page.setMediaBox(0, 0, view.width, view.height);
       page.drawImage(image, { x: 0, y: 0, width: view.width, height: view.height });
       replaced = true;
+    },
+
+    addFields(fields) {
+      const d = live();
+      const form = d.getForm();
+      const taken = new Set(form.getFields().map((f) => f.getName()));
+      const names: string[] = [];
+      for (const field of fields) {
+        const page = pageAt(field.area.page);
+        const view = viewOf(page);
+        const { x, y, w, h } = field.area;
+        const [x1, y1] = view.toPage(x * view.width, (1 - y - h) * view.height);
+        const [x2, y2] = view.toPage((x + w) * view.width, (1 - y) * view.height);
+        const rect = { x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1) };
+        // A dot in a name makes a hierarchy in a PDF form; a name is just a name here.
+        const base = field.name.replace(/\./g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) || 'Field';
+        let name = base;
+        for (let n = 2; taken.has(name); n++) name = `${base} ${n}`;
+        taken.add(name);
+        const look = { ...rect, rotate: degrees(view.rotation), borderWidth: 0.75, borderColor: rgb(0.55, 0.58, 0.65), backgroundColor: rgb(0.94, 0.96, 1) };
+        switch (field.kind) {
+          case 'text':
+          case 'multiline': {
+            const text = form.createTextField(name);
+            if (field.kind === 'multiline') text.enableMultiline();
+            text.addToPage(page, look);
+            break;
+          }
+          case 'check':
+            form.createCheckBox(name).addToPage(page, look);
+            break;
+          case 'choice': {
+            const choice = form.createDropdown(name);
+            const options = (field.options ?? []).map((o) => o.trim()).filter((o) => o.length > 0);
+            if (options.length > 0) choice.addOptions(options);
+            choice.addToPage(page, look);
+            break;
+          }
+        }
+        names.push(name);
+      }
+      return names;
+    },
+
+    async editImages(index, edits) {
+      const d = live();
+      const page = pageAt(index);
+      const view = viewOf(page);
+      const { context } = d;
+      // The page's drawing instructions, as one run of bytes.
+      page.node.normalize();
+      const contents = page.node.Contents();
+      const streams = contents instanceof PDFArray ? contents.asArray() : [];
+      const parts: Uint8Array[] = [];
+      for (const ref of streams) {
+        const stream = ref instanceof PDFRef ? context.lookup(ref) : ref;
+        if (stream instanceof PDFRawStream) parts.push(decodePDFRawStream(stream).decode());
+      }
+      const joined = new Uint8Array(parts.reduce((n, p) => n + p.length + 1, 0));
+      let at = 0;
+      for (const p of parts) {
+        joined.set(p, at);
+        joined[at + p.length] = 0x0a;
+        at += p.length + 1;
+      }
+      const resources = page.node.Resources();
+      const xobjects = resources?.lookup(PDFName.of('XObject'));
+      const isImage = (name: string) => {
+        if (!(xobjects instanceof PDFDict)) return false;
+        const x = xobjects.lookup(PDFName.of(name));
+        return x instanceof PDFRawStream && x.dict.lookup(PDFName.of('Subtype'))?.toString() === '/Image';
+      };
+      // Where each picture is drawn, as the reader sees the page.
+      const toView = (px: number, py: number): [number, number] => {
+        const { x, y, width: w, height: h } = page.getCropBox();
+        switch (view.rotation) {
+          case 90:
+            return [py - y, x + w - px];
+          case 180:
+            return [x + w - px, y + h - py];
+          case 270:
+            return [y + h - py, px - x];
+          default:
+            return [px - x, py - y];
+        }
+      };
+      const calls = drawCalls(joined)
+        .filter((c) => isImage(c.name))
+        .map((c) => {
+          const [x0, y0, x1, y1] = unitBox(c.ctm);
+          const [ax, ay] = toView(x0, y0);
+          const [bx, by] = toView(x1, y1);
+          const area = { x: Math.min(ax, bx) / view.width, y: 1 - Math.max(ay, by) / view.height, w: Math.abs(bx - ax) / view.width, h: Math.abs(by - ay) / view.height };
+          return { ...c, area, box: [x0, y0, x1, y1] as const };
+        });
+      const overlap = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) => {
+        const iw = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+        const ih = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+        const inter = iw * ih;
+        return inter / (a.w * a.h + b.w * b.h - inter || 1);
+      };
+      const splices: Array<{ start: number; end: number; text: string }> = [];
+      const used = new Set<number>();
+      let fresh = 0;
+      const nameFor = () => {
+        let name: string;
+        do name = `FsPic${++fresh}`;
+        while (xobjects instanceof PDFDict && xobjects.has(PDFName.of(name)));
+        return name;
+      };
+      const num = (v: number) => (Math.abs(v) < 1e-9 ? '0' : Number(v.toFixed(6)).toString());
+      const cm = (m: Matrix) => `${m.map(num).join(' ')} cm`;
+      for (const edit of edits) {
+        let best = -1;
+        let score = 0.5;
+        calls.forEach((c, k) => {
+          if (used.has(k)) return;
+          const s = overlap(c.area, edit.area);
+          if (s > score) {
+            score = s;
+            best = k;
+          }
+        });
+        const call = calls[best];
+        if (call === undefined) continue;
+        used.add(best);
+        if (edit.action === 'delete') {
+          splices.push({ start: call.start, end: call.end, text: '' });
+          continue;
+        }
+        const [x0, y0, x1, y1] = call.box;
+        if (edit.action === 'move') {
+          // The new box in page space, then the change that takes the old box there, in the picture's own space.
+          const { to } = edit;
+          const [p1x, p1y] = view.toPage(to.x * view.width, (1 - to.y - to.h) * view.height);
+          const [p2x, p2y] = view.toPage((to.x + to.w) * view.width, (1 - to.y) * view.height);
+          const nx0 = Math.min(p1x, p2x);
+          const ny0 = Math.min(p1y, p2y);
+          const sx = Math.abs(p2x - p1x) / Math.max(1e-6, x1 - x0);
+          const sy = Math.abs(p2y - p1y) / Math.max(1e-6, y1 - y0);
+          const shift: Matrix = [sx, 0, 0, sy, nx0 - x0 * sx, ny0 - y0 * sy];
+          const back = invert(call.ctm);
+          if (!back) continue;
+          const local = multiply(multiply(call.ctm, shift), back);
+          splices.push({ start: call.start, end: call.end, text: `q ${cm(local)} /${call.name} Do Q` });
+          continue;
+        }
+        // Replace: the new picture fills the old one's box, kept to its own shape and centred.
+        const image = edit.format === 'jpeg' ? await d.embedJpg(edit.bytes) : await d.embedPng(edit.bytes);
+        const name = nameFor();
+        if (xobjects instanceof PDFDict) xobjects.set(PDFName.of(name), image.ref);
+        else if (resources) resources.set(PDFName.of('XObject'), context.obj({ [name]: image.ref }));
+        const boxAspect = (x1 - x0) / Math.max(1e-6, y1 - y0);
+        const aspect = image.width / Math.max(1, image.height);
+        const fx = aspect >= boxAspect ? 1 : aspect / boxAspect;
+        const fy = aspect >= boxAspect ? boxAspect / aspect : 1;
+        splices.push({ start: call.start, end: call.end, text: `q ${cm([fx, 0, 0, fy, (1 - fx) / 2, (1 - fy) / 2])} /${name} Do Q` });
+      }
+      if (splices.length === 0) return 0;
+      splices.sort((a, b) => b.start - a.start);
+      let bytes = joined;
+      for (const s of splices) {
+        const text = new TextEncoder().encode(s.text);
+        const next = new Uint8Array(bytes.length - (s.end - s.start) + text.length);
+        next.set(bytes.subarray(0, s.start), 0);
+        next.set(text, s.start);
+        next.set(bytes.subarray(s.end), s.start + text.length);
+        bytes = next;
+      }
+      page.node.set(PDFName.of('Contents'), context.register(context.flateStream(bytes)));
+      dropUnreachable(context);
+      return splices.length;
+    },
+
+    makeArchival() {
+      const d = live();
+      const removed = cleanDocument(d, { scripts: true, attachments: true, comments: false, metadata: false });
+      const { context } = d;
+      // 1. The colour everything is drawn in, said once for the whole file.
+      const profile = context.register(context.stream(srgbProfile(), { N: 3 }));
+      const intent = context.obj({
+        Type: 'OutputIntent',
+        S: 'GTS_PDFA1',
+        OutputConditionIdentifier: PDFString.of('sRGB IEC61966-2.1'),
+        Info: PDFString.of('sRGB IEC61966-2.1'),
+        DestOutputProfile: profile,
+      });
+      d.catalog.set(PDFName.of('OutputIntents'), context.obj([intent]));
+      // 2. XMP that names the standard and mirrors the document's own details.
+      const info = self.info();
+      const dates = infoDates(d);
+      const xmp = archivalXmp(info, dates);
+      // Uncompressed, as the standard asks of the metadata stream.
+      d.catalog.set(PDFName.of('Metadata'), context.register(context.stream(new TextEncoder().encode(xmp), { Type: 'Metadata', Subtype: 'XML' })));
+      // 3. A file ID, which archives use to tell copies apart.
+      const id = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+      context.trailerInfo.ID = context.obj([PDFHexString.of(id), PDFHexString.of(id)]);
+      // 4. Every annotation printable, as the standard requires.
+      for (const page of d.getPages()) {
+        const annots = page.node.lookup(PDFName.of('Annots'));
+        if (!(annots instanceof PDFArray)) continue;
+        for (const ref of annots.asArray()) {
+          const annot = ref instanceof PDFRef ? context.lookup(ref) : ref;
+          if (!(annot instanceof PDFDict) || annot.lookup(PDFName.of('Subtype'))?.toString() === '/Popup') continue;
+          const flags = annot.lookup(PDFName.of('F'));
+          const value = flags instanceof PDFNumber ? flags.asNumber() : 0;
+          annot.set(PDFName.of('F'), PDFNumber.of((value | 4) & ~(1 | 2 | 32)));
+        }
+      }
+      dropUnreachable(context);
+      return { scripts: removed.scripts, attachments: removed.attachments, fontsMissing: countUnembeddedFonts(d) };
     },
 
     fillForm(values, seal) {
@@ -1577,5 +1795,101 @@ function cleanDocument(doc: PDFDocument, opts: CleanOptions): CleanReport {
     page.node.set(PDFName.of('Annots'), context.obj(keep as never));
   }
   return { scripts, attachments, comments, metadata: opts.metadata };
+}
+
+/** "D:20261012143000+05'30'" → "2026-10-12T14:30:00+05:30". Null for anything else. */
+export function pdfDateToIso(value: string): string | null {
+  const m = /^D:(\d{4})(\d{2})?(\d{2})?(\d{2})?(\d{2})?(\d{2})?([Zz]|[+-]\d{2}'?\d{2}'?)?/.exec(value.trim());
+  if (!m) return null;
+  const [, y, mo = '01', d = '01', h = '00', mi = '00', s = '00', zone] = m;
+  const tz = zone === undefined || /^[Zz]$/.test(zone) ? (zone === undefined ? '' : 'Z') : `${zone.slice(0, 3)}:${zone.replace(/'/g, '').slice(3, 5) || '00'}`;
+  return `${y}-${mo}-${d}T${h}:${mi}:${s}${tz}`;
+}
+
+function infoDates(doc: PDFDocument): { created?: string; modified?: string } {
+  const ref = doc.context.trailerInfo.Info;
+  const info = ref instanceof PDFRef ? doc.context.lookup(ref) : ref;
+  if (!(info instanceof PDFDict)) return {};
+  const read = (key: string) => {
+    const raw = textOf(info.lookup(PDFName.of(key)));
+    return raw === undefined ? undefined : (pdfDateToIso(raw) ?? undefined);
+  };
+  const created = read('CreationDate');
+  const modified = read('ModDate');
+  return { ...(created ? { created } : {}), ...(modified ? { modified } : {}) };
+}
+
+const xmlText = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** XMP for PDF/A-2b, carrying exactly the details the Info dictionary has, so the two agree. */
+export function archivalXmp(info: DocInfo, dates: { created?: string; modified?: string }): string {
+  const lines: string[] = [];
+  if (info.title) lines.push(`<dc:title><rdf:Alt><rdf:li xml:lang="x-default">${xmlText(info.title)}</rdf:li></rdf:Alt></dc:title>`);
+  if (info.author) lines.push(`<dc:creator><rdf:Seq><rdf:li>${xmlText(info.author)}</rdf:li></rdf:Seq></dc:creator>`);
+  if (info.subject) lines.push(`<dc:description><rdf:Alt><rdf:li xml:lang="x-default">${xmlText(info.subject)}</rdf:li></rdf:Alt></dc:description>`);
+  if (info.keywords) lines.push(`<pdf:Keywords>${xmlText(info.keywords)}</pdf:Keywords>`);
+  if (info.producer) lines.push(`<pdf:Producer>${xmlText(info.producer)}</pdf:Producer>`);
+  if (info.creator) lines.push(`<xmp:CreatorTool>${xmlText(info.creator)}</xmp:CreatorTool>`);
+  if (dates.created) lines.push(`<xmp:CreateDate>${dates.created}</xmp:CreateDate>`);
+  if (dates.modified) lines.push(`<xmp:ModifyDate>${dates.modified}</xmp:ModifyDate>`);
+  return [
+    '<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>',
+    '<x:xmpmeta xmlns:x="adobe:ns:meta/">',
+    '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">',
+    '<rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/" xmlns:xmp="http://ns.adobe.com/xap/1.0/">',
+    '<pdfaid:part>2</pdfaid:part>',
+    '<pdfaid:conformance>B</pdfaid:conformance>',
+    ...lines,
+    '</rdf:Description>',
+    '</rdf:RDF>',
+    '</x:xmpmeta>',
+    '<?xpacket end="w"?>',
+  ].join('\n');
+}
+
+/** Fonts the file uses but does not carry: the one thing an archive copy cannot fix without the font. */
+function countUnembeddedFonts(doc: PDFDocument): number {
+  const { context } = doc;
+  const seen = new Set<string>();
+  let missing = 0;
+  const look = (value: unknown): PDFDict | null => {
+    const v = value instanceof PDFRef ? context.lookup(value) : value;
+    return v instanceof PDFDict ? v : null;
+  };
+  const visitFont = (ref: unknown, depth: number) => {
+    const key = ref instanceof PDFRef ? ref.toString() : '';
+    if (key && seen.has(key)) return;
+    if (key) seen.add(key);
+    const font = look(ref);
+    if (!font || depth > 4) return;
+    const subtype = font.lookup(PDFName.of('Subtype'))?.toString();
+    if (subtype === '/Type3') return;
+    if (subtype === '/Type0') {
+      const kids = font.lookup(PDFName.of('DescendantFonts'));
+      if (kids instanceof PDFArray) for (const kid of kids.asArray()) visitFont(kid, depth + 1);
+      return;
+    }
+    const descriptor = look(font.get(PDFName.of('FontDescriptor')));
+    const embedded = descriptor !== null && ['FontFile', 'FontFile2', 'FontFile3'].some((k) => descriptor.has(PDFName.of(k)));
+    if (!embedded) missing++;
+  };
+  const visitResources = (resources: PDFDict | null, depth: number) => {
+    if (!resources || depth > 6) return;
+    const fonts = look(resources.get(PDFName.of('Font')));
+    if (fonts) for (const [, ref] of fonts.entries()) visitFont(ref, 0);
+    const xobjects = look(resources.get(PDFName.of('XObject')));
+    if (xobjects) {
+      for (const [, ref] of xobjects.entries()) {
+        const key = ref instanceof PDFRef ? `x${ref.toString()}` : '';
+        if (key && seen.has(key)) continue;
+        if (key) seen.add(key);
+        const x = ref instanceof PDFRef ? context.lookup(ref) : ref;
+        const dict = x instanceof PDFRawStream ? x.dict : null;
+        if (dict && dict.lookup(PDFName.of('Subtype'))?.toString() === '/Form') visitResources(look(dict.get(PDFName.of('Resources'))), depth + 1);
+      }
+    }
+  };
+  for (const page of doc.getPages()) visitResources(look(page.node.get(PDFName.of('Resources'))) ?? (page.node.Resources() ?? null), 0);
+  return missing;
 }
 

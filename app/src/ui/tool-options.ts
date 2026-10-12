@@ -11,6 +11,7 @@ import type {
   BackgroundParams,
   DigitalSignParams,
   PdfToEpubParams,
+  RentReceiptsParams,
   PdfToWordParams,
   PageLabelsParams,
   CompressParams,
@@ -200,7 +201,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
     }
 
     case 'watermark': {
-      const text = field('text', { label: 'Watermark text', value: 'DRAFT', hint: 'English letters and numbers for now.' }, onChange);
+      const text = field('text', { label: 'Watermark text', value: 'DRAFT', hint: 'English letters and numbers for now.', spellcheck: true }, onChange);
       const strength = choices<WatermarkParams['strength']>(
         'strength',
         'Strength',
@@ -287,8 +288,8 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
     }
 
     case 'header-footer': {
-      const header = field('header', { label: 'Header', placeholder: 'e.g. CONFIDENTIAL' }, onChange);
-      const footer = field('footer', { label: 'Footer', placeholder: 'e.g. {name} – page {page} of {total}' }, onChange);
+      const header = field('header', { label: 'Header', placeholder: 'e.g. CONFIDENTIAL', spellcheck: true }, onChange);
+      const footer = field('footer', { label: 'Footer', placeholder: 'e.g. {name} – page {page} of {total}', spellcheck: true }, onChange);
       const align = choices<HeaderFooterParams['align']>(
         'align',
         'Line up',
@@ -594,6 +595,68 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         root: note('Headings, lists, tables, links and pictures are laid out on A4, with the words kept as real text. Wide spreadsheets go on sideways pages. Fonts become the nearest of Helvetica, Times or Courier; Malayalam, Hindi and other scripts are drawn by your browser. Headers, footers and footnotes are left out for now.'),
         params: () => ({}),
         problem: () => null,
+      };
+
+    case 'rent-receipts': {
+      const now = new Date();
+      // The financial year starts in April; that is the receipts people need.
+      const fyStart = `${now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1}-04`;
+      const tenant = field('tenant', { label: 'Tenant’s name (you)', placeholder: 'e.g. Anjali Menon', spellcheck: true }, onChange);
+      const landlord = field('landlord', { label: 'Owner’s name', placeholder: 'e.g. Joseph Mathew', spellcheck: true }, onChange);
+      const address = field('address', { label: 'Address of the rented home', placeholder: 'Flat 4B, Rose Gardens, Kakkanad, Kochi 682030', spellcheck: true }, onChange);
+      const rent = field('rent', { label: 'Monthly rent (₹)', type: 'number', min: 1, placeholder: '15000' }, onChange);
+      const start = field('start', { label: 'First month', value: fyStart }, onChange);
+      start.input.type = 'month';
+      const months = field('months', { label: 'How many months', type: 'number', min: 1, max: 24, value: '12' }, onChange);
+      const mode = select<RentReceiptsParams['mode']>(
+        'mode',
+        'Paid by',
+        [
+          { value: 'Bank transfer', title: 'Bank transfer' },
+          { value: 'UPI', title: 'UPI' },
+          { value: 'Cheque', title: 'Cheque' },
+          { value: 'Cash', title: 'Cash' },
+        ],
+        'Bank transfer',
+        onChange,
+      );
+      const pan = field('pan', { label: 'Owner’s PAN (if rent is over ₹1 lakh a year)', placeholder: 'ABCPK1234F' }, onChange);
+      return {
+        root: group([tenant.root, landlord.root, address.root, el2([rent.root, start.root, months.root]), mode.root, pan.root, note('Two receipts to a page, one per month, with the amount in words. Print them, sign each, and give them to your employer. Nothing you type is stored or sent.')]),
+        params: (): RentReceiptsParams => ({
+          tenant: tenant.value().trim(),
+          landlord: landlord.value().trim(),
+          address: address.value().trim(),
+          rent: rent.number(),
+          start: start.value() || fyStart,
+          months: months.number(),
+          mode: mode.value(),
+          pan: pan.value(),
+        }),
+        problem: () => {
+          if (!tenant.value().trim()) return 'Type the tenant’s name.';
+          if (!landlord.value().trim()) return 'Type the owner’s name.';
+          if (!address.value().trim()) return 'Type the address.';
+          if (!(rent.number() > 0)) return 'Type the monthly rent.';
+          if (!(months.number() >= 1 && months.number() <= 24)) return 'Choose between 1 and 24 months.';
+          if (pan.value().trim() && !/^[A-Za-z]{5}\d{4}[A-Za-z]$/.test(pan.value().trim())) return 'A PAN looks like ABCPK1234F.';
+          return null;
+        },
+      };
+    }
+
+    case 'pdf-a':
+      return {
+        root: note('For courts, offices and records that ask for PDF/A. The pages stay exactly as they are; a colour profile and the archive details go inside, and scripts and attached files come out, as the standard asks. If the file uses fonts that are not inside it, the result says so honestly.'),
+        params: () => ({}),
+        problem: () => null,
+      };
+
+    case 'compare':
+      return {
+        root: note('Add the older version first, then the newer one. The newer one comes back marked: new words in green, and a comment wherever words were taken out. Words are compared, not pictures or layout.'),
+        params: () => ({}),
+        problem: (count) => (count === 2 ? null : count < 2 ? 'Add the newer version as well.' : 'Compare works on two files at a time: the older one, then the newer one.'),
       };
 
     case 'pdf-to-powerpoint':

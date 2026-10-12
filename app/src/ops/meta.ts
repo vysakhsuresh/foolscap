@@ -51,6 +51,12 @@ export const OP_META: Partial<Record<ToolId, OpMeta>> = {
   'pdf-to-epub': { arity: { kind: 'each' }, engine: true },
   'office-to-pdf': { arity: { kind: 'each' } },
   'add-image': { arity: { kind: 'one' } },
+  compare: { arity: { kind: 'together', min: 2 }, engine: true },
+  'edit-text': { arity: { kind: 'one' } },
+  'create-form': { arity: { kind: 'one' } },
+  'pdf-a': { arity: { kind: 'each' } },
+  'rent-receipts': { arity: { kind: 'none' } },
+  'edit-images': { arity: { kind: 'one' } },
 };
 
 export function opMeta(id: ToolId): OpMeta {

@@ -9,7 +9,7 @@
  * The ids are URLs (`/tools/<id>/`) and the keys the SEO pages are generated
  * from. Never rename one once it has shipped.
  *
- * `group` exists because a flat list of thirty-eight tools stops being a menu
+ * `group` exists because a flat list of forty-five tools stops being a menu
  * and becomes a wall. The groups are by what someone is trying to do, not by
  * which library implements them.
  */
@@ -52,10 +52,17 @@ export type ToolId =
   | 'pdf-to-powerpoint'
   | 'pdf-to-epub'
   | 'office-to-pdf'
-  | 'add-image';
+  | 'add-image'
+  | 'compare'
+  | 'edit-text'
+  | 'create-form'
+  | 'summarise'
+  | 'pdf-a'
+  | 'rent-receipts'
+  | 'edit-images';
 
 /** 'pdf-and-files': a PDF first, then files of any kind (Attachments). 'office': Word and Excel files. */
-export type InputKind = 'one-pdf' | 'several-pdfs' | 'images' | 'camera' | 'pdf-and-files' | 'office';
+export type InputKind = 'one-pdf' | 'several-pdfs' | 'images' | 'camera' | 'pdf-and-files' | 'office' | 'none';
 
 export type GroupId = 'read' | 'pages' | 'mark' | 'convert' | 'protect';
 
@@ -126,6 +133,13 @@ export const KEYWORDS: Partial<Record<ToolId, string>> = {
   'pdf-to-epub': 'epub ebook kindle html web page reflow convert',
   'office-to-pdf': 'word excel docx xlsx doc xls convert to pdf office',
   'add-image': 'insert picture photo logo image jpg png stamp',
+  compare: 'difference diff changes versions redline track compare two',
+  'edit-text': 'edit text change words typo correct find replace modify',
+  'create-form': 'make fillable form fields text box checkbox dropdown acroform interactive',
+  summarise: 'summary summarize ai key points translate translation gemini on device tldr',
+  'pdf-a': 'pdfa archive archival long term iso 19005 court filing records',
+  'rent-receipts': 'rent receipt generator hra template landlord tenant house rent allowance income tax',
+  'edit-images': 'move picture delete image replace photo logo resize remove image',
   'mark-up': 'highlight annotate draw pen comment note sticky shapes arrow circle box stamp underline strikethrough link measure callout',
 };
 
@@ -146,6 +160,8 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'pdf-to-powerpoint', title: 'PDF to PowerPoint', summary: 'One slide per page, words in the speaker notes', action: 'Make the slides', input: 'several-pdfs', group: 'convert', status: 'live' },
   { id: 'pdf-to-epub', title: 'PDF to EPUB or web page', summary: 'Text that reflows on a phone or e-reader', action: 'Make the e-book', input: 'several-pdfs', group: 'convert', status: 'live' },
   { id: 'office-to-pdf', title: 'Word or Excel to PDF', summary: 'A .docx or .xlsx laid out as a PDF, words still selectable', action: 'Make the PDF', input: 'office', group: 'convert', status: 'live' },
+  { id: 'pdf-a', title: 'Archive copy (PDF/A)', summary: 'A copy made for keeping: PDF/A-2b, colour profile and details inside', action: 'Make the archive copy', input: 'several-pdfs', group: 'convert', status: 'live' },
+  { id: 'rent-receipts', title: 'Rent receipts', summary: 'Monthly rent receipts for your HRA claim, ready to sign', action: 'Make the receipts', input: 'none', group: 'convert', status: 'live' },
   { id: 'images-to-pdf', title: 'Images to PDF', summary: 'Turn photos and scans into one PDF', action: 'Make a PDF', input: 'images', group: 'convert', status: 'live' },
   { id: 'pdf-to-images', title: 'PDF to images', summary: 'Save every page as a PNG or JPEG', action: 'Save as images', input: 'one-pdf', group: 'convert', status: 'live' },
   { id: 'n-up', title: 'Pages per sheet', summary: '2-up or 4-up for printing', action: 'Lay it out', input: 'several-pdfs', group: 'convert', status: 'live' },
@@ -155,10 +171,13 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'page-numbers', title: 'Page numbers', summary: 'Number the pages, and skip a cover if you like', action: 'Add the numbers', input: 'several-pdfs', group: 'mark', status: 'live' },
   { id: 'sign', title: 'Sign', summary: 'Draw your signature and place it on the page', action: 'Place the signature', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'mark-up', title: 'Mark up', summary: 'Highlight, underline, notes, shapes, arrows, stamps, links and measurements', action: 'Save the marks', input: 'one-pdf', group: 'mark', status: 'live' },
+  { id: 'edit-text', title: 'Edit text', summary: 'Change words already on the page, or find and replace them', action: 'Save the changes', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'add-text', title: 'Add text', summary: 'Tap a page and write on it', action: 'Write it on', input: 'one-pdf', group: 'mark', status: 'live' },
+  { id: 'edit-images', title: 'Edit pictures', summary: 'Move, resize, take out or swap the pictures already on a page', action: 'Save the changes', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'add-image', title: 'Add image', summary: 'Put a photo, logo or stamp picture on a page', action: 'Place it', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'fill-form', title: 'Fill in a form', summary: 'Type into a real PDF form and seal the answers', action: 'Fill it in', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'background', title: 'Page background', summary: 'Give the pages a soft paper colour', action: 'Colour the pages', input: 'several-pdfs', group: 'mark', status: 'live' },
+  { id: 'create-form', title: 'Create a form', summary: 'Turn a printed form into one people fill in on screen', action: 'Make it fillable', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'header-footer', title: 'Header and footer', summary: 'A line along the top or bottom of every page', action: 'Add them', input: 'several-pdfs', group: 'mark', status: 'live' },
 
   { id: 'add-password', title: 'Add a password', summary: 'Lock a PDF with AES-256', action: 'Lock it', input: 'several-pdfs', group: 'protect', status: 'live' },
@@ -168,7 +187,9 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'document-details', title: 'Clean hidden data', summary: 'Strip metadata, scripts and comments, or set the title and author', action: 'Clean it', input: 'several-pdfs', group: 'protect', status: 'live' },
   { id: 'attachments', title: 'Attachments', summary: 'Put files inside a PDF, or take out the ones it carries', action: 'Attach or take out', input: 'pdf-and-files', group: 'protect', status: 'live' },
 
+  { id: 'compare', title: 'Compare', summary: 'See what changed between two versions, word by word', action: 'Compare them', input: 'several-pdfs', group: 'read', status: 'live' },
   { id: 'read', title: 'Read', summary: 'Open a document, then hand it to any tool', action: 'Open it', input: 'one-pdf', group: 'read', status: 'live', viewer: true },
+  { id: 'summarise', title: 'Summarise and translate', summary: 'Key points or a translation, by the AI on your own device', action: 'Open it', input: 'one-pdf', group: 'read', status: 'live', viewer: true },
   { id: 'scan', title: 'Scan a document', summary: 'Photograph pages and straighten them', action: 'Make the PDF', input: 'camera', group: 'read', status: 'live' },
   { id: 'ocr', title: 'Make searchable', summary: 'Read the text in a scan so you can search and copy it', action: 'Make it searchable', input: 'several-pdfs', group: 'read', status: 'live' },
   { id: 'extract-text', title: 'Extract text', summary: 'Pull the words out of a PDF as plain text', action: 'Extract the text', input: 'several-pdfs', group: 'read', status: 'live' },
@@ -225,6 +246,13 @@ export const SEARCH_NAMES: Record<ToolId, string> = {
   'pdf-to-epub': 'PDF to EPUB and HTML',
   'office-to-pdf': 'Word and Excel to PDF',
   'add-image': 'Add image to PDF',
+  compare: 'Compare two PDFs',
+  'edit-text': 'Edit PDF text',
+  'create-form': 'Create a fillable PDF form',
+  summarise: 'Summarise or translate a PDF, privately',
+  'pdf-a': 'Convert PDF to PDF/A',
+  'rent-receipts': 'Rent receipt generator for HRA',
+  'edit-images': 'Move, replace or delete images in a PDF',
 };
 
 export const toolPath = (id: ToolId): string => `${import.meta.env.BASE_URL}tools/${id}/`;

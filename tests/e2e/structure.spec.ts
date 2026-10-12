@@ -279,3 +279,136 @@ test('read lists the comments in a document and jumps to them', async ({ page })
   await expect(comment).toContainText('Note · page 2');
   await expect(comment).toContainText('Check the rent figure');
 });
+
+async function twoLinePdf(lines: string[]): Promise<Uint8Array> {
+  const { PDFDocument, StandardFonts } = await import('@cantoo/pdf-lib');
+  const doc = await PDFDocument.create({ updateMetadata: false });
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const p = doc.addPage([595, 842]);
+  lines.forEach((line, i) => p.drawText(line, { x: 60, y: 760 - i * 40, size: 18, font }));
+  return doc.save();
+}
+
+test('remove areas finds Aadhaar numbers and names, and marks them for a look first', async ({ page }) => {
+  await openTool(page, 'remove-areas');
+  await pick(page, [{ name: 'KYC.pdf', bytes: await twoLinePdf(['Aadhaar: 2345 6789 0123', 'Name: Ravi Kumar', 'City: Kochi']) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+  await page.getByTestId('redact-finder').locator('summary').click();
+  await page.getByTestId('opt-find-words').fill('Ravi Kumar');
+  await page.getByTestId('redact-find').click();
+  await expect(page.getByTestId('redact-found')).toContainText('Marked');
+  expect(await page.getByTestId('editor-item').count()).toBeGreaterThanOrEqual(2);
+  await run(page);
+  await expect(page.getByTestId('result-detail')).toContainText('removed');
+});
+
+test('compare marks what changed between two versions', async ({ page }) => {
+  await openTool(page, 'compare');
+  await pick(page, [
+    { name: 'Lease v1.pdf', bytes: await twoLinePdf(['The rent is 10000 rupees a month.', 'Pets are not allowed.']) },
+    { name: 'Lease v2.pdf', bytes: await twoLinePdf(['The rent is 12000 rupees a month.', 'Pets are allowed.']) },
+  ]);
+  const items = await results(page);
+  await expect(items.first()).toHaveAttribute('data-name', 'Lease v2 (compared).pdf');
+  await expect(page.getByTestId('result-detail')).toContainText('1 word added and 2 words taken out');
+});
+
+test('edit text: tap a line and change it, or find and replace everywhere', async ({ page }) => {
+  await openTool(page, 'edit-text');
+  await pick(page, [{ name: 'Letter.pdf', bytes: await twoLinePdf(['Dear Mr Sharma,', 'The meeting is on Monday.', 'See you on Monday.']) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+  await expect(page.locator('.editor__line-hint')).toHaveCount(3);
+  await page.getByTestId('find-replace-box').locator('summary').click();
+  await page.getByTestId('opt-find').fill('Monday');
+  await page.getByTestId('opt-replace-with').fill('Tuesday');
+  await page.getByTestId('find-replace').click();
+  await expect(page.getByTestId('find-replace-said')).toContainText('Changed on 2 lines');
+  await tapAt(page, [0.2, 0.092]);
+  await page.getByTestId('opt-words').fill('Dear Ms Sharma,');
+  await run(page);
+  await expect(page.getByTestId('result-detail')).toHaveText('3 lines changed');
+});
+
+test('create a form finds the blanks on a printed form and makes them fillable', async ({ page }) => {
+  await openTool(page, 'create-form');
+  await pick(page, [{ name: 'Application.pdf', bytes: await twoLinePdf(['Full name: ________________', 'Phone: ______________', '[ ] I agree to the terms']) }]);
+  await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+  await page.getByTestId('form-detect').click();
+  await expect(page.getByTestId('form-detect-said')).toContainText('Found 3 blanks');
+  await expect(page.getByTestId('editor-item')).toHaveCount(3);
+  const items = await results(page);
+  await expect(items.first()).toHaveAttribute('data-name', 'Application (form).pdf');
+  await expect(page.getByTestId('result-detail')).toContainText('2 text fields and 1 tick box added');
+  const { bytes } = await downloadFrom(page, page.getByTestId('save-button'));
+
+  // And straight into Fill in a form, saving the answers for next time.
+  await openTool(page, 'fill-form');
+  await pick(page, [{ name: 'Application (form).pdf', bytes }]);
+  await page.getByTestId('form-field-Full name').fill('Meera Nair');
+  await page.getByTestId('opt-save-answers').check();
+  await run(page);
+  await expect(page.getByTestId('result-item')).toHaveCount(2);
+  const saved = page.getByTestId('result-item').filter({ hasText: 'answers.json' });
+  const answers = await downloadFrom(page, saved.getByTestId('save-button'));
+  expect(JSON.parse(new TextDecoder().decode(answers.bytes)).fields['Full name']).toBe('Meera Nair');
+
+  // Next time: the same form fills itself from that file.
+  await openTool(page, 'fill-form');
+  await pick(page, [{ name: 'Application (form).pdf', bytes }]);
+  await page.getByTestId('form-load').setInputFiles([{ name: 'answers.json', mimeType: 'application/json', buffer: Buffer.from(answers.bytes) }]);
+  await expect(page.getByTestId('form-load-said')).toContainText('Filled');
+  await expect(page.getByTestId('form-field-Full name')).toHaveValue('Meera Nair');
+});
+
+test('summarise never reaches for an online AI: without one built in, it says so', async ({ page }) => {
+  await openTool(page, 'summarise');
+  await pick(page, [{ name: 'Report.pdf', bytes: await twoLinePdf(['Quarterly figures rose by ten percent.', 'Costs fell.']) }]);
+  await expect(page.getByTestId('ai-summarise')).toBeEnabled();
+  const requests: string[] = [];
+  page.on('request', (r) => requests.push(r.url()));
+  await page.getByTestId('ai-summarise').click();
+  await expect(page.getByTestId('ai-status')).toContainText(/built-in AI|key points/);
+  expect(requests.filter((u) => !u.startsWith('http://127.0.0.1:4173'))).toEqual([]);
+});
+
+test('rent receipts: no file needed, just the details', async ({ page }) => {
+  await openTool(page, 'rent-receipts');
+  await expect(page.getByTestId('drop-zone')).toHaveCount(0);
+  await expect(page.getByTestId('run-button')).toBeDisabled();
+  await page.getByTestId('opt-tenant').fill('Anjali Menon');
+  await page.getByTestId('opt-landlord').fill('Joseph Mathew');
+  await page.getByTestId('opt-address').fill('Flat 4B, Rose Gardens, Kochi');
+  await page.getByTestId('opt-rent').fill('15000');
+  await page.getByTestId('opt-start').fill('2026-04');
+  await page.getByTestId('opt-months').fill('12');
+  const items = await results(page);
+  await expect(items.first()).toHaveAttribute('data-name', 'Rent receipts April 2026 to March 2027.pdf');
+  await expect(items.first()).toHaveAttribute('data-pages', '6');
+});
+
+test('pdf/a makes an archive copy', async ({ page }) => {
+  await openTool(page, 'pdf-a');
+  await pick(page, [{ name: 'Deed.pdf', bytes: await pagesPdf(1) }]);
+  const items = await results(page);
+  await expect(items.first()).toHaveAttribute('data-name', 'Deed (PDF-A).pdf');
+  await expect(page.getByTestId('result-detail')).toContainText('PDF/A-2b archive copy');
+});
+
+test('edit pictures: take one out and move another', async ({ page }) => {
+  const { imagesPdf } = await import('../fixtures/pdfs');
+  await openTool(page, 'edit-images');
+  await pick(page, [{ name: 'Brochure.pdf', bytes: await imagesPdf() }]);
+  const pics = page.locator('[data-testid="editor-item"][data-kind="pic"]');
+  await expect(pics).toHaveCount(2);
+  await pics.first().click();
+  await pics.first().getByTestId('editor-remove').click();
+  await expect(pics.first()).toHaveClass(/is-deleted/);
+  await pics.nth(1).evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  const box = (await pics.nth(1).boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 - 60, { steps: 6 });
+  await page.mouse.up();
+  await run(page);
+  await expect(page.getByTestId('result-detail')).toHaveText('1 picture taken out, 1 picture moved');
+});

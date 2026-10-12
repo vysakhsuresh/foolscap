@@ -125,3 +125,25 @@ describe('the mark-up kit', () => {
     expect(out?.kind).toBe('failed');
   });
 });
+
+describe('edit text', () => {
+  it('paints over the old line and writes the new one in its place', async () => {
+    const h = harness();
+    const input = await h.workspace.put('Lease.pdf', await pagesPdf(1), 'pdf', { kind: 'picked' });
+    const marks: Mark[] = [
+      { kind: 'fill', area: { page: 0, x: 0.05, y: 0.1, w: 0.3, h: 0.15 }, color: [1, 1, 1] },
+      { kind: 'text', area: { page: 0, x: 0.06, y: 0.1, w: 0.3, h: 0.15 }, text: 'Two', size: 0.1, color: [0.1, 0.1, 0.1] },
+    ];
+    const out = only(await getOp('edit-text').run([input], { marks }, h.ctx));
+    expect(out.detail).toBe('1 line changed');
+    const bytes = new Uint8Array(await (await h.workspace.read(out.file)).arrayBuffer());
+    const task = pdfjs.getDocument({ data: bytes.slice(), verbosity: 0 });
+    const doc = await task.promise;
+    try {
+      const words = (await (await doc.getPage(1)).getTextContent()).items.map((i) => ('str' in i ? i.str : ''));
+      expect(words).toContain('Two');
+    } finally {
+      await task.destroy();
+    }
+  });
+});

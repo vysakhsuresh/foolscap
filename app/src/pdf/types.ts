@@ -156,6 +156,8 @@ export interface PdfView {
   outline(): Promise<readonly OutlineItem[]>;
   /** The comments a reader lists (notes, highlights, stamps…), in page order. Links and form fields are not comments. */
   comments(): Promise<readonly PdfComment[]>;
+  /** Where each picture on a page is drawn, as fractions of the page as seen, top-left origin. Pictures inside drawings are left out. */
+  images(index: number): Promise<readonly Area[]>;
   /** The document's fillable fields, in page order. Empty when it has none. */
   fields(): Promise<readonly FormField[]>;
   /** Awaits pdf.js destroy: frees page caches, decoded images and fonts. The UI calls it when a grid unmounts. */
@@ -362,6 +364,8 @@ export type Mark =
   | { readonly kind: 'stamp'; readonly area: Area; readonly text: string; readonly color: Rgb }
   /** A link over `area` that opens `url` (http, https, mailto or tel) when tapped in a reader. */
   | { readonly kind: 'link'; readonly area: Area; readonly url: string }
+  /** A solid patch of `color` over `area`: what Edit text paints over the old words with, in the page's own colour. */
+  | { readonly kind: 'fill'; readonly area: Area; readonly color: Rgb }
   /** A photo or picture filling `area`: JPEG or PNG bytes as they are. */
   | { readonly kind: 'picture'; readonly area: Area; readonly bytes: Uint8Array; readonly format: 'jpeg' | 'png' };
 
@@ -395,6 +399,27 @@ export interface PageLayout {
   readonly width: number;
   readonly height: number;
   readonly items: readonly LayoutItem[];
+}
+
+/** A change to a picture already on a page, found by where it is drawn. */
+export type ImageEdit =
+  | { readonly area: Area; readonly action: 'delete' }
+  | { readonly area: Area; readonly action: 'move'; readonly to: Area }
+  | { readonly area: Area; readonly action: 'replace'; readonly bytes: Uint8Array; readonly format: 'jpeg' | 'png' };
+
+export interface ArchivalReport {
+  readonly scripts: number;
+  readonly attachments: number;
+  readonly fontsMissing: number;
+}
+
+/** A fillable field to add to a page: where, what kind, and what it is called. */
+export interface NewField {
+  readonly kind: 'text' | 'multiline' | 'check' | 'choice';
+  readonly name: string;
+  readonly area: Area;
+  /** For a choice list: what can be picked. */
+  readonly options?: readonly string[];
 }
 
 /** One comment in a document, as a reader's comment list shows it. */
@@ -515,6 +540,22 @@ export interface PdfDoc {
    * for letters the form's font cannot draw.
    */
   fillForm(values: FormValues, seal: boolean): void;
+  /** Adds new fillable fields; names already taken get a number. Returns the names given. */
+  addFields(fields: readonly NewField[]): string[];
+  /**
+   * Makes this an archive copy in the PDF/A-2b manner: an sRGB colour
+   * profile, XMP metadata that says so and mirrors the details, a file ID,
+   * printable annotations, and no scripts or attached files. Reports what it
+   * took out and how many fonts are not inside the file (which a strict
+   * validator rejects, and which cannot be fixed without the font itself).
+   */
+  makeArchival(): ArchivalReport;
+  /**
+   * Takes out, moves or swaps pictures already on page `index`, each found by
+   * where it is drawn (`area`, as `PdfView.images` reports it). Returns how
+   * many were found and changed.
+   */
+  editImages(index: number, edits: readonly ImageEdit[]): Promise<number>;
   compress(
     recompress: (image: ExtractedImage) => Promise<RecompressedImage | null>,
     signal?: AbortSignal,

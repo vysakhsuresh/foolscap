@@ -7,12 +7,13 @@
  * Gestures, kept to the two anybody already knows: tap to put something
  * down, drag to draw or move. Whatever is selected gets a × to take it off.
  */
-import type { MarksParams, RemoveAreasParams } from '../ops/op';
+import type { CreateFormParams, EditImagesParams, MarksParams, RemoveAreasParams } from '../ops/op';
 import { measureLabel, type Area, type Mark, type PdfView, type Rgb } from '../pdf/types';
 import { el } from './dom';
-import { choices, field, note, select as selectField } from './fields';
+import { check, choices, field, note, select as selectField } from './fields';
+import { PATTERN_NAMES, detectBlanks, findOnPage, linesOf, splitWords, type Pattern } from '../pdf/find-text';
 
-export type EditorMode = 'sign' | 'add-text' | 'mark-up' | 'remove-areas' | 'add-image';
+export type EditorMode = 'sign' | 'add-text' | 'mark-up' | 'remove-areas' | 'add-image' | 'edit-text' | 'create-form' | 'edit-images';
 
 /** Everything Mark up can put on a page. */
 export type MarkTool = 'highlight' | 'underline' | 'strike' | 'pen' | 'rect' | 'ellipse' | 'arrow' | 'line' | 'measure' | 'note' | 'stamp' | 'textbox' | 'link';
@@ -21,7 +22,7 @@ export interface PageEditor {
   readonly root: HTMLElement;
   /** Takes ownership of `view`; closes it on `destroy()` or the next `load()`. */
   load(view: PdfView): Promise<void>;
-  params(): MarksParams | RemoveAreasParams;
+  params(): MarksParams | RemoveAreasParams | CreateFormParams | EditImagesParams;
   /** Why the run cannot start yet, or null. */
   problem(): string | null;
   destroy(): Promise<void>;
@@ -37,6 +38,12 @@ type Item =
   | { kind: 'stamp'; area: MutableArea; text: string; color: Rgb; el: HTMLElement }
   | { kind: 'link'; area: MutableArea; url: string; el: HTMLElement }
   | { kind: 'cover'; area: MutableArea; el: HTMLElement }
+  /** A picture already on the page, for Edit pictures: where it was, and what is to happen to it. */
+  | { kind: 'pic'; area: MutableArea; original: Area; deleted: boolean; replacement: { bytes: Uint8Array; format: 'jpeg' | 'png'; src: string } | null; el: HTMLElement }
+  /** A fillable field to add, for Create form. */
+  | { kind: 'field'; area: MutableArea; field: FieldKind; name: string; options: string[]; el: HTMLElement }
+  /** A line of the page's own text, rewritten: painted over in `paper`, written again in `color`. */
+  | { kind: 'edit'; area: MutableArea; original: string; text: string; size: number; color: Rgb; paper: Rgb; baseline: number; el: HTMLElement }
   | { kind: 'ink'; page: number; points: number[]; width: number; color: Rgb; el: SVGPolylineElement }
   | {
       kind: 'line';
@@ -56,11 +63,22 @@ type Boxed = Exclude<Item, Vector>;
 const isVector = (item: Item): item is Vector => item.kind === 'ink' || item.kind === 'line';
 const pageOfItem = (item: Item): number => (isVector(item) ? item.page : item.area.page);
 
+type FieldKind = 'text' | 'multiline' | 'check' | 'choice';
+const FIELD_NAMES: Record<FieldKind, string> = { text: 'Text', multiline: 'Paragraph', check: 'Tick box', choice: 'Choice list' };
+
 const RECT_TOOLS = new Set<MarkTool>(['highlight', 'underline', 'strike', 'rect', 'ellipse', 'link']);
 const LINE_TOOLS = new Set<MarkTool>(['arrow', 'line', 'measure']);
 const STAMPS = ['APPROVED', 'PAID', 'RECEIVED', 'DRAFT', 'CONFIDENTIAL', 'URGENT', 'COPY', 'VOID'] as const;
 /** Readers open a link only to these. */
 const LINKABLE = /^(https?:\/\/|mailto:|tel:)\S+$/i;
+
+/** A line of a page's own text, for Edit text. Area and baseline in page fractions; size a fraction of the page width. */
+interface EditableLine {
+  readonly text: string;
+  readonly area: MutableArea;
+  readonly size: number;
+  readonly baseline: number;
+}
 
 interface MutableArea {
   page: number;
@@ -144,6 +162,15 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   let chosen: { bytes: Uint8Array; format: 'jpeg' | 'png'; src: string; aspect: number } | null = null;
   /** Each page's size in points as seen, for measurements. */
   const pagePoints = new Map<number, { w: number; h: number }>();
+  /** Edit text: each page's lines of text and where they sit, read once. */
+  const pageLines = new Map<number, Promise<EditableLine[]>>();
+  const lineHints = el('div', { class: 'editor__line-hints', attrs: { 'aria-hidden': 'true' } });
+  // Edit pictures: each page's pictures, found once.
+  const pagePics = new Set<number>();
+  // Create form.
+  let fieldKind: ReturnType<typeof choices<FieldKind>> | null = null;
+  let fieldName: ReturnType<typeof field> | null = null;
+  let fieldOptions: ReturnType<typeof field> | null = null;
 
   if (mode === 'sign') {
     const pad = el('canvas', { class: 'pad__canvas', testid: 'signature-pad', attrs: { width: '900', height: '300', 'aria-label': 'Draw your signature here' } });
@@ -199,7 +226,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       sync();
     });
   } else if (mode === 'add-text') {
-    textBox = el('textarea', { class: 'input', testid: 'opt-text', attrs: { id: 'opt-text', rows: '2', placeholder: 'Your name, a date, an answer…' } });
+    textBox = el('textarea', { class: 'input', testid: 'opt-text', attrs: { id: 'opt-text', rows: '2', spellcheck: 'true', placeholder: 'Your name, a date, an answer…' } });
     const label = el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'What to write' }), textBox]);
     sizeChoice = choices<'small' | 'medium' | 'large'>('size', 'Size', [{ value: 'small', title: 'Small' }, { value: 'medium', title: 'Medium' }, { value: 'large', title: 'Large' }], 'medium', () => restyleSelected(), 'pills');
     penChoice = choices<'black' | 'blue' | 'red'>('color', 'Colour', [{ value: 'black', title: 'Black' }, { value: 'blue', title: 'Blue' }, { value: 'red', title: 'Red' }], 'black', () => restyleSelected(), 'pills');
@@ -236,7 +263,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     );
     markerChoice = choices<'yellow' | 'green' | 'pink'>('marker', 'Highlighter colour', [{ value: 'yellow', title: 'Yellow' }, { value: 'green', title: 'Green' }, { value: 'pink', title: 'Pink' }], 'yellow', () => undefined, 'pills');
     penChoice = choices<'black' | 'blue' | 'red'>('pen', 'Colour', [{ value: 'black', title: 'Black' }, { value: 'blue', title: 'Blue' }, { value: 'red', title: 'Red' }], 'blue', () => restyleSelected(), 'pills');
-    textBox = el('textarea', { class: 'input', testid: 'opt-words', attrs: { id: 'opt-words', rows: '2', placeholder: 'What the note or box says' } });
+    textBox = el('textarea', { class: 'input', testid: 'opt-words', attrs: { id: 'opt-words', rows: '2', spellcheck: 'true', placeholder: 'What the note or box says' } });
     wordsRow = el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'Words' }), textBox]);
     stampChoice = selectField<(typeof STAMPS)[number]>('stamp', 'Stamp', STAMPS.map((v) => ({ value: v, title: v.charAt(0) + v.slice(1).toLowerCase() })), 'APPROVED', () => undefined);
     linkField = field('link', { label: 'Web address, email or phone', placeholder: 'https://… or mailto:… or tel:…' }, () => sync());
@@ -253,6 +280,74 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         onChange();
       }
     });
+  } else if (mode === 'edit-text') {
+    textBox = el('textarea', { class: 'input', testid: 'opt-words', attrs: { id: 'opt-words', rows: '2', spellcheck: 'true', placeholder: 'Tap a line on the page, then change it here' } });
+    tools.append(el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'The line you tapped' }), textBox]));
+    textBox.addEventListener('input', () => {
+      if (selected?.kind !== 'edit' || !textBox) return;
+      selected.text = textBox.value.replace(/\n/g, ' ');
+      paintEdit(selected);
+      onChange();
+    });
+    const find = field('find', { label: 'Find', placeholder: 'A word or a phrase' }, () => undefined);
+    const replaceWith = field('replace-with', { label: 'Replace with', placeholder: 'Leave empty to delete it' }, () => undefined);
+    const go = el('button', { class: 'button button--small', testid: 'find-replace', text: 'Replace everywhere', attrs: { type: 'button' } });
+    const said = el('p', { class: 'options__note', testid: 'find-replace-said', attrs: { role: 'status', 'aria-live': 'polite' } });
+    tools.append(
+      el('details', { class: 'finder', testid: 'find-replace-box' }, [
+        el('summary', { class: 'finder__summary', text: 'Find and replace' }),
+        el('div', { class: 'finder__body' }, [el('div', { class: 'field-row' }, [find.root, replaceWith.root]), go, said]),
+      ]),
+      note('The old words are painted over in the page’s own colour and the new ones written in their place, in the nearest built-in font. The old words stay inside the file underneath, so anyone who copies the text can still find them: to take words out for good, use Remove areas.'),
+    );
+    go.addEventListener('click', () => void replaceEverywhere(find.value(), replaceWith.value(), said, go));
+  } else if (mode === 'edit-images') {
+    const input = el('input', { class: 'visually-hidden', testid: 'opt-replace-picture', attrs: { id: 'opt-replace-picture', type: 'file', accept: 'image/*' } });
+    const words = el('span', { class: 'picture-pick__words', text: 'Replace the selected picture with another' });
+    tools.append(
+      el('label', { class: 'picture-pick', attrs: { for: 'opt-replace-picture' } }, [words, input]),
+      note('Pictures on the page are outlined. Drag one to move it, drag its corner to resize it, tap its × to take it out (tap × again to keep it), or select it and choose a new picture to swap in. Nothing else on the page changes.'),
+    );
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      input.value = '';
+      if (!file) return;
+      if (selected?.kind !== 'pic') {
+        hint.textContent = 'Tap a picture on the page first, then choose the new one.';
+        return;
+      }
+      const target = selected;
+      void readPicture(file).then(
+        (made) => {
+          target.replacement = { bytes: made.bytes, format: made.format, src: made.src };
+          target.deleted = false;
+          paintPic(target);
+          onChange();
+        },
+        () => {
+          hint.textContent = "That picture couldn't be read. Try a JPEG or PNG.";
+        },
+      );
+    });
+  } else if (mode === 'create-form') {
+    fieldKind = choices<FieldKind>('field-kind', 'Field', (Object.keys(FIELD_NAMES) as FieldKind[]).map((k) => ({ value: k, title: FIELD_NAMES[k] })), 'text', () => sync(), 'pills');
+    fieldName = field('field-name', { label: 'Its name', placeholder: 'e.g. Full name', hint: 'What a reader shows beside the field. Tap a field to rename it.' }, () => {
+      if (selected?.kind === 'field' && fieldName) {
+        selected.name = fieldName.value();
+        paintField(selected);
+        onChange();
+      }
+    });
+    fieldOptions = field('field-options', { label: 'Choices', placeholder: 'Separate them with commas', value: 'Yes, No' }, () => {
+      if (selected?.kind === 'field' && fieldOptions) {
+        selected.options = splitWords(fieldOptions.value());
+        onChange();
+      }
+    });
+    const detect = el('button', { class: 'button button--small', testid: 'form-detect', text: 'Find the blanks for me', attrs: { type: 'button' } });
+    const said = el('p', { class: 'options__note', testid: 'form-detect-said', attrs: { role: 'status', 'aria-live': 'polite' } });
+    tools.append(fieldKind.root, el('div', { class: 'field-row' }, [fieldName.root, fieldOptions.root]), detect, said);
+    detect.addEventListener('click', () => void findBlanks(said, detect));
   } else if (mode === 'add-image') {
     const input = el('input', { class: 'visually-hidden', testid: 'opt-picture', attrs: { id: 'opt-picture', type: 'file', accept: 'image/*' } });
     const preview = el('img', { class: 'picture-pick__preview', attrs: { alt: '' } });
@@ -280,6 +375,17 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       );
     });
   } else {
+    // Find and remove: patterns and words found on every page, marked for a look before anything goes.
+    const picks = (Object.keys(PATTERN_NAMES) as Pattern[]).map((p) => ({ p, box: check(`find-${p}`, PATTERN_NAMES[p], p === 'aadhaar' || p === 'pan', () => undefined) }));
+    const words = field('find-words', { label: 'And these words or names', placeholder: 'Separate them with commas' }, () => undefined);
+    const findButton = el('button', { class: 'button button--small', testid: 'redact-find', text: 'Find and mark them', attrs: { type: 'button' } });
+    const found = el('p', { class: 'options__note', testid: 'redact-found', attrs: { role: 'status', 'aria-live': 'polite' } });
+    const finder = el('details', { class: 'finder', testid: 'redact-finder' }, [
+      el('summary', { class: 'finder__summary', text: 'Find and remove: Aadhaar, PAN, phone numbers, names…' }),
+      el('div', { class: 'finder__body' }, [el('div', { class: 'finder__checks' }, picks.map((x) => x.box.root)), words.root, findButton, found]),
+    ]);
+    tools.append(finder);
+    findButton.addEventListener('click', () => void findAndMark(picks.filter((x) => x.box.checked()).map((x) => x.p), splitWords(words.value()), found, findButton));
     tools.append(
       note('Drag across anything that should go: a number, a name, a photo. Every page you mark becomes a picture of itself with those parts painted out, so the hidden words cannot be copied, searched or recovered. Its other text stops being selectable, and any form answers on that page go too.'),
     );
@@ -292,7 +398,9 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     next.disabled = current >= n - 1;
     prev.hidden = next.hidden = n <= 1;
     undo.disabled = items.length === 0;
+    undo.hidden = mode === 'edit-images';
     hint.textContent = hintText();
+    if (fieldOptions) fieldOptions.root.hidden = (selected?.kind === 'field' ? selected.field : fieldKind?.value()) !== 'choice';
     if (mode === 'mark-up') {
       const tool = toolChoice?.value() ?? 'highlight';
       root.dataset['tool'] = tool;
@@ -341,6 +449,12 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         return '';
       case 'add-image':
         return chosen === null ? 'Choose a picture above, then tap the page where it goes.' : 'Tap the page to put the picture there. Drag it to move it; drag its corner to resize.';
+      case 'edit-text':
+        return 'Tap a line of text to change it. The lines you can change are outlined.';
+      case 'create-form':
+        return fieldKind?.value() === 'check' ? 'Tap the page where a tick box goes.' : 'Drag across the space where the answer goes.';
+      case 'edit-images':
+        return 'Tap a picture to select it. Drag to move, drag its corner to resize, × to take it out.';
       case 'remove-areas':
         return 'Drag across each part that should go.';
     }
@@ -396,6 +510,176 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     placeAll();
     if (held && items.includes(held)) select(held);
     sync();
+    if (mode === 'edit-text') void outlineLines(target, token);
+    if (mode === 'edit-images') void findPics(target, token);
+  }
+
+  async function findPics(index: number, token: number): Promise<void> {
+    if (!view || pagePics.has(index)) return;
+    pagePics.add(index);
+    const found = await view.images(index).catch(() => [] as readonly Area[]);
+    for (const area of found) {
+      const box = boxElement('pic', 'Picture');
+      box.prepend(el('span', { class: 'editor__pic-state' }));
+      box.append(el('span', { class: 'editor__resize', attrs: { 'aria-hidden': 'true' } }));
+      const item: Extract<Item, { kind: 'pic' }> = { kind: 'pic', area: { ...area }, original: area, deleted: false, replacement: null, el: box };
+      items.push(item);
+      wireItem(item);
+      paintPic(item);
+    }
+    if (token === renderToken) {
+      placeAll();
+      if (found.length === 0) hint.textContent = 'This page has no pictures to change. Go to another page, or add one with Add image.';
+      sync();
+    }
+  }
+
+  function paintPic(item: Extract<Item, { kind: 'pic' }>): void {
+    item.el.classList.toggle('is-deleted', item.deleted);
+    const state = item.el.querySelector<HTMLElement>('.editor__pic-state');
+    if (state) state.textContent = item.deleted ? 'Taken out' : item.replacement ? 'Replaced' : '';
+    let img = item.el.querySelector<HTMLImageElement>('.editor__img');
+    if (item.replacement && !img) {
+      img = el('img', { class: 'editor__img', attrs: { alt: '' } });
+      item.el.prepend(img);
+    }
+    if (img) {
+      if (item.replacement) img.src = item.replacement.src;
+      else img.remove();
+    }
+  }
+
+  /** Edit text: reads a page's lines once, with where each sits, its size, and the page's colours round it. */
+  function linesFor(index: number): Promise<EditableLine[]> {
+    let found = pageLines.get(index);
+    if (!found) {
+      const v = view;
+      found = (async () => {
+        if (!v) return [];
+        const layout = await v.layout(index).catch(() => null);
+        if (!layout) return [];
+        return linesOf(layout).flatMap((line): EditableLine[] => {
+          const first = line.pieces[0]?.item;
+          if (!first || line.text.trim() === '') return [];
+          let x0 = Infinity;
+          let x1 = -Infinity;
+          let size = 0;
+          for (const { item } of line.pieces) {
+            x0 = Math.min(x0, item.x);
+            x1 = Math.max(x1, item.x + item.width);
+            size = Math.max(size, item.height);
+          }
+          const baseline = first.y;
+          const top = baseline - size * 0.95;
+          const bottom = baseline + size * 0.28;
+          return [{ text: line.text, size: size / layout.width, baseline: baseline / layout.height, area: { page: index, x: x0 / layout.width, y: top / layout.height, w: (x1 - x0) / layout.width, h: (bottom - top) / layout.height } }];
+        });
+      })();
+      pageLines.set(index, found);
+    }
+    return found;
+  }
+
+  async function outlineLines(index: number, token: number): Promise<void> {
+    const lines = await linesFor(index);
+    if (token !== renderToken) return;
+    lineHints.replaceChildren(
+      ...lines.map((line) => {
+        const hintBox = el('span', { class: 'editor__line-hint' });
+        hintBox.style.setProperty('left', `${line.area.x * 100}%`);
+        hintBox.style.setProperty('top', `${line.area.y * 100}%`);
+        hintBox.style.setProperty('width', `${line.area.w * 100}%`);
+        hintBox.style.setProperty('height', `${line.area.h * 100}%`);
+        return hintBox;
+      }),
+    );
+    if (lines.length === 0) hint.textContent = 'This page has no text to change: it may be a scanned picture. Make it searchable first, or use Add text.';
+    if (!sheet.contains(lineHints)) sheet.insertBefore(lineHints, layer);
+  }
+
+  /** The colour just left of a line (the paper), and the darkest inside it (the ink), from the drawn page. */
+  function coloursAt(area: MutableArea): { paper: Rgb; ink: Rgb } {
+    const fallback = { paper: [1, 1, 1] as Rgb, ink: [0.08, 0.08, 0.1] as Rgb };
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context || canvas.width === 0 || area.page !== current) return fallback;
+    const px = (fx: number) => clamp(Math.round(fx * canvas.width), 0, canvas.width - 1);
+    const py = (fy: number) => clamp(Math.round(fy * canvas.height), 0, canvas.height - 1);
+    const sx = px(area.x) - 3;
+    const paperAt = context.getImageData(Math.max(0, sx), py(area.y + area.h / 2), 1, 1).data;
+    const paper: Rgb = [(paperAt[0] ?? 255) / 255, (paperAt[1] ?? 255) / 255, (paperAt[2] ?? 255) / 255];
+    const x0 = px(area.x);
+    const y0 = py(area.y);
+    const w = Math.max(1, px(area.x + area.w) - x0);
+    const h = Math.max(1, py(area.y + area.h) - y0);
+    const data = context.getImageData(x0, y0, w, h).data;
+    let best = 765;
+    let ink: Rgb = fallback.ink;
+    for (let i = 0; i < data.length; i += 16) {
+      const sum = (data[i] ?? 255) + (data[i + 1] ?? 255) + (data[i + 2] ?? 255);
+      if (sum < best) {
+        best = sum;
+        ink = [(data[i] ?? 0) / 255, (data[i + 1] ?? 0) / 255, (data[i + 2] ?? 0) / 255];
+      }
+    }
+    return { paper, ink };
+  }
+
+  function makeEdit(line: EditableLine, text: string): Extract<Item, { kind: 'edit' }> {
+    const pad = 0.004;
+    const area: MutableArea = { page: line.area.page, x: Math.max(0, line.area.x - pad), y: line.area.y, w: Math.min(1, line.area.w + 2 * pad), h: line.area.h };
+    const { paper, ink } = coloursAt(area);
+    const box = boxElement('edit', 'Changed line');
+    box.prepend(el('span', { class: 'editor__words' }));
+    return { kind: 'edit', area, original: line.text, text, size: line.size, color: ink, paper, baseline: line.baseline, el: box };
+  }
+
+  function paintEdit(item: Extract<Item, { kind: 'edit' }>): void {
+    const body = item.el.querySelector<HTMLElement>('.editor__words');
+    if (body) body.textContent = item.text.length > 0 ? item.text : ' ';
+    item.el.style.setProperty('--size', String(item.size));
+    item.el.style.setProperty('color', css(item.color));
+    item.el.style.setProperty('background-color', css(item.paper));
+  }
+
+  async function replaceEverywhere(find: string, replacement: string, say: HTMLElement, button: HTMLButtonElement): Promise<void> {
+    const needle = find.trim();
+    if (!view || needle === '') {
+      say.textContent = 'Type what to find.';
+      return;
+    }
+    button.disabled = true;
+    const lower = needle.toLocaleLowerCase();
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let lines = 0;
+    const pages = new Set<number>();
+    try {
+      for (let index = 0; index < view.pageCount; index++) {
+        say.textContent = `Looking through page ${index + 1} of ${view.pageCount}…`;
+        for (const line of await linesFor(index)) {
+          if (!line.text.toLocaleLowerCase().includes(lower)) continue;
+          // A line already changed is changed again, in place.
+          const existing = items.find((i): i is Extract<Item, { kind: 'edit' }> => i.kind === 'edit' && i.area.page === index && Math.abs(i.baseline - line.baseline) < 0.002);
+          const source = existing?.text ?? line.text;
+          const text = source.replace(new RegExp(escaped, 'gi'), replacement).replace(/ {2,}/g, ' ');
+          if (existing) {
+            existing.text = text;
+            paintEdit(existing);
+          } else {
+            const item = makeEdit(line, text);
+            items.push(item);
+            wireItem(item);
+          }
+          lines++;
+          pages.add(index);
+        }
+      }
+    } finally {
+      button.disabled = false;
+    }
+    placeAll();
+    sync();
+    onChange();
+    say.textContent = lines === 0 ? `“${needle}” isn’t in the text of this document.` : `Changed on ${lines} ${lines === 1 ? 'line' : 'lines'}, on ${pages.size} ${pages.size === 1 ? 'page' : 'pages'}. Each is outlined on its page; tap one to adjust it.`;
   }
 
   function placeAll(): void {
@@ -413,6 +697,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         layer.append(item.el);
         position(item);
         if (item.kind === 'text') paintText(item);
+        if (item.kind === 'edit') paintEdit(item);
       }
     }
   }
@@ -460,11 +745,25 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     if (selected && !isVector(selected)) selected.el.classList.remove('is-selected');
     selected = item;
     if (item && !isVector(item)) item.el.classList.add('is-selected');
-    if ((item?.kind === 'text' || item?.kind === 'note') && textBox) textBox.value = item.text;
+    if ((item?.kind === 'text' || item?.kind === 'note' || item?.kind === 'edit') && textBox) textBox.value = item.text;
+    if (item?.kind === 'field') {
+      if (fieldName) fieldName.input.value = item.name;
+      if (fieldOptions) fieldOptions.input.value = item.options.join(', ');
+    }
+    if (mode === 'create-form') sync();
     if (mode === 'mark-up') sync();
   }
 
   function remove(item: Item): void {
+    if (item.kind === 'pic') {
+      // A picture of the page's own is not taken off the screen: it is marked to go, and can be kept again.
+      item.deleted = !item.deleted;
+      if (item.deleted) item.replacement = null;
+      paintPic(item);
+      onChange();
+      sync();
+      return;
+    }
     items = items.filter((i) => i !== item);
     item.el.remove();
     if (item.kind === 'line') item.label?.remove();
@@ -489,6 +788,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       layer.append(item.el);
       position(item);
       if (item.kind === 'text') paintText(item);
+      if (item.kind === 'edit') paintEdit(item);
       wireItem(item);
     }
     select(item);
@@ -525,10 +825,10 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     item.el.addEventListener('pointerdown', (ev) => {
       ev.stopPropagation();
       select(item);
-      if (item.kind === 'text' || item.kind === 'note') textBox?.focus({ preventScroll: true });
+      if (item.kind === 'text' || item.kind === 'note' || item.kind === 'edit') textBox?.focus({ preventScroll: true });
       const resizing = handle !== null && ev.target === handle;
       drag(ev, item.el, (dx, dy, start) => {
-        if (resizing && (item.kind === 'image' || item.kind === 'picture' || item.kind === 'stamp')) {
+        if (resizing && (item.kind === 'image' || item.kind === 'picture' || item.kind === 'stamp' || item.kind === 'pic')) {
           const w = clamp(start.w + dx, 0.05, 1 - item.area.x);
           item.area.w = w;
           item.area.h = (w * start.h) / start.w;
@@ -693,8 +993,120 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       }
       case 'remove-areas':
         rect(ev, px, py, 'cover');
+        return;
+      case 'edit-text':
+        void editLineAt(px, py);
+        return;
+      case 'create-form': {
+        const kind = fieldKind?.value() ?? 'text';
+        if (kind === 'check') {
+          const side = 0.03;
+          addItem(makeField('check', { page: current, x: clamp(px - side / 2, 0, 1 - side), y: clamp(py - (side / pageAspect) / 2, 0, 1), w: side, h: side / pageAspect }));
+          return;
+        }
+        fieldDrag(ev, px, py, kind);
+      }
     }
   });
+
+  function makeField(kind: FieldKind, area: MutableArea, name?: string): Extract<Item, { kind: 'field' }> {
+    const count = items.filter((i) => i.kind === 'field').length + 1;
+    const typed = fieldName?.value().trim();
+    const chosen = name ?? (typed && !items.some((i) => i.kind === 'field' && i.name === typed) ? typed : `${FIELD_NAMES[kind]} ${count}`);
+    const box = boxElement(`field-${kind}`, `${FIELD_NAMES[kind]} field`);
+    box.prepend(el('span', { class: 'editor__field-name' }));
+    const item: Extract<Item, { kind: 'field' }> = { kind: 'field', area, field: kind, name: chosen, options: kind === 'choice' ? splitWords(fieldOptions?.value() ?? '') : [], el: box };
+    paintField(item);
+    return item;
+  }
+
+  function paintField(item: Extract<Item, { kind: 'field' }>): void {
+    const label = item.el.querySelector<HTMLElement>('.editor__field-name');
+    if (label) label.textContent = item.field === 'check' ? '' : item.name;
+    item.el.setAttribute('title', item.name);
+  }
+
+  function fieldDrag(ev: PointerEvent, px: number, py: number, kind: FieldKind): void {
+    const area: MutableArea = { page: current, x: px, y: py, w: 0, h: 0 };
+    const item = makeField(kind, area);
+    layer.append(item.el);
+    position(item);
+    drag(ev, layer, (dx, dy) => {
+      const x2 = clamp(px + dx, 0, 1);
+      const y2 = clamp(py + dy, 0, 1);
+      area.x = Math.min(px, x2);
+      area.y = Math.min(py, y2);
+      area.w = Math.abs(x2 - px);
+      area.h = Math.abs(y2 - py);
+      position(item);
+    }, () => {
+      if (area.w < 0.02) {
+        item.el.remove();
+        hint.textContent = 'Drag across the space, from one corner to the other.';
+        return;
+      }
+      // A flat drag along a line still makes a field tall enough to type in.
+      const minH = (kind === 'multiline' ? 0.06 : 0.022) / 1;
+      if (area.h < minH) {
+        area.y = Math.max(0, area.y - (minH - area.h));
+        area.h = minH;
+        position(item);
+      }
+      items.push(item);
+      wireItem(item);
+      select(item);
+      onChange();
+      sync();
+    });
+  }
+
+  async function findBlanks(say: HTMLElement, button: HTMLButtonElement): Promise<void> {
+    if (!view) return;
+    button.disabled = true;
+    let added = 0;
+    try {
+      for (let index = 0; index < view.pageCount; index++) {
+        say.textContent = `Looking through page ${index + 1} of ${view.pageCount}…`;
+        const layout = await view.layout(index);
+        for (const blank of detectBlanks(layout, index)) {
+          if (items.some((i) => i.kind === 'field' && i.area.page === index && Math.abs(i.area.x - blank.area.x) < 0.005 && Math.abs(i.area.y - blank.area.y) < 0.005)) continue;
+          const item = makeField(blank.kind, { ...blank.area }, blank.name);
+          items.push(item);
+          wireItem(item);
+          added++;
+        }
+      }
+    } catch {
+      say.textContent = 'This document could not be searched. Draw the fields by hand instead.';
+      return;
+    } finally {
+      button.disabled = false;
+    }
+    placeAll();
+    sync();
+    onChange();
+    say.textContent = added === 0 ? 'No blanks found: no lines of ____ or empty ☐ boxes. Draw the fields by hand.' : `Found ${added} ${added === 1 ? 'blank' : 'blanks'}, each now a field named after the words beside it. Check them: tap one to rename it or take it away.`;
+  }
+
+  async function editLineAt(px: number, py: number): Promise<void> {
+    const page = current;
+    const lines = await linesFor(page);
+    const line = lines.find((l) => px >= l.area.x - 0.01 && px <= l.area.x + l.area.w + 0.01 && py >= l.area.y && py <= l.area.y + l.area.h);
+    if (!line) {
+      hint.textContent = lines.length === 0 ? 'This page has no text to change: it may be a scanned picture.' : 'Tap right on a line of text: the outlined ones can be changed.';
+      return;
+    }
+    const existing = items.find((i) => i.kind === 'edit' && i.area.page === page && Math.abs(i.baseline - line.baseline) < 0.002);
+    if (existing) {
+      select(existing);
+      textBox?.focus({ preventScroll: true });
+      return;
+    }
+    const item = makeEdit(line, line.text);
+    addItem(item);
+    textBox?.focus({ preventScroll: true });
+    textBox?.select();
+  }
 
   // The keyboard: Enter on the page puts something in its middle; the arrow
   // keys then move whatever is selected (Shift for bigger steps).
@@ -704,6 +1116,13 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     select(null);
     if (mode === 'sign' || mode === 'add-text' || mode === 'add-image') {
       placeAt(0.5, 0.5);
+      return;
+    }
+    if (mode === 'edit-text') {
+      void linesFor(current).then((lines) => {
+        const next = lines.find((l) => !items.some((i) => i.kind === 'edit' && i.area.page === current && Math.abs(i.baseline - l.baseline) < 0.002));
+        if (next) void editLineAt(next.area.x + next.area.w / 2, next.area.y + next.area.h / 2);
+      });
       return;
     }
     const tool = mode === 'mark-up' ? (toolChoice?.value() ?? 'highlight') : null;
@@ -892,6 +1311,50 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   };
   window.addEventListener('resize', onResize);
 
+  /** Searches every page and marks what it finds as areas to remove, for a look before anything goes. */
+  async function findAndMark(patterns: readonly Pattern[], words: readonly string[], say: HTMLElement, button: HTMLButtonElement): Promise<void> {
+    if (!view) return;
+    if (patterns.length === 0 && words.length === 0) {
+      say.textContent = 'Tick something to find, or type a word.';
+      return;
+    }
+    button.disabled = true;
+    const v = view;
+    let count = 0;
+    const pages = new Set<number>();
+    let scanned = 0;
+    try {
+      for (let index = 0; index < v.pageCount; index++) {
+        say.textContent = `Looking through page ${index + 1} of ${v.pageCount}…`;
+        const layout = await v.layout(index);
+        if (layout.items.length === 0) scanned++;
+        for (const area of findOnPage(layout, index, patterns, words)) {
+          // Already marked by an earlier search: leave the one there.
+          if (items.some((i) => i.kind === 'cover' && i.area.page === area.page && Math.abs(i.area.x - area.x) < 0.002 && Math.abs(i.area.y - area.y) < 0.002)) continue;
+          const item = makeRect('cover', { ...area });
+          items.push(item);
+          wireItem(item);
+          count++;
+          pages.add(index);
+        }
+      }
+    } catch {
+      say.textContent = 'This document could not be searched. Mark the parts by hand instead.';
+      return;
+    } finally {
+      button.disabled = false;
+    }
+    placeAll();
+    sync();
+    onChange();
+    const list = [...pages].sort((a, b) => a - b).map((p) => p + 1);
+    const where = list.length === 1 ? `page ${list[0]}` : `pages ${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+    const scans = scanned > 0 ? ` ${scanned === v.pageCount ? 'This file is' : `${scanned} of its pages are`} scanned pictures, which have no words to search: run Make searchable first, or mark by hand.` : '';
+    say.textContent = count === 0 ? `Nothing found.${scans}` : `Marked ${count} ${count === 1 ? 'place' : 'places'} on ${where}. Check each one: tap one and its × takes it back.${scans}`;
+    const first = list[0];
+    if (first !== undefined && first - 1 !== current) await show(first - 1);
+  }
+
   // ---- Out ----
 
   function marks(): Mark[] {
@@ -939,6 +1402,24 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         }
         case 'cover':
           break;
+        case 'edit': {
+          if (item.text === item.original) break;
+          const paper = item.paper;
+          out.push({ kind: 'fill', area: { ...item.area }, color: paper });
+          if (item.text.trim() === '') break;
+          // The new words start where the old ones did, on the same baseline.
+          const size = item.size;
+          const aspect = aspects.get(item.area.page) ?? pageAspect;
+          const top = item.baseline - (0.97 * size) / aspect;
+          const x = item.area.x + 0.004;
+          if (WIN_ANSI.test(item.text)) {
+            out.push({ kind: 'text', area: { page: item.area.page, x, y: Math.max(0, top), w: Math.max(0.01, item.area.w), h: Math.max(0.01, item.area.h) }, text: item.text, size, color: item.color });
+          } else {
+            const picture = textPicture(item.text, size, item.color, pageWidthPx(), aspect);
+            if (picture) out.push({ kind: 'image', area: { page: item.area.page, x, y: Math.max(0, item.area.y), w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png });
+          }
+          break;
+        }
       }
     }
     return out;
@@ -952,11 +1433,28 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       await view?.close();
       view = next;
       items = [];
+      pageLines.clear();
+      pagePics.clear();
+      lineHints.replaceChildren();
       selected = null;
       root.hidden = false;
       await show(0);
     },
     params() {
+      if (mode === 'edit-images') {
+        const edits = items.flatMap((i): EditImagesParams['edits'] => {
+          if (i.kind !== 'pic') return [];
+          if (i.deleted) return [{ area: i.original, action: 'delete' }];
+          if (i.replacement) return [{ area: i.original, action: 'replace', bytes: i.replacement.bytes, format: i.replacement.format }];
+          const moved = Math.abs(i.area.x - i.original.x) + Math.abs(i.area.y - i.original.y) + Math.abs(i.area.w - i.original.w) + Math.abs(i.area.h - i.original.h) > 0.003;
+          return moved ? [{ area: i.original, action: 'move', to: { ...i.area } }] : [];
+        });
+        return { edits };
+      }
+      if (mode === 'create-form') {
+        const fields = items.flatMap((i) => (i.kind === 'field' ? [{ kind: i.field, name: i.name.trim() || FIELD_NAMES[i.field], area: { ...i.area }, ...(i.field === 'choice' ? { options: [...i.options] } : {}) }] : []));
+        return { fields };
+      }
       if (mode === 'remove-areas') {
         const areas: Area[] = items.filter((i): i is Extract<Item, { kind: 'cover' }> => i.kind === 'cover').map((i) => ({ ...i.area }));
         return { areas };
@@ -965,6 +1463,11 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     },
     problem() {
       if (!view) return 'Opening the page…';
+      if (mode === 'edit-images') {
+        const changed = items.some((i) => i.kind === 'pic' && (i.deleted || i.replacement !== null || Math.abs(i.area.x - i.original.x) + Math.abs(i.area.y - i.original.y) + Math.abs(i.area.w - i.original.w) > 0.003));
+        return changed ? null : 'Move, take out or replace a picture first.';
+      }
+      if (mode === 'edit-text' && items.length > 0 && items.every((i) => i.kind !== 'edit' || i.text === i.original)) return 'Change the words first.';
       if (items.length > 0) return null;
       switch (mode) {
         case 'sign':
@@ -977,6 +1480,10 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
           return 'Drag across what should go.';
         case 'add-image':
           return chosen === null ? 'Choose a picture, then tap the page where it goes.' : 'Tap the page where the picture goes.';
+        case 'edit-text':
+          return 'Tap a line of text and change it.';
+        case 'create-form':
+          return 'Draw a field, or tap “Find the blanks for me”.';
       }
       return null;
     },

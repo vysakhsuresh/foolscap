@@ -35,7 +35,9 @@ export type Arity =
   /** Needs at least `min` inputs, consumed together. Merge. */
   | { readonly kind: 'together'; readonly min: number }
   /** Exactly one input. Split, organise. */
-  | { readonly kind: 'one' };
+  | { readonly kind: 'one' }
+  /** No input at all: the tool makes a new file from what is typed (templates). */
+  | { readonly kind: 'none' };
 
 /**
  * How far along a job is. Counts pages rather than files wherever a file can
@@ -332,6 +334,15 @@ export interface MarksParams {
   readonly marks: readonly Mark[];
 }
 
+export interface EditImagesParams {
+  /** Each change, found by where the picture is drawn (area.page says which page). */
+  readonly edits: readonly import('../pdf/types').ImageEdit[];
+}
+
+export interface CreateFormParams {
+  readonly fields: readonly import('../pdf/types').NewField[];
+}
+
 export interface RemoveAreasParams {
   readonly areas: readonly Area[];
 }
@@ -340,6 +351,8 @@ export interface FillFormParams {
   readonly values: FormValues;
   /** Flatten the answers into the page so they can no longer be changed. */
   readonly seal: boolean;
+  /** Every answer on the form, to save beside the PDF as a .json that fills the same form next time. */
+  readonly answers?: FormValues;
 }
 
 export interface ScanParams {
@@ -384,6 +397,20 @@ export interface PdfToWordParams {
 
 export interface PdfToEpubParams extends PdfToWordParams {
   readonly format: 'epub' | 'html';
+}
+
+export interface RentReceiptsParams {
+  readonly tenant: string;
+  readonly landlord: string;
+  readonly address: string;
+  /** Monthly rent in rupees. */
+  readonly rent: number;
+  /** The first month, "2026-04". */
+  readonly start: string;
+  readonly months: number;
+  readonly mode: 'Cash' | 'Bank transfer' | 'UPI' | 'Cheque';
+  /** The owner's PAN, which employers ask for when the rent is over Rs. 1 lakh a year. */
+  readonly pan: string;
 }
 
 export interface DigitalSignParams {

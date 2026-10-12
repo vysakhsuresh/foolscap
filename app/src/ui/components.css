@@ -2113,6 +2113,10 @@ select.input option {
   cursor: crosshair;
 }
 
+.editor[data-mode='edit-text'] .editor__layer {
+  cursor: text;
+}
+
 .editor[data-mode='sign'] .editor__layer,
 .editor[data-mode='add-image'] .editor__layer,
 .editor[data-mode='add-text'] .editor__layer,
@@ -2244,6 +2248,39 @@ select.input option {
 }
 
 /* Add image: one big target to choose the picture, with a preview once chosen. */
+.finder {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--glass);
+}
+
+.finder__summary {
+  min-height: var(--target);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.finder__summary:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: var(--radius-m);
+}
+
+.finder__body {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.finder__checks {
+  display: grid;
+  gap: var(--space-1);
+}
+
 .picture-pick {
   display: flex;
   align-items: center;
@@ -2274,6 +2311,89 @@ select.input option {
   object-fit: contain;
   border-radius: 8px;
   background: #fff;
+}
+
+.editor__line-hints {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.editor__line-hint {
+  position: absolute;
+  border-radius: 3px;
+  outline: 1px dashed color-mix(in srgb, var(--tool-b) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.editor__item--field-text,
+.editor__item--field-multiline,
+.editor__item--field-choice,
+.editor__item--field-check {
+  background: rgb(37 99 235 / 0.1);
+  border: 1.5px solid rgb(37 99 235 / 0.75);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.editor__item--field-choice::after {
+  content: '▾';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgb(37 99 235);
+  font-size: 12px;
+}
+
+.editor__field-name {
+  display: block;
+  padding: 1px 4px;
+  color: rgb(30 64 175);
+  font: 600 11px/1.2 Helvetica, Arial, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.editor__item--pic {
+  outline: 2px dashed rgb(37 99 235 / 0.85);
+  outline-offset: -1px;
+  background: rgb(37 99 235 / 0.06);
+}
+
+.editor__item--pic.is-deleted {
+  background: repeating-linear-gradient(45deg, rgb(196 26 31 / 0.35) 0 8px, rgb(196 26 31 / 0.12) 8px 16px);
+  outline-color: rgb(196 26 31 / 0.9);
+}
+
+.editor__pic-state {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  z-index: 1;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.9);
+  color: #1e293b;
+  font: 700 11px/1.6 Helvetica, Arial, sans-serif;
+  pointer-events: none;
+}
+
+.editor__pic-state:empty {
+  display: none;
+}
+
+.editor__item--edit {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: calc(var(--size) * var(--page-w));
+  line-height: 1.15;
+  white-space: pre;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 0.08em;
+  overflow: visible;
 }
 
 .editor__item--text {
@@ -2961,4 +3081,32 @@ body[data-page='tool'] .site-footer {
   .print-sheets__page:last-child {
     break-after: auto;
   }
+}
+
+/* ---- Summarise and translate ---- */
+.ai {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.ai__actions {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.ai__translate {
+  align-items: end;
+}
+
+.ai__result {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: end;
+}
+
+.ai__output.input {
+  width: 100%;
+  max-width: none;
+  min-height: 14rem;
 }

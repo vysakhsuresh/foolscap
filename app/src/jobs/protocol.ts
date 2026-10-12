@@ -41,6 +41,7 @@ export type FromWorker =
 
 /** Null when `count` inputs fit `arity`; otherwise what to tell the user. */
 export function arityProblem(arity: Arity, title: string, count: number): string | null {
+  if (arity.kind === 'none') return count === 0 ? null : `${title} makes a new file; it does not take any.`;
   if (count === 0 && (arity.kind !== 'together' || arity.min <= 1)) return 'Pick a file first.';
   switch (arity.kind) {
     case 'each':

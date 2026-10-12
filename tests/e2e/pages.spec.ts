@@ -4,7 +4,7 @@
  * font arrived, and a tool page says which store it is using.
  */
 import { expect, test } from '@playwright/test';
-import { TOOLS } from '../../app/src/ops/tools';
+import { TOOLS, toolById } from '../../app/src/ops/tools';
 import { encryptedPdf, pagesPdf } from '../fixtures/pdfs';
 import { ALL_PAGES, TOOL_IDS, openPage, openTool } from './helpers';
 
@@ -52,7 +52,9 @@ for (const id of TOOL_IDS) {
   test(`/tools/${id}/ has thumb-sized controls, the display font and a storage backend`, async ({ page }) => {
     await openTool(page, id);
     await expect(page.getByTestId('tool-title')).toBeVisible();
-    await expect(page.getByTestId('drop-zone')).toBeVisible();
+    // A template makes a file from what is typed: it has no drop zone, on purpose.
+    if (toolById(id).input === 'none') await expect(page.getByTestId('drop-zone')).toHaveCount(0);
+    else await expect(page.getByTestId('drop-zone')).toBeVisible();
 
     const backend = await page.locator('body').getAttribute('data-storage-backend');
     expect(['opfs', 'memory']).toContain(backend);

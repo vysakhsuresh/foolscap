@@ -1,17 +1,19 @@
 /** The only public surface of the ops: the shape, the registry, and a lookup. */
 import { extractImagesOp, imagesToPdfOp } from './convert-ops';
 import { headerFooterOp, pageNumbersOp, watermarkOp } from './mark-ops';
-import { addImageOp, addTextOp, fillFormOp, markUpOp, removeAreasOp, signOp } from './edit-ops';
+import { addImageOp, addTextOp, createFormOp, editImagesOp, editTextOp, fillFormOp, markUpOp, removeAreasOp, signOp } from './edit-ops';
 import { digitalSignOp } from './certify-ops';
+import { compareOp } from './compare-ops';
 import { mergeOp } from './merge';
 import { officeToPdfOp, pdfToEpubOp, pdfToExcelOp, pdfToPowerPointOp, pdfToWordOp } from './office-ops';
 import type { Op } from './op';
 import { organiseOp } from './organise';
 import { cropOp, extractPagesOp, insertPagesOp, nUpOp, splitBySizeOp } from './pages-ops';
-import { addPasswordOp, documentDetailsOp, removePasswordOp } from './protect-ops';
+import { addPasswordOp, documentDetailsOp, pdfAOp, removePasswordOp } from './protect-ops';
 import { compressOp, extractTextOp, ocrOp, pdfToImagesOp } from './render-ops';
 import { scanOp } from './scan-ops';
 import { splitOp } from './split';
+import { rentReceiptsOp } from './template-ops';
 import { attachmentsOp, backgroundOp, bookmarksOp, pageLabelsOp } from './structure-ops';
 import { toolById, type ToolId } from './tools';
 
@@ -60,6 +62,12 @@ const OPS: Partial<Record<ToolId, Op<never>>> = {
   'pdf-to-epub': pdfToEpubOp,
   'office-to-pdf': officeToPdfOp,
   'add-image': addImageOp,
+  compare: compareOp,
+  'edit-text': editTextOp,
+  'create-form': createFormOp,
+  'pdf-a': pdfAOp,
+  'rent-receipts': rentReceiptsOp,
+  'edit-images': editImagesOp,
 };
 
 export function getOp(id: ToolId): Op {

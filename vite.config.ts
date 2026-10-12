@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { cloudflareHeaders } from './scripts/vite-cf-headers';
 import { rebaseHtml } from './scripts/vite-rebase-html';
+import { serviceWorker } from './scripts/vite-sw';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const page = (...parts: string[]) => resolve(here, 'app', ...parts);
@@ -25,6 +26,8 @@ export default defineConfig({
     cloudflareHeaders(),
     // Vite rebases asset URLs for a non-root base but leaves <a href="/…"> alone.
     rebaseHtml(base),
+    // Writes dist/sw.js from what the build wrote, so the tools work offline.
+    serviceWorker(base),
   ],
   build: {
     outDir: '../dist',

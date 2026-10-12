@@ -29,7 +29,7 @@ import { createToolOptions, type ToolOptions } from '../ui/tool-options';
 
 mountShell();
 
-const EDITORS: ReadonlySet<ToolId> = new Set<ToolId>(['sign', 'add-text', 'mark-up', 'remove-areas', 'add-image']);
+const EDITORS: ReadonlySet<ToolId> = new Set<ToolId>(['sign', 'add-text', 'mark-up', 'remove-areas', 'add-image', 'edit-text', 'create-form', 'edit-images']);
 
 const toolId = document.body.dataset['tool'] as ToolId | undefined;
 const meta = toolId && LIVE_TOOLS.some((t) => t.id === toolId) ? toolById(toolId) : null;
@@ -37,7 +37,7 @@ const body = document.querySelector<HTMLElement>('[data-slot="body"]');
 const zone = document.querySelector<HTMLElement>('[data-testid="drop-zone"]');
 const input = document.querySelector<HTMLInputElement>('[data-testid="file-input"]');
 
-if (meta && body && zone && input) {
+if (meta && body && ((zone && input) || meta.input === 'none')) {
   void mount(meta.id, body, zone, input);
 }
 
@@ -62,7 +62,7 @@ function takeHandoff(): string[] {
   }
 }
 
-async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HTMLInputElement): Promise<void> {
+async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, input: HTMLInputElement | null): Promise<void> {
   const tool = toolById(id);
   const several = tool.input !== 'one-pdf';
   // A viewer (Read) has no Op: it takes one file and shows it.
@@ -117,6 +117,11 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     });
     optionsSlot.append(panel.root);
     runArea.hidden = true;
+  } else if (id === 'summarise') {
+    const { createAiPanel } = await import('../ui/ai-panel');
+    panel = createAiPanel();
+    optionsSlot.append(panel.root);
+    runArea.hidden = true;
   } else if (id === 'scan') {
     const { createScanPanel } = await import('../ui/scan-panel');
     scanner = createScanPanel(() => refresh());
@@ -146,6 +151,8 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   /** Why the run cannot start, in words, or '' when it can (or when there is nothing to say yet). */
   function blocker(): string {
     const n = entries.length;
+    // A template takes no file: what is typed is all it needs.
+    if (tool.input === 'none') return options?.problem(0) ?? '';
     if (n === 0) return '';
     if (arity.kind === 'together' && n < arity.min) {
       const more = arity.min - n;
@@ -167,7 +174,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   }
 
   function runnable(): boolean {
-    if (job || !runner || entries.length === 0) return false;
+    if (job || !runner || (entries.length === 0 && tool.input !== 'none')) return false;
     return blocker() === '';
   }
 
@@ -323,7 +330,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     await grid?.destroy();
     await panel?.destroy();
     await ws?.clear();
-    input.focus();
+    input?.focus();
   }
 
   function showOutcomes(outcomes: readonly Outcome[], counts: ReadonlyMap<string, number>): void {
@@ -388,7 +395,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
   }
 
   runButton.addEventListener('click', () => void run());
-  bindDropZone(zone, input, (files) => void addFiles(files));
+  if (zone && input) bindDropZone(zone, input, (files) => void addFiles(files));
 
   // ---- Bring the machinery up ----
   const handoffIds = takeHandoff();

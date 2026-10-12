@@ -258,9 +258,17 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
    with the person's own .pfx. 37 live.
 2f. ✅ The mark-up kit: underline, strike out, box, circle, arrow, line,
    measure, sticky notes (real comments), text boxes, stamps and links in
-   Mark up; Add image; a comments list in Read. 38 live. **You are here.**
-   Next: text editing, find and replace, redact by search, compare, forms,
-   the offline app.
+   Mark up; Add image; a comments list in Read. 38 live.
+2g. ✅ Find and remove (Aadhaar, PAN, phone, email, card numbers, typed
+   words) in Remove areas; Compare; Edit text with find and replace. 40
+   live.
+2h. ✅ The offline app (service worker, installable); Create a form, with
+   blanks found for you; answers saved and loaded in Fill in a form;
+   Summarise and translate with the browser's on-device AI only; Archive
+   copy (PDF/A-2b); Rent receipts, the first template; the browser's spell
+   checker on every box whose words go onto a page; Edit pictures (move,
+   resize, take out, swap the pictures already on a page). 45 live: every
+   free item on the PDFelement list. **You are here.**
 3. The reader, deeper: re-rendering zoom, find, outline, night mode, resume.
 4. Complex-script text drawn as real text (harfbuzzjs). Until then Add text
    puts Malayalam, Hindi and the like in as a picture of the words, shaped
@@ -270,9 +278,10 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
    layer gets a glyphless font.
 6. The design pass, as a system.
 7. SEO: one fast page per tool × intent, generated from `tools.ts`.
-8. PWA: install, offline, share target, file handler. The service worker
-   precaches `/pdfjs/**`; the offline e2e then adds a non-embedded-font, a
-   CJK-CMap and a JPX fixture and the exception in rule 4 goes.
+8. PWA: ✅ install and offline (`scripts/vite-sw.ts` writes `dist/sw.js`,
+   precaching every page, script, font and `/pdfjs/**`; OCR models are kept on
+   first use). Still to come: share target and file handler, and the offline
+   e2e adding a non-embedded-font, a CJK-CMap and a JPX fixture.
 9. The gate: a corpus of awkward real PDFs run on every build.
 
 ## Working with the owner
@@ -401,4 +410,38 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   any /Rotate. Measure writes the length on real paper (points to mm). The
   editor keeps lines and pen strokes in its SVG layer (undo, not move) and
   every other mark as a box you can move and remove.
+- **2026-10-12** Find and remove marks every match on the pages for a look
+  before anything goes, and then goes through the same rasterising redaction
+  as a hand-drawn area. Compare is a patience diff over words (unique words
+  anchor it, so a moved paragraph does not mark everything after it) and
+  marks the newer file: green for new words, a comment where words went.
+  Edit text is honest about what it is: the old line is painted over in the
+  page's own colour and the new one written in its place; the old words
+  remain underneath, and the tool says so and points to Remove areas.
+- **2026-10-12** The offline app. The service worker is generated from what
+  the build wrote (so its version changes whenever a file does), precaches
+  this site's own files only, serves pages network-first and everything else
+  cache-first, and never touches another origin. It registers after load and
+  not at all when the phone asks to save data. The e2e blocks service workers
+  everywhere except `offline-app.spec.ts`, so the other tests still watch the
+  real network. Forms: Create a form adds real AcroForm fields and can find
+  the blanks (____, ☐) itself; Fill in a form saves answers as .json and
+  reads .json or Acrobat .xfdf back. Summarise and translate uses Chrome's
+  on-device Summarizer and Translator only, and says so where they are
+  missing rather than reaching for an online AI.
+- **2026-10-12** PDF/A: an sRGB ICC profile generated in code (no profile
+  file, so no licence to carry), XMP mirroring the Info details, a file ID,
+  printable annotations, scripts and attachments out. Fonts the file does not
+  carry cannot be fixed without the font, so the result says so rather than
+  claiming compliance. Templates are tools with `input: 'none'` and arity
+  `none`: no drop zone, the run starts from what is typed. Rent receipts come
+  first (HRA, every salaried person in India, every year); amounts in Indian
+  words and lakh grouping, Rs. rather than ₹ so the words stay real text.
+- **2026-10-12** Edit pictures reads the page's own drawing instructions
+  (`pdf/content-stream.ts`: q/Q/cm and Do, stepping over strings, inline
+  images and stray brackets) and finds each picture by where it is drawn,
+  matched against what pdf.js reports, so the two never have to agree on a
+  count. Taking out removes the draw call; moving wraps it in a matrix that
+  takes the old box to the new one; swapping draws a new picture, kept to its
+  own shape, in the old box. Nothing else in the page's drawing is touched.
 
