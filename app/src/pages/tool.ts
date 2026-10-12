@@ -19,11 +19,9 @@ import { devlog } from '../ui/devlog';
 import { el } from '../ui/dom';
 import { bindDropZone } from '../ui/drop-zone';
 import { renderFileList, type Entry } from '../ui/file-list';
-import { createFormPanel } from '../ui/form-panel';
-import { createPageEditor, type EditorMode } from '../ui/page-editor';
+import type { EditorMode } from '../ui/page-editor';
 import { createPageGrid, type PageGrid } from '../ui/page-grid';
-import { createReader } from '../ui/reader';
-import { createScanPanel, type ScanPanel } from '../ui/scan-panel';
+import type { ScanPanel } from '../ui/scan-panel';
 import { createProgress } from '../ui/progress';
 import { TOO_LARGE, renderResult } from '../ui/result';
 import { mountShell } from '../ui/shell';
@@ -101,9 +99,14 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     grid = createPageGrid(() => refresh());
     optionsSlot.append(grid.root);
   } else if (EDITORS.has(id)) {
+    // The panels are big and each serves one or two tools, so they are fetched
+    // here rather than carried in every tool page's first script. Still before
+    // the page says it is ready, so the offline proof holds.
+    const { createPageEditor } = await import('../ui/page-editor');
     panel = createPageEditor(id as EditorMode, () => refresh());
     optionsSlot.append(panel.root);
   } else if (id === 'read') {
+    const { createReader } = await import('../ui/reader');
     panel = createReader((target) => {
       const file = entries[0]?.file;
       if (!file || ws?.backend !== 'opfs') {
@@ -115,9 +118,15 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
     optionsSlot.append(panel.root);
     runArea.hidden = true;
   } else if (id === 'scan') {
+    const { createScanPanel } = await import('../ui/scan-panel');
     scanner = createScanPanel(() => refresh());
     optionsSlot.append(scanner.root);
+  } else if (id === 'bookmarks') {
+    const { createBookmarksPanel } = await import('../ui/bookmarks-panel');
+    panel = createBookmarksPanel(() => refresh());
+    optionsSlot.append(panel.root);
   } else if (id === 'fill-form') {
+    const { createFormPanel } = await import('../ui/form-panel');
     panel = createFormPanel(() => refresh());
     optionsSlot.append(panel.root);
   } else {
@@ -232,7 +241,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement, input: HT
       while (entries.length > 0) await removeEntry(0);
       files = files.slice(0, 1);
     }
-    const store = createDocumentStore(ws, takesImages ? 'image' : 'pdf');
+    const store = createDocumentStore(ws, takesImages ? 'image' : tool.input === 'pdf-and-files' ? 'any' : 'pdf');
     const results = await store.import(files);
     const problems: string[] = [];
     const added: Entry[] = [];

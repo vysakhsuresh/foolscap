@@ -29,8 +29,8 @@ export function passwordFor(ctx: OpContext, input: FoolscapFile): { password?: s
   return password === undefined ? {} : { password };
 }
 
-export function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+export function plural(count: number, noun: string, many = `${noun}s`): string {
+  return `${count} ${count === 1 ? noun : many}`;
 }
 
 const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];

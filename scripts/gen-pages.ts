@@ -116,6 +116,8 @@ function dropZone(tool: ToolMeta): { title: string; hint: string; accept: string
       return { title: 'Drop your photos here, or tap to pick them', hint: 'JPEG, PNG, WebP or GIF. They stay on this device.', accept: 'image/*', multiple: true };
     case 'camera':
       return { title: 'Take a photo of each page, or pick photos', hint: 'One photo per page, in order. They stay on this device.', accept: 'image/*', multiple: true };
+    case 'pdf-and-files':
+      return { title: 'Drop the PDF, then the files to go inside it', hint: 'Any kind of file. They stay on this device.', accept: '', multiple: true };
     case 'several-pdfs':
       return { title: 'Drop your PDFs here, or tap to pick them', hint: 'They stay on this device. No size limit.', accept: 'application/pdf,.pdf', multiple: true };
     default:
@@ -143,7 +145,7 @@ function toolPage(tool: ToolMeta): string {
       ${svg(TOOL_ICONS[tool.id], 'drop-zone__icon')}
       <span class="drop-zone__title">${zone.title}</span>
       <span class="drop-zone__hint" id="drop-hint">${zone.hint}</span>
-      <input class="visually-hidden" id="file-input" data-testid="file-input" type="file" accept="${zone.accept}"${zone.multiple ? ' multiple' : ''} aria-describedby="drop-hint">
+      <input class="visually-hidden" id="file-input" data-testid="file-input" type="file"${zone.accept ? ` accept="${zone.accept}"` : ''}${zone.multiple ? ' multiple' : ''} aria-describedby="drop-hint">
     </label>
     <div data-slot="body"></div>
     <nav class="related" aria-labelledby="related-title">

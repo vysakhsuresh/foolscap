@@ -99,9 +99,14 @@ export const insertPagesOp: Op<InsertPagesParams> = {
     const out = await ctx.surgeon.create();
     try {
       const n = doc.pageCount;
-      const after = Math.min(n, Math.max(0, Math.floor(params.after)));
-      const before = PageSelection.all(n).slice(0, after);
-      const rest = PageSelection.all(n).slice(after);
+      // Replacing: the typed pages come out, and the new ones go where the first of them was.
+      const replacing = params.replace !== undefined && params.replace.trim() !== '' ? PageSelection.parse(params.replace, n) : null;
+      if (replacing !== null && replacing.length === 0) return [refused(inputs, PAGES_HELP)];
+      if (replacing !== null && replacing.length === n && params.what === 'blank') return [refused(inputs, 'That would replace every page with blank ones.')];
+      const gone = new Set(replacing ?? []);
+      const after = replacing !== null ? replacing[0]! : Math.min(n, Math.max(0, Math.floor(params.after)));
+      const before = PageSelection.all(n).slice(0, after).filter((i) => !gone.has(i));
+      const rest = PageSelection.all(n).slice(after).filter((i) => !gone.has(i));
       if (before.length > 0) await out.appendPages(doc, before);
       let added = 0;
       if (params.what === 'blank') {
@@ -131,6 +136,10 @@ export const insertPagesOp: Op<InsertPagesParams> = {
       }
       if (rest.length > 0) await out.appendPages(doc, rest);
       ctx.progress({ done: 0, total: 0, label: 'Writing the file…' });
+      if (replacing !== null) {
+        const detail = `${replacing.length === 1 ? 'Page' : 'Pages'} ${PageSelection.describe(replacing)} replaced with ${plural(added, params.what === 'blank' ? 'blank page' : 'page')}, ${out.pageCount} in all`;
+        return [await store(ctx, 'insert-pages', inputs, `${baseName(target.name)} with pages replaced.pdf`, await out.save(), detail)];
+      }
       const where = after === 0 ? 'at the start' : after === n ? 'at the end' : `after page ${after}`;
       const detail = `${plural(added, params.what === 'blank' ? 'blank page' : 'page')} added ${where}, ${out.pageCount} in all`;
       return [await store(ctx, 'insert-pages', inputs, `${baseName(target.name)} with pages added.pdf`, await out.save(), detail)];

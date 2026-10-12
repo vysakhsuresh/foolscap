@@ -195,7 +195,9 @@ export type SplitParams =
   /** Each page its own file. */
   | { readonly mode: 'single' }
   /** One output per range, in the order typed: "1-3, 7, 12-". Empty → `failed` with how to type it. */
-  | { readonly mode: 'ranges'; readonly ranges: string };
+  | { readonly mode: 'ranges'; readonly ranges: string }
+  /** One output per top-level bookmark (chapter), named after it. No bookmarks → `failed`. */
+  | { readonly mode: 'bookmarks' };
 
 export interface OrganiseParams {
   /**
@@ -227,6 +229,8 @@ export interface InsertPagesParams {
   /** The other files picked, in order, or blank pages the size of the neighbouring page. */
   readonly what: 'files' | 'blank';
   readonly blankCount: number;
+  /** "3-4": take these pages out and put the new ones in their place. Empty or absent: insert after `after`. */
+  readonly replace?: string;
 }
 
 export type CropParams =
@@ -258,11 +262,15 @@ export interface WatermarkParams {
 
 export interface PageNumbersParams {
   readonly position: Exclude<Anchor, 'center'>;
-  readonly format: 'n' | 'n-of-total' | 'page-n' | 'page-n-of-total';
+  /** 'bates': legal numbering, prefix + zero-padded number, continuing across every file in the batch. */
+  readonly format: 'n' | 'n-of-total' | 'page-n' | 'page-n-of-total' | 'bates';
   /** The number the first numbered page gets. */
   readonly start: number;
   /** Leave the first page (a cover) unnumbered. */
   readonly skipFirst: boolean;
+  /** For 'bates': what comes before the number ("ACME-"), and how many digits it is padded to. */
+  readonly prefix?: string;
+  readonly digits?: number;
 }
 
 export interface HeaderFooterParams {
@@ -273,13 +281,23 @@ export interface HeaderFooterParams {
 }
 
 export interface AddPasswordParams {
+  /**
+   * 'password' (the default): nobody opens it without the password.
+   * 'restrict': it opens for anyone, and readers that honour the flags block
+   * what is not allowed. `password` is ignored.
+   */
+  readonly mode?: 'password' | 'restrict';
   readonly password: string;
   readonly allowPrinting: boolean;
   readonly allowCopying: boolean;
+  /** Changing pages, adding comments, putting pages in and out. Off unless asked. */
+  readonly allowEditing?: boolean;
 }
 
 export type DocumentDetailsParams =
   | { readonly mode: 'strip' }
+  /** Metadata and every script go; comments and attached files too when asked. */
+  | { readonly mode: 'clean'; readonly comments: boolean; readonly attachments: boolean }
   | {
       readonly mode: 'edit';
       readonly title: string;
@@ -290,7 +308,15 @@ export type DocumentDetailsParams =
 
 /** Tools that take no settings. */
 export interface CompressParams {
-  readonly level: 'light' | 'balanced' | 'strong';
+  /** A fixed strength, or 'target': as good as it can look while weighing at most `targetKb`. */
+  readonly level: 'light' | 'balanced' | 'strong' | 'target';
+  /** For 'target': the most the file may weigh, in kilobytes (1 KB = 1000 bytes, as upload forms count). */
+  readonly targetKb?: number;
+  /**
+   * For 'target': when shrinking photos is not enough, turn the pages into
+   * pictures too. The words stop being selectable, and the person is told.
+   */
+  readonly allowPictures?: boolean;
 }
 
 export interface PdfToImagesParams {
@@ -321,6 +347,34 @@ export interface ScanParams {
   readonly pages: ReadonlyArray<{ readonly corners: readonly number[]; readonly turn: 0 | 90 | 180 | 270 }>;
   readonly look: 'colour' | 'grey' | 'bw';
   readonly paper: 'a4' | 'letter' | 'fit';
+}
+
+export interface BackgroundParams {
+  /** "#rrggbb". */
+  readonly color: string;
+  /** "1-3, 7"; empty means every page. */
+  readonly pages: string;
+}
+
+export type PageLabelsParams =
+  | { readonly mode: 'remove' }
+  | {
+      readonly mode: 'set';
+      /** How many pages at the front are numbered i, ii, iii (a cover, contents). 0 for none. */
+      readonly front: number;
+      /** What the main numbers start at, and what comes before them ("A-"). */
+      readonly start: number;
+      readonly prefix: string;
+    };
+
+export interface AttachmentsParams {
+  /** 'attach': the first file is the PDF, every other file goes inside it. 'extract': take out what each PDF carries. */
+  readonly mode: 'attach' | 'extract';
+}
+
+export interface BookmarksParams {
+  /** The whole new list; empty takes every bookmark out. Pages are zero-based. */
+  readonly items: readonly import('../pdf/types').OutlineItem[];
 }
 
 export type NoParams = Record<string, never>;

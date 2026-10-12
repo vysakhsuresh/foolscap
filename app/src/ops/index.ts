@@ -10,6 +10,7 @@ import { addPasswordOp, documentDetailsOp, removePasswordOp } from './protect-op
 import { compressOp, extractTextOp, ocrOp, pdfToImagesOp } from './render-ops';
 import { scanOp } from './scan-ops';
 import { splitOp } from './split';
+import { attachmentsOp, backgroundOp, bookmarksOp, pageLabelsOp } from './structure-ops';
 import { toolById, type ToolId } from './tools';
 
 export * from './op';
@@ -46,6 +47,10 @@ const OPS: Partial<Record<ToolId, Op<never>>> = {
   'fill-form': fillFormOp,
   scan: scanOp,
   ocr: ocrOp,
+  background: backgroundOp,
+  'page-labels': pageLabelsOp,
+  attachments: attachmentsOp,
+  bookmarks: bookmarksOp,
 };
 
 export function getOp(id: ToolId): Op {

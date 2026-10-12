@@ -377,7 +377,7 @@ describe('passwords', () => {
     const input = await h.add('Salary slip.pdf', await pagesPdf(2));
     const out = only(await run('add-password', [input], { password: 'tiger42', allowPrinting: true, allowCopying: false }, h.ctx));
     expect(out.file.name).toBe('Salary slip locked.pdf');
-    expect(out.detail).toBe('Locked with AES-256; printing allowed, copying blocked');
+    expect(out.detail).toBe('Locked with AES-256; printing allowed, copying blocked, editing blocked');
     const surgeon = createSurgeon();
     await expect(surgeon.open(await h.bytesOf(out.file))).rejects.toMatchObject({ code: 'encrypted' });
     expect((await surgeon.open(await h.bytesOf(out.file), { password: 'tiger42' })).pageCount).toBe(2);

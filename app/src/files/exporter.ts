@@ -128,7 +128,8 @@ export function createExporter(ws: Workspace): Exporter {
       const type = typeOf(file.name);
       const handle = await picker({
         suggestedName: file.name,
-        ...(type.ext ? { types: [{ description: type.description, accept: { [type.mime]: [type.ext] } }] } : {}),
+        // A picker refuses an odd extension ("x.my file"), so only a plain one is offered as a type.
+        ...(/^\.[a-z0-9]{1,12}$/.test(type.ext) ? { types: [{ description: type.description, accept: { [type.mime]: [type.ext] } }] } : {}),
       });
       const writable = await handle.createWritable();
       await writable.write(blob);

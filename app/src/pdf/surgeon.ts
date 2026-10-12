@@ -38,11 +38,13 @@ import {
   PDFArray,
   PDFDict,
   PDFDocument,
+  PDFHexString,
   PDFInvalidObject,
   PDFName,
   PDFNumber,
   PDFRawStream,
   PDFRef,
+  PDFString,
   StandardFonts,
   decodePDFRawStream,
   degrees,
@@ -58,7 +60,12 @@ import {
   type Box,
   type DocInfo,
   type DocInfoField,
+  type Attachment,
+  type CleanOptions,
+  type CleanReport,
   type CompressReport,
+  type OutlineItem,
+  type PageLabelRange,
   type ExtractedImage,
   type PageInfo,
   type PdfDoc,
@@ -381,6 +388,68 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       return { images, skipped };
     },
 
+    setBackground(index, color) {
+      const d = live();
+      const page = pageAt(index);
+      const { x, y, width, height } = page.getMediaBox();
+      const [r, g, b] = color;
+      const n = (v: number) => Math.min(1, Math.max(0, v)).toFixed(4);
+      const paint = d.context.register(d.context.flateStream(`q ${n(r)} ${n(g)} ${n(b)} rg ${x} ${y} ${width} ${height} re f Q\n`));
+      // First in the page's contents, so everything already there is drawn over it.
+      page.node.normalize();
+      const contents = page.node.Contents();
+      if (contents instanceof PDFArray) contents.insert(0, paint);
+      else page.node.addContentStream(paint);
+    },
+
+    setPageLabels(ranges) {
+      const d = live();
+      if (ranges.length === 0) {
+        d.catalog.delete(PDFName.of('PageLabels'));
+        return;
+      }
+      const STYLE: Record<PageLabelRange['style'], string | null> = { decimal: 'D', roman: 'r', Roman: 'R', alpha: 'a', Alpha: 'A', none: null };
+      const sorted = [...ranges].filter((r) => Number.isInteger(r.start) && r.start >= 0 && r.start < d.getPageCount()).sort((a, b) => a.start - b.start);
+      const nums: unknown[] = [];
+      for (const range of sorted) {
+        const label = d.context.obj({});
+        const style = STYLE[range.style];
+        if (style !== null) label.set(PDFName.of('S'), PDFName.of(style));
+        if (range.prefix) label.set(PDFName.of('P'), PDFHexString.fromText(range.prefix));
+        if (range.first !== undefined && range.first !== 1) label.set(PDFName.of('St'), PDFNumber.of(Math.max(1, Math.floor(range.first))));
+        nums.push(PDFNumber.of(range.start), label);
+      }
+      // Page 0 must be covered: a range that starts later gets plain numbers before it.
+      if (sorted[0] === undefined || sorted[0].start !== 0) nums.unshift(PDFNumber.of(0), d.context.obj({ S: 'D' }));
+      d.catalog.set(PDFName.of('PageLabels'), d.context.obj({ Nums: d.context.obj(nums as never) }));
+    },
+
+    attachments() {
+      return readAttachments(live());
+    },
+
+    async attach(file) {
+      await live().attach(file.bytes, file.name, {
+        ...(file.description === undefined ? {} : { description: file.description }),
+        mimeType: mimeFor(file.name),
+      });
+    },
+
+    bookmarks() {
+      return readBookmarks(live());
+    },
+
+    setBookmarks(items) {
+      writeBookmarks(live(), items);
+    },
+
+    clean(opts) {
+      const report = cleanDocument(live(), opts);
+      if (opts.metadata) self.stripMetadata();
+      dropUnreachable(live().context);
+      return report;
+    },
+
     addTextLayer(index, words) {
       const page = pageAt(index);
       const view = viewOf(page);
@@ -675,7 +744,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       if (replaced) finishRedaction(d, removedWidgets);
       const encrypt = opts?.encrypt;
       if (encrypt !== undefined) {
-        if (encrypt.userPassword.length === 0) throw new Error('A password cannot be empty.');
+        if (encrypt.userPassword.length === 0 && encrypt.restrictOnly !== true) throw new Error('A password cannot be empty.');
         d.encrypt({
           userPassword: encrypt.userPassword,
           // Nobody is told the owner password: it exists so a reader enforces
@@ -685,11 +754,11 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
           permissions: {
             printing: encrypt.allowPrinting ? 'highResolution' : false,
             copying: encrypt.allowCopying,
-            modifying: false,
-            annotating: false,
+            modifying: encrypt.allowEditing === true,
+            annotating: encrypt.allowEditing === true,
             fillingForms: true,
             contentAccessibility: true,
-            documentAssembly: false,
+            documentAssembly: encrypt.allowEditing === true,
           },
         });
       }
@@ -1104,4 +1173,244 @@ function finishRedaction(doc: PDFDocument, removedWidgets: ReadonlySet<string>):
   doc.catalog.delete(PDFName.of('StructTreeRoot'));
   doc.catalog.delete(PDFName.of('MarkInfo'));
   dropUnreachable(context);
+}
+
+/** A media type from a file name, for an attachment's /Subtype; generic when unknown. */
+function mimeFor(name: string): string {
+  const ext = /\.([a-z0-9]{1,8})$/i.exec(name)?.[1]?.toLowerCase() ?? '';
+  const known: Record<string, string> = {
+    pdf: 'application/pdf',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    txt: 'text/plain',
+    csv: 'text/csv',
+    xml: 'application/xml',
+    json: 'application/json',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    zip: 'application/zip',
+  };
+  return known[ext] ?? 'application/octet-stream';
+}
+
+const textOf = (value: unknown): string | undefined =>
+  value instanceof PDFString || value instanceof PDFHexString ? value.decodeText() : undefined;
+
+/** Walks a name tree (/Names pairs, /Kids) and calls `visit` for every value. */
+function walkNameTree(context: PDFDocument['context'], node: unknown, visit: (key: string, value: unknown) => void, depth = 0): void {
+  const dict = node instanceof PDFRef ? context.lookup(node) : node;
+  if (!(dict instanceof PDFDict) || depth > 16) return;
+  const names = dict.lookup(PDFName.of('Names'));
+  if (names instanceof PDFArray) {
+    for (let i = 0; i + 1 < names.size(); i += 2) visit(textOf(names.lookup(i)) ?? '', names.get(i + 1));
+  }
+  const kids = dict.lookup(PDFName.of('Kids'));
+  if (kids instanceof PDFArray) for (const kid of kids.asArray()) walkNameTree(context, kid, visit, depth + 1);
+}
+
+/** A file specification's name and decoded bytes, or null when it carries no embedded file. */
+function fileFromSpec(context: PDFDocument['context'], spec: unknown, fallback: string): Attachment | null {
+  const dict = spec instanceof PDFRef ? context.lookup(spec) : spec;
+  if (!(dict instanceof PDFDict)) return null;
+  const ef = dict.lookup(PDFName.of('EF'));
+  if (!(ef instanceof PDFDict)) return null;
+  const stream = ef.lookup(PDFName.of('UF')) ?? ef.lookup(PDFName.of('F'));
+  if (!(stream instanceof PDFRawStream)) return null;
+  const name = textOf(dict.lookup(PDFName.of('UF'))) ?? textOf(dict.lookup(PDFName.of('F'))) ?? fallback;
+  const description = textOf(dict.lookup(PDFName.of('Desc')));
+  const bytes = decodePDFRawStream(stream).decode();
+  return { name: name.replace(/[\\/]/g, '_') || fallback, bytes, ...(description ? { description } : {}) };
+}
+
+function readAttachments(doc: PDFDocument): Attachment[] {
+  const { context } = doc;
+  const out: Attachment[] = [];
+  const names = doc.catalog.lookup(PDFName.of('Names'));
+  if (names instanceof PDFDict) {
+    walkNameTree(context, names.get(PDFName.of('EmbeddedFiles')), (key, value) => {
+      const file = fileFromSpec(context, value, key || `attachment ${out.length + 1}`);
+      if (file) out.push(file);
+    });
+  }
+  for (const page of doc.getPages()) {
+    const annots = page.node.lookup(PDFName.of('Annots'));
+    if (!(annots instanceof PDFArray)) continue;
+    for (const ref of annots.asArray()) {
+      const annot = ref instanceof PDFRef ? context.lookup(ref) : ref;
+      if (!(annot instanceof PDFDict) || annot.lookup(PDFName.of('Subtype'))?.toString() !== '/FileAttachment') continue;
+      const file = fileFromSpec(context, annot.get(PDFName.of('FS')), `attachment ${out.length + 1}`);
+      if (file) out.push(file);
+    }
+  }
+  return out;
+}
+
+/** The page index a destination (explicit array, a name, or a GoTo action) points to, or null. */
+function destinationPage(doc: PDFDocument, value: unknown, pageIndex: ReadonlyMap<string, number>): number | null {
+  const { context } = doc;
+  let dest = value instanceof PDFRef ? context.lookup(value) : value;
+  if (dest instanceof PDFDict) {
+    // An action: /S /GoTo /D …, or a destination dictionary with /D.
+    dest = dest.lookup(PDFName.of('D'));
+  }
+  const named = dest instanceof PDFName ? dest.decodeText() : textOf(dest);
+  if (named !== undefined) {
+    let found: unknown;
+    const dests = doc.catalog.lookup(PDFName.of('Dests'));
+    if (dests instanceof PDFDict) found = dests.get(PDFName.of(named));
+    const names = doc.catalog.lookup(PDFName.of('Names'));
+    if (found === undefined && names instanceof PDFDict) {
+      walkNameTree(context, names.get(PDFName.of('Dests')), (key, v) => {
+        if (key === named && found === undefined) found = v;
+      });
+    }
+    if (found === undefined) return null;
+    const resolved = found instanceof PDFRef ? context.lookup(found) : found;
+    dest = resolved instanceof PDFDict ? resolved.lookup(PDFName.of('D')) : resolved;
+  }
+  if (!(dest instanceof PDFArray)) return null;
+  const target = dest.get(0);
+  if (target instanceof PDFRef) return pageIndex.get(target.toString()) ?? null;
+  if (target instanceof PDFNumber) return Math.floor(target.asNumber());
+  return null;
+}
+
+function readBookmarks(doc: PDFDocument): OutlineItem[] {
+  const { context } = doc;
+  const pageIndex = new Map(doc.getPages().map((p, i) => [p.ref.toString(), i]));
+  let budget = 5000;
+  const walk = (first: unknown, depth: number): OutlineItem[] => {
+    const out: OutlineItem[] = [];
+    const seen = new Set<string>();
+    let ref = first;
+    while (ref instanceof PDFRef && budget-- > 0 && !seen.has(ref.toString())) {
+      seen.add(ref.toString());
+      const item = context.lookup(ref);
+      if (!(item instanceof PDFDict)) break;
+      const title = (textOf(item.lookup(PDFName.of('Title'))) ?? '').replace(/\s+/g, ' ').trim() || 'Untitled';
+      const page = destinationPage(doc, item.get(PDFName.of('Dest')) ?? item.get(PDFName.of('A')), pageIndex);
+      out.push({ title, page, items: depth < 8 ? walk(item.get(PDFName.of('First')), depth + 1) : [] });
+      ref = item.get(PDFName.of('Next'));
+    }
+    return out;
+  };
+  const outlines = doc.catalog.lookup(PDFName.of('Outlines'));
+  return outlines instanceof PDFDict ? walk(outlines.get(PDFName.of('First')), 0) : [];
+}
+
+function writeBookmarks(doc: PDFDocument, items: readonly OutlineItem[]): void {
+  const { context } = doc;
+  const old = doc.catalog.get(PDFName.of('Outlines'));
+  doc.catalog.delete(PDFName.of('Outlines'));
+  if (old instanceof PDFRef) dropUnreachable(context);
+  const pages = doc.getPages();
+  const usable = (list: readonly OutlineItem[]): OutlineItem[] =>
+    list.filter((i) => i.page !== null && i.page >= 0 && i.page < pages.length).map((i) => ({ ...i, items: usable(i.items) }));
+  const top = usable(items);
+  if (top.length === 0) return;
+  const root = context.register(context.obj({ Type: 'Outlines' }));
+  // Builds one level under `parent` and returns how many entries it holds, open.
+  const level = (list: readonly OutlineItem[], parent: PDFRef): number => {
+    const refs = list.map(() => context.nextRef());
+    let count = 0;
+    list.forEach((item, i) => {
+      const dict = context.obj({});
+      dict.set(PDFName.of('Title'), PDFHexString.fromText(item.title.slice(0, 500)));
+      dict.set(PDFName.of('Parent'), parent);
+      dict.set(PDFName.of('Dest'), context.obj([pages[item.page ?? 0]!.ref, PDFName.of('Fit')]));
+      if (i > 0) dict.set(PDFName.of('Prev'), refs[i - 1]!);
+      if (i < list.length - 1) dict.set(PDFName.of('Next'), refs[i + 1]!);
+      context.assign(refs[i]!, dict);
+      count++;
+      if (item.items.length > 0) {
+        const inner = level(item.items, refs[i]!);
+        dict.set(PDFName.of('Count'), PDFNumber.of(inner));
+        count += inner;
+      }
+    });
+    const parentDict = context.lookup(parent);
+    if (parentDict instanceof PDFDict && refs.length > 0) {
+      parentDict.set(PDFName.of('First'), refs[0]!);
+      parentDict.set(PDFName.of('Last'), refs[refs.length - 1]!);
+    }
+    return count;
+  };
+  const total = level(top, root);
+  const rootDict = context.lookup(root);
+  if (rootDict instanceof PDFDict) rootDict.set(PDFName.of('Count'), PDFNumber.of(total));
+  doc.catalog.set(PDFName.of('Outlines'), root);
+}
+
+/** Takes scripts, attachments and comments out, counting each; the caller strips metadata and sweeps. */
+function cleanDocument(doc: PDFDocument, opts: CleanOptions): CleanReport {
+  const { context } = doc;
+  let scripts = 0;
+  let attachments = 0;
+  let comments = 0;
+  const names = doc.catalog.lookup(PDFName.of('Names'));
+  if (opts.scripts) {
+    if (names instanceof PDFDict && names.has(PDFName.of('JavaScript'))) {
+      walkNameTree(context, names.get(PDFName.of('JavaScript')), () => scripts++);
+      names.delete(PDFName.of('JavaScript'));
+    }
+    for (const key of ['OpenAction', 'AA']) {
+      if (doc.catalog.has(PDFName.of(key))) {
+        const value = doc.catalog.lookup(PDFName.of(key));
+        // An OpenAction that only says which page to show is harmless; anything else goes.
+        const harmless = key === 'OpenAction' && value instanceof PDFArray;
+        if (!harmless) {
+          doc.catalog.delete(PDFName.of(key));
+          scripts++;
+        }
+      }
+    }
+    const acroForm = doc.catalog.lookup(PDFName.of('AcroForm'));
+    if (acroForm instanceof PDFDict && acroForm.has(PDFName.of('XFA'))) {
+      acroForm.delete(PDFName.of('XFA'));
+      scripts++;
+    }
+  }
+  if (opts.attachments && names instanceof PDFDict && names.has(PDFName.of('EmbeddedFiles'))) {
+    walkNameTree(context, names.get(PDFName.of('EmbeddedFiles')), () => attachments++);
+    names.delete(PDFName.of('EmbeddedFiles'));
+  }
+  for (const page of doc.getPages()) {
+    if (opts.scripts && page.node.has(PDFName.of('AA'))) {
+      page.node.delete(PDFName.of('AA'));
+      scripts++;
+    }
+    const annots = page.node.lookup(PDFName.of('Annots'));
+    if (!(annots instanceof PDFArray)) continue;
+    const keep: unknown[] = [];
+    for (const ref of annots.asArray()) {
+      const annot = ref instanceof PDFRef ? context.lookup(ref) : ref;
+      if (!(annot instanceof PDFDict)) continue;
+      const subtype = annot.lookup(PDFName.of('Subtype'))?.toString();
+      if (opts.scripts) {
+        for (const key of ['AA', 'A']) {
+          const action = annot.lookup(PDFName.of(key));
+          const kind = action instanceof PDFDict ? action.lookup(PDFName.of('S'))?.toString() : undefined;
+          if (key === 'AA' || kind === '/JavaScript' || kind === '/Launch' || kind === '/ImportData' || kind === '/SubmitForm') {
+            if (annot.has(PDFName.of(key))) {
+              annot.delete(PDFName.of(key));
+              scripts++;
+            }
+          }
+        }
+      }
+      if (subtype === '/FileAttachment' && opts.attachments) {
+        attachments++;
+        continue;
+      }
+      if (opts.comments && subtype !== '/Link' && subtype !== '/Widget') {
+        if (subtype !== '/Popup') comments++;
+        continue;
+      }
+      keep.push(ref);
+    }
+    page.node.set(PDFName.of('Annots'), context.obj(keep as never));
+  }
+  return { scripts, attachments, comments, metadata: opts.metadata };
 }

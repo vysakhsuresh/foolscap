@@ -56,6 +56,17 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   const findPrev = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-find-prev', text: '‹', attrs: { type: 'button', 'aria-label': 'Previous match' } });
   const findNext = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-find-next', text: '›', attrs: { type: 'button', 'aria-label': 'Next match' } });
   const findCount = el('span', { class: 'reader__count', testid: 'reader-find-count', attrs: { 'aria-live': 'polite' } });
+  const printButton = el('button', { class: 'button button--ghost button--small', testid: 'reader-print', text: 'Print', attrs: { type: 'button' } });
+  const aloud = el('button', { class: 'button button--ghost button--small', testid: 'reader-aloud', text: 'Read aloud', attrs: { type: 'button', 'aria-pressed': 'false' } });
+  const status = el('p', { class: 'reader__status', testid: 'reader-status', attrs: { role: 'status', 'aria-live': 'polite' } });
+  status.hidden = true;
+  const tell = (text: string) => {
+    status.textContent = text;
+    status.hidden = text === '';
+  };
+  // Read aloud needs speech synthesis; without it, the button is not offered at all.
+  const speech = 'speechSynthesis' in window ? window.speechSynthesis : null;
+  if (!speech) aloud.hidden = true;
 
   const thenMenu = el('div', { class: 'then__menu reader__then-menu', attrs: { role: 'menu' } });
   thenMenu.hidden = true;
@@ -74,14 +85,19 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   const then = handoff ? el('div', { class: 'then reader__then' }, [thenButton, thenMenu]) : null;
 
   const bar = el('div', { class: 'reader__bar', testid: 'reader-bar' }, [
-    el('div', { class: 'reader__group' }, [contentsButton, zoomOut, zoomLabel, zoomIn, night, then]),
+    el('div', { class: 'reader__group' }, [contentsButton, zoomOut, zoomLabel, zoomIn, night, aloud, printButton, then]),
     el('div', { class: 'reader__group reader__group--find' }, [find, findPrev, findNext, findCount]),
   ]);
   const outline = el('nav', { class: 'reader__outline', testid: 'reader-outline', attrs: { 'aria-label': 'Contents' } });
   outline.hidden = true;
   // Focusable, so the keyboard can scroll it sideways when zoomed in.
   const pages = el('div', { class: 'reader__pages', testid: 'reader-pages', attrs: { tabindex: '0', role: 'region', 'aria-label': 'Pages' } });
-  const root = el('section', { class: 'reader', testid: 'reader', attrs: { 'aria-label': 'The document' } }, [bar, outline, where, pages]);
+  const root = el('section', { class: 'reader', testid: 'reader', attrs: { 'aria-label': 'The document' } }, [bar, status, outline, where, pages]);
+  /** The pages as pictures, for the printer only: hidden on screen, the only thing shown on paper. */
+  let sheets: HTMLElement | null = null;
+  let printing = false;
+  let speaking = false;
+  let speakToken = 0;
   root.hidden = true;
 
   // ---- Sizing and drawing ----
@@ -291,6 +307,139 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   });
   contentsButton.addEventListener('click', () => toggleOutline());
 
+  // ---- Print ----
+
+  /**
+   * Draws every page as a picture into a sheet only the printer sees, then
+   * opens the print dialog. The PDF itself never goes anywhere: printing a
+   * file through the browser's own viewer would need a blob URL, and this
+   * keeps the page under its policy.
+   */
+  async function print(): Promise<void> {
+    if (!view || printing) return;
+    printing = true;
+    printButton.disabled = true;
+    const signal = abort.signal;
+    sheets?.remove();
+    const holder = el('div', { class: 'print-sheets', testid: 'print-sheets', attrs: { 'aria-hidden': 'true' } });
+    try {
+      const scratch = document.createElement('canvas');
+      for (let i = 0; i < view.pageCount; i++) {
+        if (signal.aborted) return;
+        tell(`Getting page ${i + 1} of ${view.pageCount} ready to print…`);
+        const bitmap = await view.render(i, { width: PRINT_WIDTH, signal });
+        scratch.width = bitmap.width;
+        scratch.height = bitmap.height;
+        const ctx = scratch.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, bitmap.width, bitmap.height);
+          ctx.drawImage(bitmap, 0, 0);
+        }
+        bitmap.close();
+        const img = el('img', { class: 'print-sheets__page', attrs: { alt: '', src: scratch.toDataURL('image/jpeg', 0.88) } });
+        img.dataset['landscape'] = String(scratch.width > scratch.height);
+        holder.append(img);
+      }
+      scratch.width = 0;
+      scratch.height = 0;
+      document.body.append(holder);
+      sheets = holder;
+      await Promise.all([...holder.querySelectorAll('img')].map((img) => img.decode().catch(() => undefined)));
+      tell('');
+      window.print();
+    } catch {
+      if (!signal.aborted) tell('This document could not be got ready to print. Save it and print it from another app.');
+    } finally {
+      printing = false;
+      printButton.disabled = false;
+    }
+  }
+
+  // ---- Read aloud ----
+
+  /** Voices that run on this device. A voice that runs online would send the words away, so it is never used. */
+  function localVoice(): SpeechSynthesisVoice | null {
+    const voices = speech?.getVoices().filter((v) => v.localService) ?? [];
+    const lang = (document.documentElement.lang || navigator.language || 'en').toLowerCase().slice(0, 2);
+    return voices.find((v) => v.default && v.lang.toLowerCase().startsWith(lang)) ?? voices.find((v) => v.lang.toLowerCase().startsWith(lang)) ?? voices[0] ?? null;
+  }
+
+  /** Voices often arrive a moment after the page loads. */
+  async function waitForVoices(): Promise<void> {
+    if (!speech || speech.getVoices().length > 0) return;
+    await new Promise<void>((resolve) => {
+      const done = () => resolve();
+      speech.addEventListener('voiceschanged', done, { once: true });
+      setTimeout(done, 1500);
+    });
+  }
+
+  function stopSpeaking(): void {
+    speakToken++;
+    speaking = false;
+    speech?.cancel();
+    aloud.textContent = 'Read aloud';
+    aloud.setAttribute('aria-pressed', 'false');
+    for (const slot of slots) slot.root.classList.remove('is-reading');
+  }
+
+  async function readAloud(): Promise<void> {
+    if (!view || !speech) return;
+    if (speaking) {
+      stopSpeaking();
+      tell('');
+      return;
+    }
+    await waitForVoices();
+    const voice = localVoice();
+    if (!voice) {
+      tell('This browser only has voices that work over the internet, so Read aloud is off here: your document would leave the device. Chrome on Android, and Windows and Mac browsers, usually have one built in.');
+      return;
+    }
+    const token = ++speakToken;
+    speaking = true;
+    aloud.textContent = 'Stop reading';
+    aloud.setAttribute('aria-pressed', 'true');
+    tell('');
+    let spoke = false;
+    for (let i = currentPage(); i < view.pageCount && token === speakToken; i++) {
+      const text = await pageText(i);
+      if (token !== speakToken) return;
+      const parts = chunks(text);
+      if (parts.length === 0) continue;
+      spoke = true;
+      for (const slot of slots) slot.root.classList.toggle('is-reading', slot.index === i);
+      goTo(i);
+      for (const part of parts) {
+        if (token !== speakToken) return;
+        await say(part, voice);
+      }
+    }
+    if (token !== speakToken) return;
+    stopSpeaking();
+    if (!spoke) tell('There are no words to read from here on. If this is a scan, use Make searchable first, then read it aloud.');
+  }
+
+  function say(text: string, voice: SpeechSynthesisVoice): Promise<void> {
+    return new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+      utterance.onend = () => resolve();
+      utterance.onerror = () => resolve();
+      speech?.speak(utterance);
+    });
+  }
+
+  async function pageText(index: number): Promise<string> {
+    // Not the search cache: that one is folded to lower case.
+    return (await view?.text(index).catch(() => '')) ?? '';
+  }
+
+  printButton.addEventListener('click', () => void print());
+  aloud.addEventListener('click', () => void readAloud());
+
   const onScroll = () => updateWhere();
   let resizeTimer: ReturnType<typeof setTimeout> | null = null;
   const onResize = () => {
@@ -299,6 +448,10 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   };
 
   async function teardown(): Promise<void> {
+    stopSpeaking();
+    tell('');
+    sheets?.remove();
+    sheets = null;
     abort.abort();
     abort = new AbortController();
     observer?.disconnect();
@@ -370,4 +523,40 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
       return teardown();
     },
   };
+}
+
+/** About 150 dpi across an A4 page: sharp on paper, light enough to hold a few hundred pages. */
+const PRINT_WIDTH = 1240;
+
+/**
+ * A page's words in pieces a speech engine will finish: some stop speaking a
+ * long utterance after about fifteen seconds, so each piece is a sentence or
+ * two, never more than about 220 characters.
+ */
+export function chunks(text: string): string[] {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (flat === '') return [];
+  const sentences = flat.match(/[^.!?;:]+[.!?;:]*\s*/g) ?? [flat];
+  const out: string[] = [];
+  let current = '';
+  for (const sentence of sentences) {
+    for (let piece = sentence; piece.length > 0; ) {
+      const room = 220 - current.length;
+      if (piece.length <= room) {
+        current += piece;
+        break;
+      }
+      if (current.trim() !== '') {
+        out.push(current.trim());
+        current = '';
+        continue;
+      }
+      const cut = piece.lastIndexOf(' ', 220);
+      const at = cut > 40 ? cut : 220;
+      out.push(piece.slice(0, at).trim());
+      piece = piece.slice(at);
+    }
+  }
+  if (current.trim() !== '') out.push(current.trim());
+  return out;
 }

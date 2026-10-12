@@ -32,7 +32,11 @@ export function looksLikeImage(head: Uint8Array): boolean {
   return ascii(4, 8) === 'ftyp' && /^(heic|heix|hevc|heim|heis|mif1|msf1|avif|avis)$/.test(ascii(8, 12));
 }
 
-export function createDocumentStore(ws: Workspace, accept: FileKind = 'pdf'): DocumentStore {
+/**
+ * `accept`: 'pdf' and 'image' refuse anything else; 'any' takes every file,
+ * as a PDF when it is one (Attachments: the PDF, then what goes inside it).
+ */
+export function createDocumentStore(ws: Workspace, accept: 'pdf' | 'image' | 'any' = 'pdf'): DocumentStore {
   const importOne = async (file: File): Promise<ImportResult> => {
     const name = file.name;
     try {
@@ -41,6 +45,10 @@ export function createDocumentStore(ws: Workspace, accept: FileKind = 'pdf'): Do
       if (accept === 'image') {
         if (!looksLikeImage(head)) return { ok: false, name, reason: "This isn't a photo or picture this tool can read. Use JPEG, PNG, WebP or GIF." };
         return { ok: true, file: await ws.put(name, file, 'image', { kind: 'picked' }) };
+      }
+      if (accept === 'any') {
+        const kind: FileKind = looksLikePdf(head) ? 'pdf' : looksLikeImage(head) ? 'image' : 'other';
+        return { ok: true, file: await ws.put(name, file, kind, { kind: 'picked' }) };
       }
       if (!looksLikePdf(head)) return { ok: false, name, reason: "This isn't a PDF." };
       return { ok: true, file: await ws.put(name, file, 'pdf', { kind: 'picked' }) };

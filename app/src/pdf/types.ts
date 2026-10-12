@@ -216,9 +216,48 @@ export type DocInfoField = 'title' | 'author' | 'subject' | 'keywords' | 'creato
 export type DocInfo = Partial<Record<DocInfoField, string>>;
 
 export interface EncryptOptions {
+  /** Empty only with `restrictOnly`: then anyone can open the file, and the permissions are what is locked. */
   readonly userPassword: string;
   readonly allowPrinting: boolean;
   readonly allowCopying: boolean;
+  /** Allow changing the pages and filling forms; off by default when locking. */
+  readonly allowEditing?: boolean;
+  readonly restrictOnly?: boolean;
+}
+
+/** A run of pages and how their numbers are shown in a reader's page box ("i, ii, iii", "A-1, A-2"). */
+export interface PageLabelRange {
+  /** Zero-based index of the first page this style applies to; it runs until the next range. */
+  readonly start: number;
+  readonly style: 'decimal' | 'roman' | 'Roman' | 'alpha' | 'Alpha' | 'none';
+  readonly prefix?: string;
+  /** The number the first page of the range shows; 1 when absent. */
+  readonly first?: number;
+}
+
+/** A file carried inside a PDF. */
+export interface Attachment {
+  readonly name: string;
+  readonly bytes: Uint8Array;
+  readonly description?: string;
+}
+
+/** What "Clean hidden data" takes out. */
+export interface CleanOptions {
+  /** JavaScript, and actions that run when the file opens or a page shows. */
+  readonly scripts: boolean;
+  readonly attachments: boolean;
+  /** Comments, notes, highlights and other annotations (links and form fields stay). */
+  readonly comments: boolean;
+  /** Title, author, the software that made it, dates, XMP. */
+  readonly metadata: boolean;
+}
+
+export interface CleanReport {
+  readonly scripts: number;
+  readonly attachments: number;
+  readonly comments: number;
+  readonly metadata: boolean;
 }
 
 /** An image embedded in a document, as a file a person can open. */
@@ -340,6 +379,20 @@ export interface PdfDoc {
    * Words the built-in font cannot spell are left out. Returns how many went in.
    */
   addTextLayer(index: number, words: ReadonlyArray<{ readonly text: string; readonly x: number; readonly y: number; readonly w: number; readonly h: number }>): number;
+  /** Paints the page's whole background in a colour, under everything already on it. */
+  setBackground(index: number, color: Rgb): void;
+  /** Replaces the page labels a reader shows; an empty list removes them. */
+  setPageLabels(ranges: readonly PageLabelRange[]): void;
+  /** The files carried inside the document, from its attachment list and its file-attachment notes. */
+  attachments(): readonly Attachment[];
+  /** Carries a file inside the document. */
+  attach(file: Attachment): Promise<void>;
+  /** The document's bookmarks (outline), with the page each opens. */
+  bookmarks(): readonly OutlineItem[];
+  /** Replaces the bookmarks; an empty list removes them. Entries with no page are dropped. */
+  setBookmarks(items: readonly OutlineItem[]): void;
+  /** Takes out what a file carries that nobody sees on the page. */
+  clean(opts: CleanOptions): CleanReport;
   /** Draws marks onto their pages, upright as the reader sees each page. */
   drawMarks(marks: readonly Mark[]): Promise<void>;
   /**

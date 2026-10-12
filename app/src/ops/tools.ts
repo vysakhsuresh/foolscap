@@ -9,7 +9,7 @@
  * The ids are URLs (`/tools/<id>/`) and the keys the SEO pages are generated
  * from. Never rename one once it has shipped.
  *
- * `group` exists because a flat list of twenty-seven tools stops being a menu
+ * `group` exists because a flat list of thirty-one tools stops being a menu
  * and becomes a wall. The groups are by what someone is trying to do, not by
  * which library implements them.
  */
@@ -41,9 +41,14 @@ export type ToolId =
   | 'add-password'
   | 'remove-password'
   | 'remove-areas'
-  | 'document-details';
+  | 'document-details'
+  | 'background'
+  | 'page-labels'
+  | 'attachments'
+  | 'bookmarks';
 
-export type InputKind = 'one-pdf' | 'several-pdfs' | 'images' | 'camera';
+/** 'pdf-and-files': a PDF first, then files of any kind (Attachments). */
+export type InputKind = 'one-pdf' | 'several-pdfs' | 'images' | 'camera' | 'pdf-and-files';
 
 export type GroupId = 'read' | 'pages' | 'mark' | 'convert' | 'protect';
 
@@ -64,7 +69,7 @@ export interface ToolMeta {
 /**
  * The five families. Each owns one colour (tokens.css), so a page and a card
  * say which family they belong to before you read a word, and the home page
- * reads as five calm groups rather than twenty-seven loud cards.
+ * reads as five calm groups rather than thirty-one loud cards.
  * Order here is the order on screen.
  */
 export const GROUPS: ReadonlyArray<{ readonly id: GroupId; readonly title: string; readonly blurb: string }> = [
@@ -104,6 +109,10 @@ export const KEYWORDS: Partial<Record<ToolId, string>> = {
   scan: 'camera photo document scanner',
   ocr: 'searchable text recognition scan',
   'extract-text': 'copy text txt words',
+  background: 'colour color page background fill paper tint',
+  'page-labels': 'roman numerals i ii iii numbering labels front matter',
+  attachments: 'attach embed files inside portfolio take out',
+  bookmarks: 'outline contents chapters table of contents navigation split chapters',
 };
 
 export const TOOLS: readonly ToolMeta[] = [
@@ -113,6 +122,8 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'extract-pages', title: 'Extract or remove pages', summary: 'Keep only the pages you pick, or take some out', action: 'Make the new file', input: 'one-pdf', group: 'pages', status: 'live' },
   { id: 'insert-pages', title: 'Insert pages', summary: 'Put another PDF, or blank pages, in at a chosen page', action: 'Insert them', input: 'several-pdfs', group: 'pages', status: 'live' },
   { id: 'crop', title: 'Crop pages', summary: 'Trim the margins, or fit every page to A4 or Letter', action: 'Crop it', input: 'several-pdfs', group: 'pages', status: 'live' },
+  { id: 'bookmarks', title: 'Bookmarks', summary: 'Add, rename and reorder the chapters a reader jumps between', action: 'Save the bookmarks', input: 'one-pdf', group: 'pages', status: 'live' },
+  { id: 'page-labels', title: 'Page labels', summary: 'Number the front pages i, ii, iii and the rest 1, 2, 3', action: 'Set the labels', input: 'several-pdfs', group: 'pages', status: 'live' },
   { id: 'split-by-size', title: 'Split by size', summary: 'Parts that fit a 5, 10 or 25 MB email limit', action: 'Split into parts that fit', input: 'one-pdf', group: 'pages', status: 'live' },
 
   { id: 'compress', title: 'Compress', summary: 'Make a PDF smaller, and say so when it cannot', action: 'Compress it', input: 'several-pdfs', group: 'convert', status: 'live' },
@@ -127,12 +138,14 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'mark-up', title: 'Mark up', summary: 'Highlight a line or draw on a page', action: 'Save the marks', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'add-text', title: 'Add text', summary: 'Tap a page and write on it', action: 'Write it on', input: 'one-pdf', group: 'mark', status: 'live' },
   { id: 'fill-form', title: 'Fill in a form', summary: 'Type into a real PDF form and seal the answers', action: 'Fill it in', input: 'one-pdf', group: 'mark', status: 'live' },
+  { id: 'background', title: 'Page background', summary: 'Give the pages a soft paper colour', action: 'Colour the pages', input: 'several-pdfs', group: 'mark', status: 'live' },
   { id: 'header-footer', title: 'Header and footer', summary: 'A line along the top or bottom of every page', action: 'Add them', input: 'several-pdfs', group: 'mark', status: 'live' },
 
   { id: 'add-password', title: 'Add a password', summary: 'Lock a PDF with AES-256', action: 'Lock it', input: 'several-pdfs', group: 'protect', status: 'live' },
   { id: 'remove-password', title: 'Remove a password', summary: 'Unlock a PDF whose password you know', action: 'Unlock it', input: 'several-pdfs', group: 'protect', status: 'live' },
   { id: 'remove-areas', title: 'Remove areas', summary: 'Genuinely remove what you mark, not a black box over it', action: 'Remove them', input: 'one-pdf', group: 'protect', status: 'live' },
-  { id: 'document-details', title: 'Document details', summary: 'Edit or strip the title, author and hidden metadata', action: 'Save the details', input: 'several-pdfs', group: 'protect', status: 'live' },
+  { id: 'document-details', title: 'Clean hidden data', summary: 'Strip metadata, scripts and comments, or set the title and author', action: 'Clean it', input: 'several-pdfs', group: 'protect', status: 'live' },
+  { id: 'attachments', title: 'Attachments', summary: 'Put files inside a PDF, or take out the ones it carries', action: 'Attach or take out', input: 'pdf-and-files', group: 'protect', status: 'live' },
 
   { id: 'read', title: 'Read', summary: 'Open a document, then hand it to any tool', action: 'Open it', input: 'one-pdf', group: 'read', status: 'live', viewer: true },
   { id: 'scan', title: 'Scan a document', summary: 'Photograph pages and straighten them', action: 'Make the PDF', input: 'camera', group: 'read', status: 'live' },
@@ -175,11 +188,15 @@ export const SEARCH_NAMES: Record<ToolId, string> = {
   'add-password': 'Password protect PDF',
   'remove-password': 'Remove PDF password',
   'remove-areas': 'Redact PDF',
-  'document-details': 'Edit or remove PDF metadata',
+  'document-details': 'Remove PDF metadata and hidden data',
   read: 'Online PDF reader',
   scan: 'Scan to PDF',
   ocr: 'OCR PDF: make a scan searchable',
   'extract-text': 'PDF to text',
+  background: 'Change PDF background colour',
+  'page-labels': 'Roman numeral page numbers in PDF',
+  attachments: 'Attach files to PDF or extract attachments',
+  bookmarks: 'Edit PDF bookmarks',
 };
 
 export const toolPath = (id: ToolId): string => `${import.meta.env.BASE_URL}tools/${id}/`;

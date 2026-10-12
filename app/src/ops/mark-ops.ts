@@ -1,7 +1,8 @@
 /** The Mark up family's stamping tools: watermark, page numbers, header and footer. */
+import type { FoolscapFile } from '../files/types';
 import type { Anchor } from '../pdf';
 import { baseName, forEachPdf, plural, refused, store } from './common';
-import { checkCancelled, type HeaderFooterParams, type Op, type PageNumbersParams, type WatermarkParams } from './op';
+import { checkCancelled, type HeaderFooterParams, type Op, type OpContext, type Outcome, type PageNumbersParams, type WatermarkParams } from './op';
 
 const GREY: readonly [number, number, number] = [0.42, 0.42, 0.46];
 const INK: readonly [number, number, number] = [0.2, 0.2, 0.24];
@@ -43,6 +44,8 @@ function numberText(format: PageNumbersParams['format'], n: number, total: numbe
       return `Page ${n}`;
     case 'page-n-of-total':
       return `Page ${n} of ${total}`;
+    case 'bates':
+      return String(n);
   }
 }
 
@@ -53,6 +56,7 @@ export const pageNumbersOp: Op<PageNumbersParams> = {
   async run(inputs, params, ctx) {
     const start = Math.floor(params.start);
     if (!(start >= 0 && start <= 100000)) return inputs.map((input) => refused([input], 'The first number must be between 0 and 100,000.'));
+    if (params.format === 'bates') return batesNumbers(inputs, params, start, ctx);
     return forEachPdf(inputs, ctx, async (doc, input) => {
       const skip = params.skipFirst && doc.pageCount > 1 ? 1 : 0;
       const numbered = doc.pageCount - skip;
@@ -66,6 +70,29 @@ export const pageNumbersOp: Op<PageNumbersParams> = {
     });
   },
 };
+
+/**
+ * Bates numbering, as courts and law offices use it: every page of every file
+ * in the set gets the next number in one sequence ("ACME-000001" onwards),
+ * so a page can be cited by its number alone. Files are numbered in the order
+ * they were added.
+ */
+async function batesNumbers(inputs: readonly FoolscapFile[], params: PageNumbersParams, start: number, ctx: OpContext): Promise<Outcome[]> {
+  const prefix = (params.prefix ?? '').replace(/[\r\n\t]+/g, ' ').slice(0, 40);
+  const digits = Math.min(12, Math.max(1, Math.floor(params.digits ?? 6)));
+  let next = start;
+  return forEachPdf(inputs, ctx, async (doc, input) => {
+    const first = next;
+    for (let i = 0; i < doc.pageCount; i++) {
+      checkCancelled(ctx.signal);
+      doc.stampText(i, { text: `${prefix}${String(next).padStart(digits, '0')}`, anchor: params.position as Anchor, size: 9, color: INK, margin: 22 });
+      next++;
+    }
+    const from = `${prefix}${String(first).padStart(digits, '0')}`;
+    const to = `${prefix}${String(next - 1).padStart(digits, '0')}`;
+    return store(ctx, 'page-numbers', [input], `${baseName(input.name)} (Bates ${from}).pdf`, await doc.save(), `Bates numbered ${from} to ${to}`);
+  });
+}
 
 /** Today as "12 Oct 2026": unambiguous wherever the reader is. */
 function today(): string {

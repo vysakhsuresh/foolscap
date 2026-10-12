@@ -113,20 +113,61 @@ export const extractTextOp: Op<NoParams> = {
 };
 
 /** The longest side a photo may keep, and the JPEG quality it is saved at. */
-const LEVELS: Record<CompressParams['level'], { readonly maxSide: number; readonly quality: number; readonly name: string }> = {
+const LEVELS: Record<Exclude<CompressParams['level'], 'target'>, { readonly maxSide: number; readonly quality: number; readonly name: string }> = {
   light: { maxSide: 3000, quality: 0.85, name: 'Light' },
   balanced: { maxSide: 2000, quality: 0.72, name: 'Balanced' },
   strong: { maxSide: 1400, quality: 0.55, name: 'Strong' },
 };
 
+/**
+ * For "under 200 KB": photo settings from gentle to harsh. Sizes fall as the
+ * list goes on, so a binary search finds the gentlest one that fits.
+ */
+const PHOTO_LADDER: ReadonlyArray<{ readonly maxSide: number; readonly quality: number }> = [
+  { maxSide: 3000, quality: 0.85 },
+  { maxSide: 2200, quality: 0.75 },
+  { maxSide: 1600, quality: 0.65 },
+  { maxSide: 1200, quality: 0.55 },
+  { maxSide: 950, quality: 0.45 },
+  { maxSide: 750, quality: 0.38 },
+  { maxSide: 600, quality: 0.3 },
+  { maxSide: 450, quality: 0.24 },
+];
+
+/** When photos are not enough and pictures are allowed: whole pages as JPEG, sharpest first. */
+const PICTURE_LADDER: ReadonlyArray<{ readonly dpi: number; readonly quality: number }> = [
+  { dpi: 150, quality: 0.7 },
+  { dpi: 120, quality: 0.6 },
+  { dpi: 100, quality: 0.5 },
+  { dpi: 85, quality: 0.45 },
+  { dpi: 72, quality: 0.4 },
+  { dpi: 60, quality: 0.35 },
+];
+
 /** Below this the saving is not worth a second copy of the file. */
 const WORTH_IT = 0.97;
+
+/** The first index in [0, n) for which `fits` is true, assuming once true it stays true; n when none is. */
+async function firstFit(n: number, fits: (i: number) => Promise<boolean>): Promise<number> {
+  let lo = 0;
+  let hi = n;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (await fits(mid)) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
+const kb = (bytes: number): string => (bytes >= 1_000_000 ? megabytes(bytes) : `${Math.max(1, Math.round(bytes / 1000))} KB`);
 
 export const compressOp: Op<CompressParams> = {
   tool: 'compress',
   arity: { kind: 'each' },
-  title: (params) => `Compress (${LEVELS[params.level].name.toLowerCase()})`,
+  engine: true,
+  title: (params) => (params.level === 'target' ? `Compress to ${params.targetKb ?? 200} KB` : `Compress (${LEVELS[params.level].name.toLowerCase()})`),
   async run(inputs, params, ctx) {
+    if (params.level === 'target') return compressToTarget(inputs, params, ctx);
     const level = LEVELS[params.level];
     const decode = canDecode();
     return forEachPdf(inputs, ctx, async (doc, input) => {
@@ -163,6 +204,117 @@ export const compressOp: Op<CompressParams> = {
     });
   },
 };
+
+/**
+ * "Under 200 KB", as upload forms ask. First the photos are shrunk, as gently
+ * as the limit allows; if that cannot reach it and pictures are allowed, the
+ * pages themselves become pictures, as sharp as the limit allows. Each try
+ * starts again from the original, so nothing is squeezed twice.
+ */
+async function compressToTarget(inputs: readonly FoolscapFile[], params: CompressParams, ctx: OpContext): Promise<Outcome[]> {
+  const limit = Math.round((params.targetKb ?? 200) * 1000);
+  if (!Number.isFinite(limit) || limit < 10_000) return inputs.map((i) => refused([i], 'Choose a size of at least 10 KB.'));
+  const decode = canDecode();
+  const outcomes: Outcome[] = [];
+  for (const [n, input] of inputs.entries()) {
+    checkCancelled(ctx.signal);
+    const which = inputs.length > 1 ? ` (${ordinal(n + 1)} file)` : '';
+    if (input.size <= limit) {
+      outcomes.push({ kind: 'skipped', inputIds: [input.id], reason: `This file is already ${kb(input.size)}, under ${kb(limit)}. Nothing to do.` });
+      continue;
+    }
+    try {
+      // 1. Photos, gentlest first.
+      const tried = new Map<number, Uint8Array>();
+      const withPhotos = async (i: number): Promise<Uint8Array> => {
+        const cached = tried.get(i);
+        if (cached) return cached;
+        const step = PHOTO_LADDER[i]!;
+        ctx.progress({ done: 0, total: 0, label: `Trying gentler and stronger settings${which}…` });
+        const doc = await ctx.surgeon.open(await readInput(ctx, input), passwordFor(ctx, input));
+        try {
+          await doc.compress(async (image) => {
+            checkCancelled(ctx.signal);
+            if (!decode || image.ext === 'jp2' || image.bytes.length < 6_000) return null;
+            return shrink(image.bytes, image.ext === 'jpg' ? 'image/jpeg' : 'image/png', step.maxSide, step.quality);
+          }, ctx.signal);
+          const bytes = (await saveKeepingLock(ctx, doc, input)).bytes;
+          tried.set(i, bytes);
+          return bytes;
+        } finally {
+          doc.close();
+        }
+      };
+      const photoIndex = await firstFit(PHOTO_LADDER.length, async (i) => (await withPhotos(i)).length <= limit);
+      if (photoIndex < PHOTO_LADDER.length) {
+        const bytes = await withPhotos(photoIndex);
+        const gentle = photoIndex <= 2 ? 'photos still sharp' : photoIndex <= 5 ? 'photos a little softer' : 'photos noticeably softer';
+        outcomes.push(await store(ctx, 'compress', [input], `${baseName(input.name)} (under ${kb(limit)}).pdf`, bytes, `${kb(input.size)} → ${kb(bytes.length)}, under ${kb(limit)}; text untouched, ${gentle}`));
+        continue;
+      }
+      const smallest = await withPhotos(PHOTO_LADDER.length - 1);
+      if (!params.allowPictures) {
+        outcomes.push(
+          await store(
+            ctx,
+            'compress',
+            [input],
+            `${baseName(input.name)} (compressed).pdf`,
+            smallest,
+            `${kb(input.size)} → ${kb(smallest.length)}. That is as small as it gets with the words kept as text; ${kb(limit)} needs the pages turned into pictures (tick "Let pages become pictures")`,
+          ),
+        );
+        continue;
+      }
+      // 2. Pages as pictures, sharpest first.
+      const engine = await ctx.engine();
+      const pictures = new Map<number, Uint8Array>();
+      const asPictures = async (i: number): Promise<Uint8Array> => {
+        const cached = pictures.get(i);
+        if (cached) return cached;
+        const step = PICTURE_LADDER[i]!;
+        ctx.progress({ done: 0, total: 0, label: `Turning pages into pictures at ${step.dpi} dpi${which}…` });
+        const view = await engine.open(await ctx.workspace.read(input), { ...passwordFor(ctx, input), signal: ctx.signal });
+        const out = await ctx.surgeon.create();
+        try {
+          for (let p = 0; p < view.pageCount; p++) {
+            checkCancelled(ctx.signal);
+            const page = await view.page(p);
+            const sideways = page.rotation === 90 || page.rotation === 270;
+            const w = sideways ? page.height : page.width;
+            const h = sideways ? page.width : page.height;
+            const jpeg = await view.encode(p, { width: Math.max(1, Math.round((w / 72) * step.dpi)), format: 'jpeg', quality: step.quality, signal: ctx.signal });
+            await out.addImagePage({ bytes: jpeg, kind: 'jpeg' }, { width: w, height: h }, 0);
+          }
+          const bytes = await out.save();
+          pictures.set(i, bytes);
+          return bytes;
+        } finally {
+          out.close();
+          await view.close();
+        }
+      };
+      const pictureIndex = await firstFit(PICTURE_LADDER.length, async (i) => (await asPictures(i)).length <= limit);
+      if (pictureIndex < PICTURE_LADDER.length) {
+        const step = PICTURE_LADDER[pictureIndex]!;
+        const bytes = await asPictures(pictureIndex);
+        outcomes.push(
+          await store(ctx, 'compress', [input], `${baseName(input.name)} (under ${kb(limit)}).pdf`, bytes, `${kb(input.size)} → ${kb(bytes.length)}, under ${kb(limit)}; pages are now pictures at ${step.dpi} dpi, so the words can't be selected`),
+        );
+        continue;
+      }
+      const tiny = await asPictures(PICTURE_LADDER.length - 1);
+      const best = tiny.length < smallest.length ? tiny : smallest;
+      outcomes.push(
+        await store(ctx, 'compress', [input], `${baseName(input.name)} (compressed).pdf`, best, `${kb(input.size)} → ${kb(best.length)}. ${kb(limit)} is too small for this file to stay readable; this is the smallest that still reads`),
+      );
+    } catch (error) {
+      outcomes.push(failed(error, [input]));
+    }
+  }
+  ctx.progress({ done: inputs.length, total: inputs.length, label: 'Done' });
+  return outcomes;
+}
 
 /** 300 dpi: what Tesseract reads best. */
 const OCR_DPI = 300;

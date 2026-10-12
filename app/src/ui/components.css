@@ -964,6 +964,24 @@ a.tool-card:hover .tool-card__go {
   outline-offset: 3px;
 }
 
+/* A colour pill shows its colour: a dot ringed so a pale one still reads on glass. */
+.swatch {
+  width: 16px;
+  height: 16px;
+  margin-inline-end: var(--space-2);
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.35);
+  flex: none;
+}
+
+.input.input--color {
+  width: 64px;
+  min-height: var(--target);
+  padding: 4px;
+  cursor: pointer;
+}
+
 .check {
   display: flex;
   align-items: center;
@@ -2654,4 +2672,138 @@ body[data-page='tool'] .site-footer {
 
 .home-fab__nav {
   display: contents;
+}
+
+/* ---- Bookmarks ---- */
+.bm-panel {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.bm-list {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bm-row {
+  display: grid;
+  gap: var(--space-2);
+  margin-inline-start: calc(var(--depth, 0) * 20px);
+  padding: var(--space-3);
+  border-radius: var(--radius-m);
+  background: var(--glass);
+  border: 1px solid var(--line);
+  border-inline-start: 3px solid color-mix(in srgb, var(--icon-ink) calc(100% - var(--depth, 0) * 18%), transparent);
+}
+
+.bm-row__head {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.bm-row__title.input {
+  max-width: none;
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.bm-row__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.bm-row__page-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-end: auto;
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.bm-row__page.input {
+  width: 72px;
+}
+
+.bm-row__btn {
+  min-width: var(--target);
+  min-height: var(--target);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.bm-row__btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--icon-ink) 14%, transparent);
+}
+
+.bm-row__btn:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.bm-row__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ---- Reader: status line, reading, printing ---- */
+.reader__status {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-s);
+  background: var(--glass);
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.reader__page.is-reading {
+  outline: 2px solid var(--icon-ink);
+  outline-offset: 4px;
+}
+
+.print-sheets {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 0;
+  }
+
+  body > *:not(.print-sheets) {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .print-sheets {
+    display: block;
+  }
+
+  .print-sheets__page {
+    display: block;
+    width: 100%;
+    height: auto;
+    break-after: page;
+    break-inside: avoid;
+  }
+
+  .print-sheets__page:last-child {
+    break-after: auto;
+  }
 }

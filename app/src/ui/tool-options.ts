@@ -7,6 +7,9 @@
  */
 import type {
   AddPasswordParams,
+  AttachmentsParams,
+  BackgroundParams,
+  PageLabelsParams,
   CompressParams,
   PdfToImagesParams,
   CropParams,
@@ -72,10 +75,26 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         'files',
         onChange,
       );
-      const after = field('after', { label: 'Put them after page', type: 'number', min: 0, value: '1', hint: '0 puts them before the first page.' }, onChange);
+      const after = field('after', { label: 'After page', type: 'number', min: 0, value: '1', bare: true }, onChange);
+      const replace = field('replace', { label: 'Pages to replace', placeholder: '3-4', bare: true }, onChange);
+      const where = choices<'after' | 'replace'>(
+        'where',
+        'Where',
+        [
+          { value: 'after', title: 'After a page', hint: '0 puts them before the first page.', field: after.root },
+          { value: 'replace', title: 'In place of pages', hint: 'Those pages come out; the new ones go where they were.', field: replace.root },
+        ],
+        'after',
+        onChange,
+      );
       return {
-        root: group([what.root, after.root]),
-        params: (): InsertPagesParams => ({ what: what.value(), after: after.number(), blankCount: blankCount.number() }),
+        root: group([what.root, where.root]),
+        params: (): InsertPagesParams => ({
+          what: what.value(),
+          after: after.number(),
+          blankCount: blankCount.number(),
+          ...(where.value() === 'replace' ? { replace: replace.value() } : {}),
+        }),
         problem: (count) => (what.value() === 'files' && count < 2 ? 'Add the PDF to put in as well. The first file is the one that gets the pages.' : null),
       };
     }
@@ -231,15 +250,34 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
           { value: 'n-of-total', title: '1 of 12' },
           { value: 'page-n', title: 'Page 1' },
           { value: 'page-n-of-total', title: 'Page 1 of 12' },
+          { value: 'bates', title: 'Bates: ACME-000001' },
         ],
         'n',
-        onChange,
+        () => {
+          sync();
+          onChange();
+        },
       );
       const start = field('start', { label: 'First number', type: 'number', min: 0, value: '1' }, onChange);
       const skip = check('skip-first', 'Leave the first page unnumbered', false, onChange, '(for a cover)');
+      const prefix = field('prefix', { label: 'Before the number', placeholder: 'ACME-', value: '' }, onChange);
+      const digits = field('digits', { label: 'Digits', type: 'number', min: 1, max: 12, value: '6' }, onChange);
+      const bates = group([el2([prefix.root, digits.root]), note('Legal numbering: one sequence through every page of every file, in the order you added them.')]);
+      const sync = () => {
+        const isBates = format.value() === 'bates';
+        bates.hidden = !isBates;
+        skip.root.hidden = isBates;
+      };
+      sync();
       return {
-        root: group([el2([position.root, format.root, start.root]), skip.root]),
-        params: (): PageNumbersParams => ({ position: position.value(), format: format.value(), start: start.number(), skipFirst: skip.checked() }),
+        root: group([el2([position.root, format.root, start.root]), skip.root, bates]),
+        params: (): PageNumbersParams => ({
+          position: position.value(),
+          format: format.value(),
+          start: start.number(),
+          skipFirst: skip.checked(),
+          ...(format.value() === 'bates' ? { prefix: prefix.value(), digits: digits.number() } : {}),
+        }),
         problem: () => null,
       };
     }
@@ -269,18 +307,45 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
     case 'add-password': {
       const password = field('password', { label: 'Password', type: 'password', autocomplete: 'new-password' }, onChange);
       const confirm = field('confirm', { label: 'Type it again', type: 'password', autocomplete: 'new-password' }, onChange);
+      const passwordBox = group([password.root, confirm.root]);
+      const mode = choices<NonNullable<AddPasswordParams['mode']>>(
+        'lock',
+        'How to protect it',
+        [
+          { value: 'password', title: 'Lock it with a password', hint: 'Nobody can open it without the password.', field: passwordBox },
+          { value: 'restrict', title: 'Only restrict printing, copying and editing', hint: 'It opens for anyone; readers that respect the settings block the rest.' },
+        ],
+        'password',
+        () => {
+          sync();
+          onChange();
+        },
+      );
       const printing = check('allow-printing', 'Allow printing', true, onChange);
       const copying = check('allow-copying', 'Allow copying text', false, onChange);
+      const editing = check('allow-editing', 'Allow changes and comments', false, onChange);
+      const lockNote = note('Locked with AES-256. Write the password down: nobody, us included, can open the file without it. It is never stored or sent anywhere.');
+      const restrictNote = note('Honest note: these settings are a request, not a lock. Adobe, Chrome and most readers obey them, but a determined person with the right tool can switch them off. For anything secret, use a password.');
+      const sync = () => {
+        const restrict = mode.value() === 'restrict';
+        passwordBox.hidden = restrict;
+        lockNote.hidden = restrict;
+        restrictNote.hidden = !restrict;
+      };
+      sync();
       return {
-        root: group([
-          password.root,
-          confirm.root,
-          printing.root,
-          copying.root,
-          note('Locked with AES-256. Write the password down: nobody, us included, can open the file without it. It is never stored or sent anywhere.'),
-        ]),
-        params: (): AddPasswordParams => ({ password: password.value(), allowPrinting: printing.checked(), allowCopying: copying.checked() }),
+        root: group([mode.root, printing.root, copying.root, editing.root, lockNote, restrictNote]),
+        params: (): AddPasswordParams => ({
+          mode: mode.value(),
+          password: mode.value() === 'restrict' ? '' : password.value(),
+          allowPrinting: printing.checked(),
+          allowCopying: copying.checked(),
+          allowEditing: editing.checked(),
+        }),
         problem: () => {
+          if (mode.value() === 'restrict') {
+            return printing.checked() && copying.checked() && editing.checked() ? 'Everything is allowed, so there is nothing to restrict. Untick something.' : null;
+          }
           if (password.value().length === 0) return 'Type the password to lock it with.';
           if (password.value() !== confirm.value()) return "The two passwords don't match yet.";
           return null;
@@ -305,16 +370,29 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       ];
       fields.forEach((f, i) => f.input.setAttribute('placeholder', ['Title', 'Author', 'Subject', 'Keywords, separated by commas'][i] ?? ''));
       const editBox = el2(fields.map((f) => f.root));
+      const comments = check('clean-comments', 'Comments and notes too', true, onChange);
+      const attached = check('clean-attachments', 'Attached files too', true, onChange);
+      const cleanBox = group([comments.root, attached.root]);
       const mode = choices<DocumentDetailsParams['mode']>(
         'mode',
         'What to do',
         [
+          {
+            value: 'clean',
+            title: 'Clean everything hidden',
+            hint: 'The details below, plus scripts and actions that run when it opens. Before you send a file outside.',
+            field: cleanBox,
+          },
           { value: 'strip', title: 'Remove the hidden details', hint: 'Title, author, the app that made it, dates, and hidden XMP metadata. The pages stay as they are.' },
           { value: 'edit', title: 'Set new details', hint: 'Leave a box empty to remove that detail.', field: editBox },
         ],
-        'strip',
+        'clean',
         onChange,
       );
+      cleanBox.addEventListener('change', () => {
+        const radio = mode.root.querySelector<HTMLInputElement>('[data-testid="opt-mode-clean"]');
+        if (radio) radio.checked = true;
+      });
       editBox.addEventListener('input', () => {
         const radio = mode.root.querySelector<HTMLInputElement>('[data-testid="opt-mode-edit"]');
         if (radio) radio.checked = true;
@@ -324,8 +402,83 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         params: (): DocumentDetailsParams =>
           mode.value() === 'strip'
             ? { mode: 'strip' }
-            : { mode: 'edit', title: fields[0]!.value(), author: fields[1]!.value(), subject: fields[2]!.value(), keywords: fields[3]!.value() },
+            : mode.value() === 'clean'
+              ? { mode: 'clean', comments: comments.checked(), attachments: attached.checked() }
+              : { mode: 'edit', title: fields[0]!.value(), author: fields[1]!.value(), subject: fields[2]!.value(), keywords: fields[3]!.value() },
         problem: () => null,
+      };
+    }
+
+    case 'background': {
+      const custom = field('color', { label: 'Colour', type: 'color', value: '#e8f1ff', bare: true }, onChange);
+      const SWATCHES = [
+        { value: '#fbf6e9', title: 'Cream' },
+        { value: '#f2f2ee', title: 'Soft grey' },
+        { value: '#eaf6ee', title: 'Mint' },
+        { value: '#e8f1fb', title: 'Sky' },
+        { value: '#fbeef0', title: 'Rose' },
+      ] as const;
+      const colour = choices<string>('colour', 'Colour', [...SWATCHES, { value: 'custom', title: 'Your own', field: custom.root }], '#fbf6e9', () => {
+        custom.root.hidden = colour.value() !== 'custom';
+        onChange();
+      }, 'pills');
+      custom.root.hidden = true;
+      for (const label of colour.root.querySelectorAll<HTMLLabelElement>('.pill-choice')) {
+        const radio = label.querySelector('input');
+        const value = radio?.value === 'custom' ? null : radio?.value;
+        if (!value) continue;
+        const dot = document.createElement('span');
+        dot.className = 'swatch';
+        dot.setAttribute('aria-hidden', 'true');
+        dot.style.setProperty('--swatch', value);
+        label.insertBefore(dot, radio?.nextSibling ?? null);
+      }
+      const pages = field('pages', { label: 'Pages', placeholder: 'All pages', hint: 'Leave empty for every page, or type 1-3, 7.' }, onChange);
+      return {
+        root: group([colour.root, custom.root, pages.root, note('The colour goes behind everything, so text and drawings stay on top. A scanned page is one solid picture, so the colour will not show through it.')]),
+        params: (): BackgroundParams => ({ color: colour.value() === 'custom' ? custom.value() : colour.value(), pages: pages.value() }),
+        problem: () => null,
+      };
+    }
+
+    case 'page-labels': {
+      const front = field('front', { label: 'Front pages in i, ii, iii', type: 'number', min: 0, max: 999, value: '0', hint: 'A cover and contents, say. 0 for none.' }, onChange);
+      const start = field('start', { label: 'Then number from', type: 'number', min: 1, value: '1' }, onChange);
+      const prefix = field('prefix', { label: 'Before each number', placeholder: 'Optional, like A-', value: '' }, onChange);
+      const setBox = group([el2([front.root, start.root]), prefix.root]);
+      const mode = choices<PageLabelsParams['mode']>(
+        'mode',
+        'What to do',
+        [
+          { value: 'set', title: 'Set the labels', hint: 'What a reader shows in its page box, so "page 1" is the first page of the real content.', field: setBox },
+          { value: 'remove', title: 'Remove the labels', hint: 'Back to plain 1, 2, 3 from the cover.' },
+        ],
+        'set',
+        onChange,
+      );
+      return {
+        root: group([mode.root, note('Labels change what a reader calls each page, not what is printed on it. To print numbers on the pages, use Page numbers.')]),
+        params: (): PageLabelsParams =>
+          mode.value() === 'remove' ? { mode: 'remove' } : { mode: 'set', front: front.number(), start: start.number(), prefix: prefix.value() },
+        problem: () => (mode.value() === 'set' && !(start.number() >= 1) ? 'The first number must be 1 or more.' : null),
+      };
+    }
+
+    case 'attachments': {
+      const mode = choices<AttachmentsParams['mode']>(
+        'mode',
+        'What to do',
+        [
+          { value: 'attach', title: 'Put files inside the PDF', hint: 'Add the PDF first, then any files: a spreadsheet, photos, the source document. They travel with it.' },
+          { value: 'extract', title: 'Take out the attached files', hint: 'Every file a PDF carries inside it, saved as it was.' },
+        ],
+        'attach',
+        onChange,
+      );
+      return {
+        root: group([mode.root, note('Attached files are not checked or opened here; they are carried inside as they are. Clean hidden data can take them out again.')]),
+        params: (): AttachmentsParams => ({ mode: mode.value() }),
+        problem: (count) => (mode.value() === 'attach' && count < 2 ? 'Add the files to attach after the PDF.' : null),
       };
     }
 
@@ -337,21 +490,51 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       };
 
     case 'compress': {
+      const target = choices<'100' | '200' | '500' | '1000' | 'custom'>(
+        'target',
+        'Under',
+        [
+          { value: '100', title: '100 KB' },
+          { value: '200', title: '200 KB' },
+          { value: '500', title: '500 KB' },
+          { value: '1000', title: '1 MB' },
+          { value: 'custom', title: 'Other' },
+        ],
+        '200',
+        onChange,
+        'pills',
+      );
+      const custom = field('target-kb', { label: 'Size in KB', type: 'number', min: 10, max: 100000, value: '300' }, onChange);
+      const pictures = check('allow-pictures', 'Let pages become pictures if that is what it takes', false, onChange, 'The words stop being selectable, but the page looks the same.');
+      const targetBox = group([target.root, custom.root, pictures.root]);
       const level = choices<CompressParams['level']>(
         'level',
-        'How hard to squeeze',
+        'How to squeeze',
         [
+          { value: 'target', title: 'To a size', hint: 'For upload forms: under 100 KB, 200 KB, 1 MB…', field: targetBox },
           { value: 'light', title: 'Light', hint: 'Photos stay print-sharp. Smallest change.' },
           { value: 'balanced', title: 'Balanced', hint: 'Sharp on any screen, fine to print. Usually half the size or less.' },
           { value: 'strong', title: 'Strong', hint: 'For email limits. Photos get softer.' },
         ],
         'balanced',
-        onChange,
+        () => {
+          sync();
+          onChange();
+        },
       );
+      const sync = () => {
+        targetBox.hidden = level.value() !== 'target';
+        custom.root.hidden = target.value() !== 'custom';
+      };
+      target.root.addEventListener('change', sync);
+      sync();
       return {
         root: group([level.root, note('Text and drawings are never touched, so they stay crisp. If a file cannot get smaller, it says so rather than handing back a copy.')]),
-        params: (): CompressParams => ({ level: level.value() }),
-        problem: () => null,
+        params: (): CompressParams =>
+          level.value() === 'target'
+            ? { level: 'target', targetKb: target.value() === 'custom' ? custom.number() : Number(target.value()), allowPictures: pictures.checked() }
+            : { level: level.value() },
+        problem: () => (level.value() === 'target' && target.value() === 'custom' && !(custom.number() >= 10) ? 'Type a size of at least 10 KB.' : null),
       };
     }
 

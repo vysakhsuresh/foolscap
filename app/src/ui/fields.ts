@@ -73,7 +73,7 @@ export interface FieldOptions {
   readonly hint?: string;
   readonly placeholder?: string;
   readonly value?: string;
-  readonly type?: 'text' | 'number' | 'password';
+  readonly type?: 'text' | 'number' | 'password' | 'color';
   readonly min?: number;
   readonly max?: number;
   readonly autocomplete?: string;
@@ -92,7 +92,7 @@ export function field(name: string, opts: FieldOptions, onChange: () => void): F
   const id = `opt-${name}`;
   const type = opts.type ?? 'text';
   const input = el('input', {
-    class: 'input',
+    class: type === 'color' ? 'input input--color' : 'input',
     testid: id,
     attrs: {
       id,

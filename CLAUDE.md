@@ -187,7 +187,7 @@ same face as layerbit.co.in and the Sheaf app. Colour is neon light with a
 meaning: **each family owns one gradient** (Pages cyan→blue, Convert
 coral→pink, Mark up violet→fuchsia, Protect lime→emerald, Read yellow→amber)
 that colours its cards, its tools' drop zones, titles and main buttons, so
-twenty-seven tools read as five calm groups rather than a rainbow. Professional means restraint
+thirty-one tools read as five calm groups rather than a rainbow. Professional means restraint
 everywhere else: one accent per screen, generous space, no decoration that
 does not confirm something. Dark only, matching Layerbit.
 
@@ -246,7 +246,14 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
    extract text, compress. Then the page editor: sign, add text, mark up,
    remove areas, and fill in a form. 24 live.
 2c. ✅ Read (viewer), Scan, Make searchable (tesseract.js in the op worker,
-   self-hosted). All 27 live. **You are here.**
+   self-hosted). All 27 live.
+2d. ✅ The PDFelement gap, batch B: page background, page labels,
+   attachments (in and out), a bookmarks editor, split at chapters, clean
+   hidden data, restrict without a password, Bates numbering, replace pages,
+   compress to a size, and print and read aloud in Read. 31 live.
+   **You are here.** Next: the mark-up kit (shapes, notes, stamps, links),
+   converters (Word, Excel, PowerPoint, EPUB), text editing and redact by
+   search, certificate signatures, more OCR languages, the offline app.
 3. The reader, deeper: re-rendering zoom, find, outline, night mode, resume.
 4. Complex-script text drawn as real text (harfbuzzjs). Until then Add text
    puts Malayalam, Hindi and the like in as a picture of the words, shaped
@@ -348,3 +355,15 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   scroller, and running a tool on a still-locked file. Page titles now lead
   with what people search ("Compress PDF online, free and private");
   sitemap.xml and the robots.txt pointer are generated once SITE_ORIGIN is set.
+- **2026-10-12** Batch B of the PDFelement gap: 31 tools. Attachments is the
+  one tool that takes any file (`InputKind 'pdf-and-files'`, FileKind
+  `'other'`); everything it carries goes in and comes out byte for byte and
+  is never opened. Read aloud uses only voices whose `localService` is true:
+  a network voice would send the document's words to someone else's server,
+  so where only those exist the button says so and does nothing. Print draws
+  each page as a picture into a sheet only the printer sees, because handing
+  the PDF to the browser's own viewer needs a blob URL outside the exporter.
+  Restrict-only is labelled honestly as a request readers may ignore.
+  Compress to a size tries photo strengths by binary search, then (only if
+  ticked) pages as pictures, and always says which it did.
+

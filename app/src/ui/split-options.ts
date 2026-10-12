@@ -18,6 +18,7 @@ export function createSplitOptions(onChange: () => void): SplitOptions {
   const every = radio('every', true);
   const single = radio('single', false);
   const ranges = radio('ranges', false);
+  const bookmarks = radio('bookmarks', false);
 
   const everyInput = el('input', {
     class: 'input',
@@ -54,6 +55,7 @@ export function createSplitOptions(onChange: () => void): SplitOptions {
     choice(every, 'Every few pages', 'A 10-page file split every 3 gives files of 3, 3, 3 and 1 pages.', everyInput),
     choice(single, 'One page per file', 'Every page becomes its own PDF.'),
     choice(ranges, 'By page ranges', 'One file per range, in the order you type them.', rangesInput),
+    choice(bookmarks, 'At each chapter', 'One file per top-level bookmark, named after it.'),
   ]);
 
   return {
@@ -61,6 +63,7 @@ export function createSplitOptions(onChange: () => void): SplitOptions {
     params() {
       if (single.checked) return { mode: 'single' };
       if (ranges.checked) return { mode: 'ranges', ranges: rangesInput.value };
+      if (bookmarks.checked) return { mode: 'bookmarks' };
       return { mode: 'every', every: Number(everyInput.value) };
     },
   };
