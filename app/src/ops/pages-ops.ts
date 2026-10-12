@@ -5,7 +5,7 @@
 import type { FoolscapFile } from '../files/types';
 import type { PdfDoc } from '../pdf';
 import { PageSelection } from '../pdf/page-selection';
-import { baseName, failed, forEachPdf, megabytes, ordinal, passwordFor, plural, readInput, refused, store } from './common';
+import { baseName, failed, forEachPdf, lockNote, megabytes, ordinal, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import {
   checkCancelled,
   type CropParams,
@@ -60,11 +60,12 @@ export const extractPagesOp: Op<ExtractPagesParams> = {
           params.mode === 'keep'
             ? `${base} pages ${PageSelection.describe(keep)}.pdf`
             : `${base} without pages ${PageSelection.describe(typed)}.pdf`;
+        const { bytes, relocked } = await saveKeepingLock(ctx, out, input, source.wasEncrypted);
         const detail =
-          params.mode === 'keep'
+          (params.mode === 'keep'
             ? `${plural(keep.length, 'page')} kept of ${n}`
-            : `${plural(n - keep.length, 'page')} removed, ${keep.length} left`;
-        return [await store(ctx, 'extract-pages', inputs, name, await out.save(), detail)];
+            : `${plural(n - keep.length, 'page')} removed, ${keep.length} left`) + lockNote(relocked);
+        return [await store(ctx, 'extract-pages', inputs, name, bytes, detail)];
       } finally {
         out.close();
       }
@@ -136,13 +137,14 @@ export const insertPagesOp: Op<InsertPagesParams> = {
       }
       if (rest.length > 0) await out.appendPages(doc, rest);
       ctx.progress({ done: 0, total: 0, label: 'Writing the file…' });
+      const { bytes, relocked } = await saveKeepingLock(ctx, out, target, doc.wasEncrypted);
       if (replacing !== null) {
-        const detail = `${replacing.length === 1 ? 'Page' : 'Pages'} ${PageSelection.describe(replacing)} replaced with ${plural(added, params.what === 'blank' ? 'blank page' : 'page')}, ${out.pageCount} in all`;
-        return [await store(ctx, 'insert-pages', inputs, `${baseName(target.name)} with pages replaced.pdf`, await out.save(), detail)];
+        const detail = `${replacing.length === 1 ? 'Page' : 'Pages'} ${PageSelection.describe(replacing)} replaced with ${plural(added, params.what === 'blank' ? 'blank page' : 'page')}, ${out.pageCount} in all${lockNote(relocked)}`;
+        return [await store(ctx, 'insert-pages', inputs, `${baseName(target.name)} with pages replaced.pdf`, bytes, detail)];
       }
       const where = after === 0 ? 'at the start' : after === n ? 'at the end' : `after page ${after}`;
-      const detail = `${plural(added, params.what === 'blank' ? 'blank page' : 'page')} added ${where}, ${out.pageCount} in all`;
-      return [await store(ctx, 'insert-pages', inputs, `${baseName(target.name)} with pages added.pdf`, await out.save(), detail)];
+      const detail = `${plural(added, params.what === 'blank' ? 'blank page' : 'page')} added ${where}, ${out.pageCount} in all${lockNote(relocked)}`;
+      return [await store(ctx, 'insert-pages', inputs, `${baseName(target.name)} with pages added.pdf`, bytes, detail)];
     } catch (error) {
       return [failed(error, [target])];
     } finally {
@@ -171,7 +173,8 @@ export const cropOp: Op<CropParams> = {
           }
           doc.setVisibleBox(i, { x: box.x + inset, y: box.y + inset, width: box.width - inset * 2, height: box.height - inset * 2 });
         }
-        return store(ctx, 'crop', [input], `${base} cropped.pdf`, await doc.save(), `${params.mm} mm trimmed from every edge of ${plural(doc.pageCount, 'page')}`);
+        const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
+        return store(ctx, 'crop', [input], `${base} cropped.pdf`, bytes, `${params.mm} mm trimmed from every edge of ${plural(doc.pageCount, 'page')}${lockNote(relocked)}`);
       }
       const paper = PAPER[params.paper];
       const out = await ctx.surgeon.create();
@@ -185,7 +188,8 @@ export const cropOp: Op<CropParams> = {
           const h = landscape ? paper.width : paper.height;
           await out.composePage(w, h, [{ source: doc, index: i, box: { x: 0, y: 0, width: w, height: h } }]);
         }
-        return store(ctx, 'crop', [input], `${base} on ${paper.label}.pdf`, await out.save(), `${plural(doc.pageCount, 'page')} put on ${paper.label}`);
+        const { bytes, relocked } = await saveKeepingLock(ctx, out, input, doc.wasEncrypted);
+        return store(ctx, 'crop', [input], `${base} on ${paper.label}.pdf`, bytes, `${plural(doc.pageCount, 'page')} put on ${paper.label}${lockNote(relocked)}`);
       } finally {
         out.close();
       }
@@ -226,8 +230,9 @@ export const nUpOp: Op<NUpParams> = {
           }
           await out.composePage(sheetW, sheetH, placements);
         }
-        const detail = `${plural(doc.pageCount, 'page')} on ${plural(out.pageCount, 'sheet')} of ${paper.label}`;
-        return store(ctx, 'n-up', [input], `${baseName(input.name)} ${per}-up.pdf`, await out.save(), detail);
+        const { bytes, relocked } = await saveKeepingLock(ctx, out, input, doc.wasEncrypted);
+        const detail = `${plural(doc.pageCount, 'page')} on ${plural(out.pageCount, 'sheet')} of ${paper.label}${lockNote(relocked)}`;
+        return store(ctx, 'n-up', [input], `${baseName(input.name)} ${per}-up.pdf`, bytes, detail);
       } finally {
         out.close();
       }
@@ -266,7 +271,7 @@ export const splitBySizeOp: Op<SplitBySizeParams> = {
         const part = await ctx.surgeon.create();
         try {
           await part.appendPages(source, PageSelection.all(n).slice(from, to + 1));
-          return await part.save();
+          return (await saveKeepingLock(ctx, part, input, source.wasEncrypted)).bytes;
         } finally {
           part.close();
         }

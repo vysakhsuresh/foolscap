@@ -5,7 +5,7 @@
  */
 import type { FoolscapFile, Origin } from '../files/types';
 import type { PdfDoc } from '../pdf';
-import { baseName, failed, ordinal, passwordFor, plural, readInput, refused } from './common';
+import { baseName, failed, fitName, ordinal, passwordFor, plural, readInput, refused } from './common';
 import { checkCancelled, type MergeParams, type Op, type Outcome } from './op';
 
 /** Pages appended between cancel checks and progress reports. */
@@ -75,12 +75,14 @@ export const mergeOp: Op<MergeParams> = {
       const pageCount = out.pageCount;
       const bytes = await out.save();
       const origin: Origin = { kind: 'derived', tool: 'merge', from: used.map((input) => input.id) };
-      const file = await ctx.workspace.put(outputName(base, inputs), bytes, 'pdf', origin);
+      const file = await ctx.workspace.put(fitName(outputName(base, inputs)), bytes, 'pdf', origin);
 
       const unreadable = inputs.length - used.length;
       const detail =
         `${plural(pageCount, 'page')} from ${plural(used.length, 'file')}` +
-        (unreadable > 0 ? `, ${plural(unreadable, 'file')} couldn't be read` : '');
+        (unreadable > 0 ? `, ${plural(unreadable, 'file')} couldn't be read` : '') +
+        // Several files may carry several passwords; the merge carries none, and says so.
+        (used.some((input) => (ctx.passwords.get(input.id) ?? '') !== '') ? '. The merged file has no password' : '');
       outcomes.push({ kind: 'produced', file, detail });
       return outcomes;
     } catch (error) {

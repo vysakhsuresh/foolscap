@@ -10,8 +10,45 @@ import type { ToolId } from './tools';
 
 /** "Lease agreement.pdf" → "Lease agreement". Only a trailing .pdf comes off, whatever its case. */
 export function baseName(name: string): string {
-  const stripped = name.replace(/\.pdf$/i, '').trim();
+  const stripped = clip(name.replace(/\.pdf$/i, '').trim(), STEM_BYTES);
   return stripped.length > 0 ? stripped : 'Document';
+}
+
+/**
+ * Every file system stops at 255 bytes for a name, and a Malayalam letter is
+ * three of them. A stem keeps at most this many, which leaves room for what a
+ * tool adds after it (" (compressed).pdf", " image 12 (page 300).png").
+ */
+const STEM_BYTES = 150;
+const NAME_BYTES = 240;
+
+const utf8 = new TextEncoder();
+
+/** The longest start of `text` that fits in `bytes`, cut between letters as a reader sees them, never inside one. */
+function clip(text: string, bytes: number): string {
+  if (utf8.encode(text).length <= bytes) return text;
+  const parts =
+    typeof Intl !== 'undefined' && 'Segmenter' in Intl
+      ? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text), (s) => s.segment)
+      : Array.from(text);
+  let out = '';
+  let used = 0;
+  for (const part of parts) {
+    const size = utf8.encode(part).length;
+    if (used + size > bytes) break;
+    out += part;
+    used += size;
+  }
+  return out.trimEnd();
+}
+
+/** An output's name, cut down before its extension if it would be too long to save. */
+export function fitName(name: string): string {
+  if (utf8.encode(name).length <= NAME_BYTES) return name;
+  const dot = name.lastIndexOf('.');
+  const ext = dot > 0 && name.length - dot <= 6 ? name.slice(dot) : '';
+  const stemPart = ext ? name.slice(0, dot) : name;
+  return `${clip(stemPart, NAME_BYTES - utf8.encode(ext).length)}${ext}`;
 }
 
 /**
@@ -84,7 +121,7 @@ export function refused(inputs: readonly FoolscapFile[], reason: string): Outcom
 
 /** "Holiday photo.JPG" → "Holiday photo": any extension, for images. */
 export function stem(name: string): string {
-  const stripped = name.replace(/\.[a-z0-9]{1,5}$/i, '').trim();
+  const stripped = clip(name.replace(/\.[a-z0-9]{1,5}$/i, '').trim(), STEM_BYTES);
   return stripped.length > 0 ? stripped : 'Image';
 }
 
@@ -103,7 +140,7 @@ export async function store(
   detail: string,
   kind: FileKind = 'pdf',
 ): Promise<Outcome> {
-  const file = await ctx.workspace.put(name, bytes, kind, { kind: 'derived', tool, from: from.map((f) => f.id) });
+  const file = await ctx.workspace.put(fitName(name), bytes, kind, { kind: 'derived', tool, from: from.map((f) => f.id) });
   return { kind: 'produced', file, detail };
 }
 
@@ -133,7 +170,7 @@ export async function forEachPdf(
       continue;
     }
     try {
-      outcomes.push(await work(doc, input));
+      outcomes.push(noteMissing(await work(doc, input), doc));
     } catch (error) {
       outcomes.push(failed(error, [input]));
     } finally {
@@ -144,13 +181,32 @@ export async function forEachPdf(
   return outcomes;
 }
 
+/** What a detail says after the rest when the result kept its input's password. */
+export const lockNote = (relocked: boolean): string => (relocked ? ', still locked with the same password' : '');
+
 /**
  * Saves an edited document. A file that needed a password to open still
  * needs it afterwards: the same one, now AES-256. `relocked` says whether it was.
  */
-export async function saveKeepingLock(ctx: OpContext, doc: PdfDoc, input: FoolscapFile): Promise<{ bytes: Uint8Array; relocked: boolean }> {
+export async function saveKeepingLock(
+  ctx: OpContext,
+  doc: PdfDoc,
+  input: FoolscapFile,
+  /** For a new document built from `input`: whether `input` was locked. */
+  locked: boolean = doc.wasEncrypted,
+): Promise<{ bytes: Uint8Array; relocked: boolean }> {
   const password = ctx.passwords.get(input.id);
-  const relocked = doc.wasEncrypted && password !== undefined && password.length > 0;
+  const relocked = locked && password !== undefined && password.length > 0;
   const bytes = await doc.save(relocked ? { encrypt: { userPassword: password, allowPrinting: true, allowCopying: true } } : undefined);
   return { bytes, relocked };
+}
+
+/**
+ * A file cut short loses its last pages (PdfDoc.missingPages); whatever is
+ * made from it says so, because the person did not ask for fewer pages.
+ */
+export function noteMissing(outcome: Outcome, doc: PdfDoc): Outcome {
+  const missing = doc.missingPages;
+  if (outcome.kind !== 'produced' || !(missing > 0)) return outcome;
+  return { ...outcome, detail: `${outcome.detail}. This file is damaged: ${plural(missing, 'page')} could not be read and ${missing === 1 ? 'is' : 'are'} left out` };
 }

@@ -127,13 +127,14 @@ export function createSurgeon(): PdfSurgeon {
       try {
         const doc = await load(data, password);
         repairTrailer(doc);
+        const missing = repairPageTree(doc);
         // pdf-lib is lenient: a header followed by junk, or a file cut short,
         // "loads" with no catalog or no pages and only fails later, inside an
         // op. Fail here instead, where the message can say what happened.
         if (doc.getPageCount() === 0) throw notReadable(data, new Error('No pages'));
         // pdf-lib clears isEncrypted once a password has opened the file and
         // records that in its context instead; either means it was locked.
-        return wrap(doc, data.byteLength, doc.isEncrypted || doc.context.isDecrypted === true);
+        return wrap(doc, data.byteLength, doc.isEncrypted || doc.context.isDecrypted === true, missing);
       } catch (error) {
         throw toPdfError(error, data);
       }
@@ -252,7 +253,45 @@ function repairTrailer(doc: PDFDocument): void {
   }
 }
 
-function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted: boolean): PdfDoc {
+/**
+ * A file cut short (an interrupted download, a mail attachment that did not
+ * finish) still lists every page in its page tree, but the objects for the
+ * last few are gone. pdf-lib skips those when counting pages and then writes
+ * the dangling references back out, which pdf.js and every other reader
+ * refuse. Prune them, so what is saved holds the pages that were there, and
+ * say how many were lost so the tool can tell the person.
+ */
+function repairPageTree(doc: PDFDocument): number {
+  const { context } = doc;
+  const seen = new Set<PDFDict>();
+  let lost = 0;
+  const walk = (node: PDFDict): number => {
+    if (seen.has(node)) return 0;
+    seen.add(node);
+    const kids = node.lookup(PDFName.of('Kids'));
+    if (!(kids instanceof PDFArray)) return 0;
+    let leaves = 0;
+    for (let i = kids.size() - 1; i >= 0; i--) {
+      const kid = kids.get(i);
+      const target = kid instanceof PDFRef ? context.lookup(kid) : kid;
+      if (!(target instanceof PDFDict) || seen.has(target)) {
+        kids.remove(i);
+        lost++;
+        continue;
+      }
+      const type = target.get(PDFName.of('Type'));
+      if (type === PDFName.of('Pages') || (type === undefined && target.has(PDFName.of('Kids')))) leaves += walk(target);
+      else leaves++;
+    }
+    node.set(PDFName.of('Count'), PDFNumber.of(leaves));
+    return leaves;
+  };
+  const root = doc.catalog.lookup(PDFName.of('Pages'));
+  if (root instanceof PDFDict) walk(root);
+  return lost;
+}
+
+function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted: boolean, missingPages = 0): PdfDoc {
   let doc: PDFDocument | null = initial;
   const fonts = new Map<'regular' | 'bold', PDFFont>();
   let drawable: Set<number> | null = null;
@@ -305,6 +344,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
     },
 
     wasEncrypted,
+    missingPages,
 
     visibleBox(index) {
       const { x, y, width, height } = pageAt(index).getCropBox();
@@ -322,11 +362,21 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const text = stamp.text.replace(/[\r\n\t]+/g, ' ').trim();
       if (text.length === 0) return;
       assertDrawable(f, text);
-      const width = f.widthOfTextAtSize(text, stamp.size);
-      const capHeight = f.heightAtSize(stamp.size, { descender: false });
       const view = viewOf(page);
       const angle = stamp.angle ?? 0;
-      const centres = stamp.tiled === true ? tileCentres(view, width, stamp.size) : [anchorCentre(view, stamp, width, capHeight)];
+      let size = stamp.size;
+      let margin = stamp.margin;
+      if (stamp.tiled !== true && angle === 0) {
+        // A small page (a till receipt, a card) gets a margin to match, and
+        // words that would still run off its edge are made smaller to fit.
+        margin = Math.min(stamp.margin ?? 36, Math.min(view.width, view.height) * 0.08);
+        const room = view.width - 2 * margin;
+        if (room > 0 && f.widthOfTextAtSize(text, size) > room) size = Math.max(1, (size * room) / f.widthOfTextAtSize(text, size));
+      }
+      const width = f.widthOfTextAtSize(text, size);
+      const capHeight = f.heightAtSize(size, { descender: false });
+      const placed = { ...stamp, size, ...(margin === undefined ? {} : { margin }) };
+      const centres = stamp.tiled === true ? tileCentres(view, width, size) : [anchorCentre(view, placed, width, capHeight)];
       const rad = (angle * Math.PI) / 180;
       const [r, g, b] = stamp.color ?? [0, 0, 0];
       for (const [cx, cy] of centres) {
@@ -337,7 +387,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         page.drawText(text, {
           x: px,
           y: py,
-          size: stamp.size,
+          size,
           font: f,
           color: rgb(r, g, b),
           opacity: stamp.opacity ?? 1,
@@ -769,7 +819,16 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         let name = base;
         for (let n = 2; taken.has(name); n++) name = `${base} ${n}`;
         taken.add(name);
-        const look = { ...rect, rotate: degrees(view.rotation), borderWidth: 0.75, borderColor: rgb(0.55, 0.58, 0.65), backgroundColor: rgb(0.94, 0.96, 1) };
+        // pdf-lib turns a widget's box about the (x, y) it is given, with width
+        // and height as the reader sees them; give it the corner and the sides
+        // that land the turned box exactly on `rect`.
+        const anchored: Record<Rotation, { x: number; y: number; width: number; height: number }> = {
+          0: rect,
+          90: { x: rect.x + rect.width, y: rect.y, width: rect.height, height: rect.width },
+          180: { x: rect.x + rect.width, y: rect.y + rect.height, width: rect.width, height: rect.height },
+          270: { x: rect.x, y: rect.y + rect.height, width: rect.height, height: rect.width },
+        };
+        const look = { ...anchored[view.rotation], rotate: degrees(view.rotation), borderWidth: 0.75, borderColor: rgb(0.55, 0.58, 0.65), backgroundColor: rgb(0.94, 0.96, 1) };
         switch (field.kind) {
           case 'text':
           case 'multiline': {

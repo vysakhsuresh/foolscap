@@ -290,7 +290,7 @@ async function compressToTarget(inputs: readonly FoolscapFile[], params: Compres
             const jpeg = await view.encode(p, { width: Math.max(1, Math.round((w / 72) * step.dpi)), format: 'jpeg', quality: step.quality, signal: ctx.signal });
             await out.addImagePage({ bytes: jpeg, kind: 'jpeg' }, { width: w, height: h }, 0);
           }
-          const bytes = await out.save();
+          const bytes = (await saveKeepingLock(ctx, out, input, ctx.passwords.has(input.id))).bytes;
           pictures.set(i, bytes);
           return bytes;
         } finally {

@@ -164,7 +164,7 @@ describe('merge', () => {
 
     const ctx: OpContext = { ...h.ctx, passwords: new Map([[locked.id, 'open sesame']]) };
     const [out] = produced(await run<MergeParams>('merge', [locked, plain], {}, ctx));
-    expect(out?.detail).toBe('3 pages from 2 files');
+    expect(out?.detail).toBe('3 pages from 2 files. The merged file has no password');
     const info = await pdfInfo(await h.bytesOf(out!.file));
     expect(info.encrypted).toBe(false);
     expect(sourceIndices(info)).toEqual([0, 1, 0]);
