@@ -2813,10 +2813,10 @@ select.input option {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 56px;
-  min-width: 56px;
-  /* The mark sits dead centre in the circle: (56 - 38) / 2 on each side. */
-  padding: 0 9px;
+  height: 48px;
+  min-width: 48px;
+  /* The mark sits dead centre in the circle: (48 - 28) / 2 on each side. */
+  padding: 0 10px;
   border-radius: 999px;
   background: rgb(20 22 30 / 0.78);
   border: 1px solid rgb(255 255 255 / 0.12);
@@ -2834,8 +2834,8 @@ select.input option {
 }
 
 .home-fab__mark {
-  width: 38px;
-  height: 38px;
+  width: 28px;
+  height: 28px;
   flex: none;
   filter: drop-shadow(0 3px 8px rgb(139 92 246 / 0.45));
   transition: transform var(--motion-slow) var(--spring);
@@ -2896,9 +2896,10 @@ select.input option {
   /* On a phone it rides above the pinned button, mirroring Get help on the
      right, so the button keeps the full width of the screen. */
   .home-fab {
-    height: 50px;
-    min-width: 50px;
-    padding-inline: 8px;
+    /* The smallest a thumb target should be, and no bigger. */
+    height: 44px;
+    min-width: 44px;
+    padding-inline: 10px;
     bottom: max(var(--space-3), env(safe-area-inset-bottom));
   }
 
@@ -2907,8 +2908,8 @@ select.input option {
   }
 
   .home-fab__mark {
-    width: 34px;
-    height: 34px;
+    width: 24px;
+    height: 24px;
   }
 }
 
@@ -2916,14 +2917,14 @@ select.input option {
   .home-fab {
     left: 30px;
     bottom: 30px;
-    height: 60px;
-    min-width: 60px;
+    height: 48px;
+    min-width: 48px;
     padding-inline: 10px;
   }
 
   .home-fab__mark {
-    width: 40px;
-    height: 40px;
+    width: 28px;
+    height: 28px;
   }
 }
 
