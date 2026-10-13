@@ -94,7 +94,7 @@ test('clean hidden data is the default, and strips the details', async ({ page }
   await expect(page.getByTestId('opt-mode-clean')).toBeChecked();
   await pick(page, [{ name: 'CV.pdf', bytes: await pagesPdf(1, { title: 'Secret plan', producer: 'Corporate Writer 9' }) }]);
   await results(page);
-  await expect(page.getByTestId('result-detail')).toContainText('Removed the title, author and hidden metadata');
+  await expect(page.getByTestId('result-detail')).toContainText('Removed the title and producer');
   const { bytes } = await downloadFrom(page, page.getByTestId('save-button'));
   const info = await pdfInfo(bytes);
   expect(info.title).toBeUndefined();

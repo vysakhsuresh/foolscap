@@ -22,6 +22,17 @@ const needsPassword = (entry: Entry) => entry.errorCode === 'encrypted' || entry
 
 /** Redraws the list. Cheap enough for a list a person can read; no diffing. */
 export function renderFileList(list: HTMLElement, entries: readonly Entry[], reorderable: boolean, on: FileListHandlers): void {
+  // A password half-typed into one row must survive another row being
+  // unlocked, which redraws the whole list: keep what was typed, and where
+  // the caret was, by file.
+  const typed = new Map<string, string>();
+  let focused: { id: string; start: number | null; end: number | null } | null = null;
+  for (const box of list.querySelectorAll<HTMLInputElement>('[data-testid="file-password"]')) {
+    const id = box.closest<HTMLElement>('[data-id]')?.dataset['id'];
+    if (id === undefined) continue;
+    if (box.value !== '') typed.set(id, box.value);
+    if (box === document.activeElement) focused = { id, start: box.selectionStart, end: box.selectionEnd };
+  }
   clear(list);
   entries.forEach((entry, index) => {
     const { file } = entry;
@@ -54,6 +65,7 @@ export function renderFileList(list: HTMLElement, entries: readonly Entry[], reo
       }, [icon(ICONS.close)]),
     ]);
 
+    const kept = typed.get(file.id);
     const passwordRow = needsPassword(entry)
       ? el('div', { class: 'file-item__password' }, [
           el('input', {
@@ -105,5 +117,12 @@ export function renderFileList(list: HTMLElement, entries: readonly Entry[], reo
         ],
       ),
     );
+    const box = passwordRow?.querySelector<HTMLInputElement>('input');
+    // Not the password just tried and refused: that one starts again empty.
+    if (box && kept !== undefined && kept !== entry.password) box.value = kept;
+    if (box && focused?.id === file.id) {
+      box.focus();
+      if (focused.start !== null && box.value !== '') box.setSelectionRange(focused.start, focused.end ?? focused.start);
+    }
   });
 }

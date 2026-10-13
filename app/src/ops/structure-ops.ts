@@ -107,8 +107,11 @@ export const attachmentsOp: Op<AttachmentsParams> = {
   title: (p) => (p.mode === 'attach' ? 'Attach files' : 'Take out attached files'),
   async run(inputs, params, ctx) {
     if (params.mode === 'extract') return extractAttachments(inputs, ctx);
-    const [target, ...rest] = inputs;
-    if (target === undefined || target.kind !== 'pdf') return [refused(inputs, 'Add the PDF first, then the files to put inside it.')];
+    // The first PDF in the list is the one the files go into, wherever the
+    // picker put it: a phone lists "aadhaar.jpg" before "Lease.pdf".
+    const target = inputs.find((input) => input.kind === 'pdf');
+    if (target === undefined) return [refused(inputs, 'Add the PDF the files should go into.')];
+    const rest = inputs.filter((input) => input !== target);
     if (rest.length === 0) return [refused(inputs, 'Add the files to attach after the PDF.')];
     let doc: PdfDoc;
     try {
@@ -117,14 +120,23 @@ export const attachmentsOp: Op<AttachmentsParams> = {
       return [failed(error, [target])];
     }
     try {
+      // Two files of one name would be one entry in a reader's list, and the
+      // other could not be found: the second becomes "name (2).ext".
+      const taken = new Set(doc.attachments().map((a) => a.name.toLowerCase()));
+      const renamed: string[] = [];
       for (const [i, file] of rest.entries()) {
         checkCancelled(ctx.signal);
         ctx.progress({ done: i, total: rest.length, label: `Attaching file ${i + 1} of ${rest.length}` });
-        await doc.attach({ name: file.name, bytes: await readInput(ctx, file) });
+        let name = file.name;
+        for (let n = 2; taken.has(name.toLowerCase()); n++) name = file.name.replace(/(\.[^.]*)?$/, ` (${n})$1`);
+        taken.add(name.toLowerCase());
+        if (name !== file.name) renamed.push(name);
+        await doc.attach({ name, bytes: await readInput(ctx, file) });
       }
       ctx.progress({ done: 0, total: 0, label: 'Saving…' });
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, target);
-      return [await store(ctx, 'attachments', inputs, `${baseName(target.name)} with attachments.pdf`, bytes, `${plural(rest.length, 'file')} attached inside; open the PDF's attachments panel to see them${lockNote(relocked)}`)];
+      const names = renamed.length === 0 ? '' : `; a file of the same name was already there, so ${renamed.length === 1 ? 'one is' : 'some are'} called ${renamed.map((n) => `"${n}"`).join(', ')}`;
+      return [await store(ctx, 'attachments', inputs, `${baseName(target.name)} with attachments.pdf`, bytes, `${plural(rest.length, 'file')} attached inside; open the PDF's attachments panel to see them${names}${lockNote(relocked)}`)];
     } catch (error) {
       return [failed(error, inputs)];
     } finally {

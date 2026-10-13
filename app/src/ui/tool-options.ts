@@ -29,6 +29,7 @@ import type {
   WatermarkParams,
 } from '../ops/op';
 import type { ToolId } from '../ops/tools';
+import type { PdfView } from '../pdf/types';
 import { check, choices, field, group, note, select } from './fields';
 import { createOcrOptions } from './ocr-options';
 import { createSplitOptions } from './split-options';
@@ -38,6 +39,8 @@ export interface ToolOptions {
   params(): unknown;
   /** Why the run cannot start yet, given how many files are in, or null. */
   problem(fileCount: number): string | null;
+  /** Settings that start from what the first file says (its details, say) read it here. */
+  load?(view: PdfView): Promise<void>;
 }
 
 const PAGES_PLACEHOLDER = '1-3, 7, 12-';
@@ -326,13 +329,31 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
           onChange();
         },
       );
-      const printing = check('allow-printing', 'Allow printing', true, onChange);
-      const copying = check('allow-copying', 'Allow copying text', false, onChange);
-      const editing = check('allow-editing', 'Allow changes and comments', false, onChange);
+      // Whoever has the password is usually meant to use the file fully, so a
+      // lock allows everything until a box is unticked; restricting is the
+      // point of the other choice, so it starts with copying and changes off.
+      // Once a box has been touched, switching between the two leaves it alone.
+      let touched = false;
+      const touch = () => {
+        touched = true;
+        onChange();
+      };
+      const printing = check('allow-printing', 'Allow printing', true, touch);
+      const copying = check('allow-copying', 'Allow copying text', true, touch);
+      const editing = check('allow-editing', 'Allow changes and comments', true, touch);
+      const tick = (box: typeof printing, on: boolean) => {
+        const input = box.root.querySelector('input');
+        if (input) input.checked = on;
+      };
       const lockNote = note('Locked with AES-256. Write the password down: nobody, us included, can open the file without it. It is never stored or sent anywhere.');
       const restrictNote = note('Honest note: these settings are a request, not a lock. Adobe, Chrome and most readers obey them, but a determined person with the right tool can switch them off. For anything secret, use a password.');
       const sync = () => {
         const restrict = mode.value() === 'restrict';
+        if (!touched) {
+          tick(printing, true);
+          tick(copying, !restrict);
+          tick(editing, !restrict);
+        }
         passwordBox.hidden = restrict;
         lockNote.hidden = restrict;
         restrictNote.hidden = !restrict;
@@ -389,7 +410,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
             field: cleanBox,
           },
           { value: 'strip', title: 'Remove the hidden details', hint: 'Title, author, the app that made it, dates, and hidden XMP metadata. The pages stay as they are.' },
-          { value: 'edit', title: 'Set new details', hint: 'Leave a box empty to remove that detail.', field: editBox },
+          { value: 'edit', title: 'Set new details', hint: 'The boxes start with what the file says now. Leave a box empty to remove that detail.', field: editBox },
         ],
         'clean',
         onChange,
@@ -398,12 +419,23 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         const radio = mode.root.querySelector<HTMLInputElement>('[data-testid="opt-mode-clean"]');
         if (radio) radio.checked = true;
       });
+      let typed = false;
       editBox.addEventListener('input', () => {
+        typed = true;
         const radio = mode.root.querySelector<HTMLInputElement>('[data-testid="opt-mode-edit"]');
         if (radio) radio.checked = true;
       });
       return {
         root: mode.root,
+        // What the file says now, so changing the title does not quietly wipe the author.
+        async load(view) {
+          const details = await view.details();
+          if (typed) return;
+          (['title', 'author', 'subject', 'keywords'] as const).forEach((key, i) => {
+            const box = fields[i]?.input;
+            if (box) box.value = details[key] ?? '';
+          });
+        },
         params: (): DocumentDetailsParams =>
           mode.value() === 'strip'
             ? { mode: 'strip' }
@@ -474,7 +506,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         'mode',
         'What to do',
         [
-          { value: 'attach', title: 'Put files inside the PDF', hint: 'Add the PDF first, then any files: a spreadsheet, photos, the source document. They travel with it.' },
+          { value: 'attach', title: 'Put files inside the PDF', hint: 'Add the PDF and any files: a spreadsheet, photos, the source document. They go inside the first PDF in the list and travel with it.' },
           { value: 'extract', title: 'Take out the attached files', hint: 'Every file a PDF carries inside it, saved as it was.' },
         ],
         'attach',

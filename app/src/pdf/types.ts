@@ -152,6 +152,8 @@ export interface PdfView {
    * (rotated or vertical) is left out.
    */
   layout(index: number): Promise<PageLayout>;
+  /** The title, author, subject and keywords the document gives itself, where it gives them. */
+  details(): Promise<Readonly<Partial<Record<'title' | 'author' | 'subject' | 'keywords', string>>>>;
   /** The document's own table of contents (bookmarks), with the page each entry opens. Empty when it has none. */
   outline(): Promise<readonly OutlineItem[]>;
   /** The comments a reader lists (notes, highlights, stamps…), in page order. Links and form fields are not comments. */
@@ -300,6 +302,18 @@ export interface CleanReport {
   readonly attachments: number;
   readonly comments: number;
   readonly metadata: boolean;
+  /** What the metadata strip found, when `metadata` was asked for. */
+  readonly stripped?: StripReport;
+}
+
+/** What `stripMetadata` found and took out. */
+export interface StripReport {
+  /** XMP packets: the document's own and any on pages, pictures or fonts. */
+  readonly xmp: number;
+  /** JPEG photos that carried camera details (Exif, XMP, IPTC or a comment). */
+  readonly photos: number;
+  /** Places an editing program left private data (/PieceInfo). */
+  readonly privateData: number;
 }
 
 /** An image embedded in a document, as a file a person can open. */
@@ -568,10 +582,20 @@ export interface PdfDoc {
     signal?: AbortSignal,
   ): Promise<CompressReport>;
   info(): DocInfo;
-  /** Sets the fields given; an empty string removes that field. */
-  setInfo(info: DocInfo): void;
-  /** Removes every Info field and the XMP metadata stream. */
-  stripMetadata(): void;
+  /**
+   * Sets the fields given; an empty string removes that field. The document's
+   * XMP copy of its details would still say the old ones, and readers that
+   * prefer XMP would show them, so it goes too; true when there was one.
+   */
+  setInfo(info: DocInfo): boolean;
+  /**
+   * Removes every Info field and every XMP packet (the document's, and any a
+   * page, picture or font carries), the private data editing programs leave
+   * (/PieceInfo), and the camera details inside JPEG photos (Exif, with the
+   * place and time a phone records; XMP; IPTC; comments), byte for byte
+   * without re-encoding the picture.
+   */
+  stripMetadata(): StripReport;
   /**
    * Appends copies of `source`'s pages `indices`, in the order given. The same
    * index may appear twice; a page may be copied from a document into itself.

@@ -9,7 +9,7 @@
  * out by character count, which is exact for the fixed-width figures that
  * make up most of what people hide, and close enough for the rest.
  */
-import type { Area, PageLayout } from './types';
+import type { Area, LayoutItem, PageLayout } from './types';
 
 /** A kind of private detail people are asked to hide, Indian ones first. */
 export type Pattern = 'aadhaar' | 'pan' | 'phone' | 'email' | 'card';
@@ -79,9 +79,58 @@ export function splitWords(typed: string): string[] {
 }
 
 interface Placed {
-  readonly item: { readonly str: string; readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly item: LayoutItem;
   /** Where this piece starts in the joined line. */
   readonly start: number;
+}
+
+interface Measurer {
+  font: string;
+  measureText(text: string): { readonly width: number };
+}
+
+let measurer: Measurer | null | undefined;
+
+/** A 2D context to measure text with, on the page or in a worker; null where there is none. */
+function textMeasurer(): Measurer | null {
+  if (measurer !== undefined) return measurer;
+  measurer = null;
+  try {
+    if (typeof OffscreenCanvas !== 'undefined') measurer = new OffscreenCanvas(1, 1).getContext('2d');
+    else if (typeof document !== 'undefined') measurer = document.createElement('canvas').getContext('2d');
+  } catch {
+    measurer = null;
+  }
+  return measurer;
+}
+
+const FAMILIES: Record<NonNullable<LayoutItem['family']>, string> = {
+  sans: 'Helvetica, Arial, "Liberation Sans", sans-serif',
+  serif: '"Times New Roman", Times, "Liberation Serif", serif',
+  mono: '"Courier New", Courier, "Liberation Mono", monospace',
+};
+
+/**
+ * Where characters [from, to) of a piece sit, in points from the page's
+ * left. pdf.js gives a piece's width, not each letter's, so the width is
+ * shared out the way a face of the same kind would draw the letters: in
+ * Helvetica "W" is three times "i", and sharing by count would leave the
+ * first digits of "card 4567…" outside a box meant to hide them. Without a
+ * canvas to measure on, by count.
+ */
+function span(item: LayoutItem, from: number, to: number): [number, number] {
+  const ctx = textMeasurer();
+  if (ctx !== null) {
+    ctx.font = `${item.italic ? 'italic ' : ''}${item.bold ? 'bold ' : ''}100px ${FAMILIES[item.family ?? 'sans']}`;
+    const whole = ctx.measureText(item.str).width;
+    if (whole > 0) {
+      const a = ctx.measureText(item.str.slice(0, from)).width / whole;
+      const b = ctx.measureText(item.str.slice(0, to)).width / whole;
+      return [item.x + item.width * a, item.x + item.width * b];
+    }
+  }
+  const per = item.width / Math.max(1, item.str.length);
+  return [item.x + per * from, item.x + per * to];
 }
 
 /** A page's pieces joined into lines, top to bottom, each with where every piece starts. */
@@ -124,12 +173,12 @@ export function findOnPage(layout: PageLayout, page: number, patterns: readonly 
         const from = Math.max(s, start);
         const to = Math.min(e, start + item.str.length);
         if (from >= to) continue;
-        const per = item.width / Math.max(1, item.str.length);
-        const x = item.x + per * (from - start);
-        const w = per * (to - from);
+        const [x, end] = span(item, from - start, to - start);
+        const w = end - x;
         const top = item.y - item.height * 0.9;
         const h = item.height * 1.2;
-        const padX = item.height * 0.08;
+        // Generous at the sides: a sliver of a digit left showing is a digit given away.
+        const padX = item.height * 0.15;
         areas.push({
           page,
           x: Math.max(0, (x - padX) / layout.width),
@@ -166,9 +215,9 @@ export function wordsOf(layout: PageLayout, page: number): PlacedWord[] {
         const from = Math.max(s, start);
         const to = Math.min(e, start + item.str.length);
         if (from >= to) continue;
-        const per = item.width / Math.max(1, item.str.length);
-        x0 = Math.min(x0, item.x + per * (from - start));
-        x1 = Math.max(x1, item.x + per * (to - start));
+        const [a, b] = span(item, from - start, to - start);
+        x0 = Math.min(x0, a);
+        x1 = Math.max(x1, b);
         top = Math.min(top, item.y - item.height * 0.85);
         bottom = Math.max(bottom, item.y + item.height * 0.25);
       }
