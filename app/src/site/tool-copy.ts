@@ -225,7 +225,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   'pdf-to-word': {
-    about: 'Turns a PDF into an editable Word .docx, working out headings, paragraphs, lists and tables from where the words sit. Scanned pages can be read too, more slowly. Pictures stay in the PDF for now, and fonts become their nearest Word font.',
+    about: 'Turns a PDF into an editable Word .docx, working out headings, paragraphs, lists and tables from where the words sit. Scanned pages can be read too, more slowly. Photos come along where they stood, page numbers and running headers are left out, and fonts become their nearest Word font.',
     steps: [
       'Add the PDFs to convert; if one is locked, type its password in the box under it and tap Unlock.',
       'Leave Read scanned pages too ticked if some pages are photos or scans of paper.',
@@ -234,7 +234,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
     notes: [
       'The converter reads where each word sits on the page and works the structure out from that: large or bold lines become headings, lines with bullets or numbers become lists, and words lined up in columns become a real Word table. A clean, typed PDF comes out close to the original; one built from columns, text boxes and overlapping shapes may need tidying.',
-      'Pictures stay in the PDF for now, so a brochure comes across as its words and tables. If you need the photos as well, take them out at full quality with [Extract images](/tools/extract-images/) and drop them into the document yourself.',
+      'Photos, logos and other pictures come along in their place, cut from the page as it looks. Page numbers and a header repeated at the top of each page are left out, so they do not land in the middle of your text, and a sentence the page break cut in two becomes one paragraph again. For a photo at its full stored quality, take it out with [Extract images](/tools/extract-images/).',
       'Scanned pages are read by a text reader that comes from this site the first time it is needed and then runs on your device. It reads English only, works best on straight, sharp pages, and is much slower than a typed PDF. Check names and figures it read before you rely on them.',
     ],
     faq: [
@@ -265,27 +265,27 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   'pdf-to-powerpoint': {
-    about: 'Makes a PowerPoint file with one slide per page, each looking exactly like the page, and the page’s words in the speaker notes. The slides are pictures, so editing means adding new text and shapes over them.',
+    about: 'Makes a PowerPoint file with one slide per page. With Text you can edit ticked, the words become text boxes in their own size and colour, over a background of the page’s own pictures, shapes and colours; untick it to get each page as one picture that looks exactly like it. The words also go in the speaker notes.',
     steps: [
       'Add one or more PDFs.',
+      'Leave Text you can edit ticked to change the words on the slides, or untick it for exact pictures of the pages.',
       'Press Make the slides.',
       'Save the .pptx and open it in PowerPoint, Google Slides, Keynote or LibreOffice Impress.',
-      'Add your own titles, notes or shapes over the slides where you need them.',
     ],
     notes: [
-      'Each slide is a sharp picture of its page, so it looks exactly like the PDF on any screen or projector, with every font, chart and colour intact. The slide shape follows the first page, so a landscape PDF gives wide slides and an A4 portrait one gives tall slides.',
-      'The words of each page go into that slide’s speaker notes, ready to copy into a new text box or to read from while you present. A scanned page has no words of its own, so its notes stay empty; run it through [Make searchable](/tools/ocr/) first if you want them filled.',
+      'With Text you can edit, each line or paragraph becomes a text box where it stood, in its own size, weight and colour, and the background is the page drawn without its words, so charts, photos and coloured bars stay exactly as they were. Fonts become Arial, Times New Roman or Courier New, so a line may run a little longer or shorter than on the page. The slide shape follows the first page, so a landscape PDF gives wide slides.',
+      'Untick Text you can edit and each slide is a sharp picture of its page, exactly as the PDF looks on any screen or projector. Either way the words go into the speaker notes. A scanned page has no words of its own, so it stays a picture and its notes stay empty; run it through [Make searchable](/tools/ocr/) first if you want them filled. A page with words set at an angle also stays a picture, so nothing goes missing.',
       'This is the right tool when you need to show a PDF in a meeting, or hand it to someone who works in slides. To rewrite the words themselves, [PDF to Word](/tools/pdf-to-word/) gives you editable text instead.',
     ],
     faq: [
-      { q: 'Can I edit the text on the slides?', a: 'Not directly; each slide is a picture of its page. Copy the words from the speaker notes.' },
+      { q: 'Can I edit the text on the slides?', a: 'Yes, with Text you can edit ticked: the words are ordinary PowerPoint text boxes. Untick it for slides that are exact pictures.' },
       { q: 'Why is the PowerPoint file large?', a: 'Every slide carries a sharp picture of its page, often a few hundred KB. Convert only the pages you will show: cut them out first with [Extract or remove pages](/tools/extract-pages/).' },
       { q: 'Is my file uploaded?', a: 'No. The slides are made in your browser.' },
-      { q: 'Does it work with a scanned PDF?', a: 'Yes, the slides look just like the pages. The speaker notes stay empty unless you run the PDF through Make searchable first.' },
+      { q: 'Does it work with a scanned PDF?', a: 'Yes, the slides look just like the pages, as pictures. The speaker notes stay empty unless you run the PDF through Make searchable first.' },
     ],
   },
   'pdf-to-epub': {
-    about: 'Turns a PDF into an EPUB e-book, or one web page, whose text reflows to fit a phone or e-reader screen. Chapters start at each heading. Page layout gives way to flowing text, so it suits books and reports better than forms or slides.',
+    about: 'Turns a PDF into an EPUB e-book, or one web page, whose text reflows to fit a phone or e-reader screen, with its photos. Chapters start at each main heading. Page layout gives way to flowing text, so it suits books and reports better than forms or slides.',
     steps: [
       'Add the PDF, or several.',
       'Choose EPUB e-book, or A web page for a single .html file.',
@@ -293,7 +293,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
       'Press Make the e-book, then open the file in your reading app or browser.',
     ],
     notes: [
-      'The book is cut into chapters at its main headings, and a contents list is built from them, so a reading app can jump straight to a chapter. Page breaks are dropped, so the text runs on from one printed page to the next as one continuous read.',
+      'The book is cut into chapters at its main headings, or at its sections when the only main heading is the title, and a contents list is built from them, so a reading app can jump straight to a chapter. Page breaks, page numbers and running headers are dropped, so the text runs on from one printed page to the next as one continuous read, with the photos in their places.',
       'It works best on documents that are mostly running text: novels, reports, notes and manuals. Forms, slides, wide tables and anything laid out in boxes lose their shape once the text is set free, and are better read as PDFs in [Read](/tools/read/).',
       'A web page is one .html file that opens in any browser with no app. It suits sending a long document to someone on a phone, or reading with a screen reader, because the words come in order and wrap to the screen. Save it and it opens again later with no connection at all.',
     ],
@@ -306,7 +306,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   'office-to-pdf': {
-    about: 'Lays out a Word .docx or Excel .xlsx as a PDF on A4, with headings, lists, tables, links and pictures, and the words kept as real text. Wide spreadsheets go on sideways pages. Fonts become the nearest of Helvetica, Times or Courier, and headers, footers and footnotes are left out for now.',
+    about: 'Lays out a Word .docx or Excel .xlsx as a PDF, with headings, lists, tables, links and pictures, and the words kept as real text. A Word file keeps its page size, its headers and footers with their page numbers, and its footnotes. Spreadsheets repeat their heading row on every page. Fonts become the nearest of Helvetica, Times or Courier.',
     steps: [
       'Add one or more .docx or .xlsx files.',
       'Press Make the PDF.',
@@ -314,9 +314,9 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
       'Save the PDF, or tap Then to merge it with others or compress it.',
     ],
     notes: [
-      'Every page is A4. A Word document keeps its headings, paragraphs, lists, tables, links and pictures. An Excel workbook comes out one sheet after another, each as a table, with columns that are empty all the way down left out, and a sheet too wide for an upright page goes on sideways pages.',
-      'The PDF uses its three built-in faces, Helvetica, Times and Courier, so the words stay real, selectable text and the file stays small; a document set in a special font will look plainer. Lines those faces cannot draw, such as Malayalam or Hindi, are drawn by your browser and placed as pictures. Headers, footers and footnotes are not carried across yet: add numbers afterwards with [Page numbers](/tools/page-numbers/).',
-      'If Word, Google Docs or LibreOffice is to hand, its own Save as PDF keeps your exact fonts and headers. This tool is for a phone, a borrowed computer, or a work machine where documents must not be uploaded to a converter site. Old .doc and .xls files need saving as .docx or .xlsx first.',
+      'A Word document keeps its own page size and its headings, paragraphs, lists, tables, links and pictures; its header and footer go on every page, with Page 3 of 9 worked out for real, and its footnotes are gathered under Notes at the end. An Excel workbook comes out on A4, one sheet after another, each as a table whose heading row comes back at the top of every page. Columns empty all the way down are left out, a sheet too wide for an upright page goes on sideways pages, and a very wide one is set in smaller type so every column fits.',
+      'The PDF uses its three built-in faces, Helvetica, Times and Courier, so the words stay real, selectable text and the file stays small; a document set in a special font will look plainer. Lines those faces cannot draw, such as Malayalam or Hindi, are drawn by your browser and placed as pictures. Dates and amounts in a spreadsheet appear as their cells show them, so 09/04/2026 stays 09/04/2026.',
+      'If Word, Google Docs or LibreOffice is to hand, its own Save as PDF keeps your exact fonts and spacing. This tool is for a phone, a borrowed computer, or a work machine where documents must not be uploaded to a converter site. Old .doc and .xls files need saving as .docx or .xlsx first.',
     ],
     faq: [
       { q: 'Does it read old .doc and .xls files?', a: 'No. Save them as .docx or .xlsx first.' },
@@ -366,16 +366,17 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   'images-to-pdf': {
-    about: 'Turns photos and scans into one PDF, one picture per page, in the order you set. JPEG, PNG, WebP, GIF and BMP work, and photos taken sideways come out the right way up. iPhone HEIC photos work where the browser can read them.',
+    about: 'Turns photos and scans into one PDF, one picture per page, in the order you set, or into a separate PDF for each picture. JPEG, PNG, WebP, GIF and BMP work, and photos taken sideways come out the right way up. iPhone HEIC photos work where the browser can read them.',
     steps: [
       'Add the pictures from your gallery or files, as many as you need.',
       'Put them in order with the up and down arrows: each picture becomes one page.',
       'Choose the page size, A4, Letter or Same as each image, and a margin of None, Small or Large.',
+      'Tick A separate PDF for each image if each picture should be its own file.',
       'Press Make a PDF, then Save it or tap Share.',
     ],
     notes: [
       'JPEG and PNG pictures go into the PDF exactly as they are, with no loss. WebP, BMP and HEIC pictures, and phone photos that need turning upright, are saved again as high-quality JPEGs, and GIFs as PNGs. A photo taken sideways comes out the right way up because the tool reads the direction the phone recorded.',
-      'With A4 or Letter, each picture is fitted onto its page, kept in proportion and centred inside the margin you chose, so a mix of photos and screenshots prints at one size. Same as each image makes every page exactly the shape of its picture, with no border, which suits screenshots, posters and slides.',
+      'With A4 or Letter, each picture is fitted onto its page, kept in proportion and centred inside the margin you chose, so a mix of photos and screenshots prints at one size; a landscape photo gets a landscape page. Same as each image makes every page exactly the shape of its picture, with no border, which suits screenshots, posters and slides.',
       'The PDF is about as big as the pictures in it, so a dozen full-size phone photos can make a file of many MB. For an upload limit, tap Then and choose [Compress](/tools/compress/). For photos of paper, [Scan](/tools/scan/) straightens and cleans each page, and usually starts much smaller.',
     ],
     faq: [
@@ -407,16 +408,16 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   'n-up': {
-    about: 'Lays two or four pages on each sheet for printing: two side by side on a landscape sheet, or four in a grid on a portrait one, on A4 or Letter. It saves paper for handouts and notes, and puts two small pages, like the sides of an ID card, on one sheet.',
+    about: 'Lays 2, 4, 6, 8, 9 or 16 pages on each sheet for printing, on A4 or Letter, with the sheet turned whichever way shows the pages biggest. It saves paper for handouts and notes, and puts two small pages, like the sides of an ID card, on one sheet.',
     steps: [
       'Add one or more PDFs.',
-      'Choose 2 per sheet or 4 per sheet.',
+      'Choose how many pages go on each sheet: 2, 4, 6, 8, 9 or 16.',
       'Choose A4 or Letter for the sheet.',
       'Press Lay it out, then print the result at actual size.',
     ],
     notes: [
-      'With 2 per sheet, the first page sits on the left of a landscape sheet and the second on the right. With 4 per sheet, four pages fill a portrait sheet in two rows, read left to right and then down. Each page is scaled to fit its place with its shape kept, so nothing is cut off or stretched.',
-      'Smaller pages mean smaller print. A4 pages at 2 per sheet stay easy to read; at 4 per sheet, ordinary body text gets small, which is fine for slides and handouts but hard going for a dense contract. Print one sheet as a test before printing a whole bundle.',
+      'The sheet is turned to suit the pages: two upright pages go side by side on a landscape sheet, while two wide slides go one above the other on a portrait sheet, so they print larger. Pages run left to right and then down, in a grid of two by two, three by two, four by two, three by three or four by four. Each page is scaled to fit its place with its shape kept, so nothing is cut off or stretched.',
+      'Smaller pages mean smaller print. A4 pages two to a sheet stay easy to read; at 4, ordinary body text gets small, which is fine for slides and handouts but hard going for a dense contract, and 9 or 16 suit a quick overview of a long deck. Print one sheet as a test before printing a whole bundle.',
       'In the print dialog, choose actual size or 100% rather than fit to page, so the layout is not shrunk a second time. Pages are laid out in plain reading order: this tool does not reorder them for folding into a booklet.',
     ],
     faq: [
@@ -427,7 +428,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   'extract-images': {
-    about: 'Pulls out every photo and picture stored inside a PDF, exactly as it is stored: no re-compression, no loss. Each comes with its size and the page it came from. Drawings and text are not pictures, so they do not come out.',
+    about: 'Pulls out every photo and picture stored inside a PDF, exactly as it is stored where that can be done: no re-compression, no loss. Each comes with its size and the page it came from. Drawings and text are not pictures, so they do not come out.',
     steps: [
       'Add the PDF, typing its password if it asks.',
       'Press Pull the images out.',
@@ -436,7 +437,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
     notes: [
       'This takes out the picture files that were put into the PDF, byte for byte. A JPEG photo comes out as the very same JPEG, often far larger in pixels than it looks on the page, because PDFs commonly shrink a big photo to fit a column. Nothing is redrawn, so nothing is lost.',
-      'Only real pictures come out. Charts, logos and diagrams drawn from lines and shapes are not pictures inside the file, and neither is text. A scanner normally stores each page as one picture, so a scanned PDF gives one image per page. A few pictures use colour formats that cannot be saved as ordinary files yet, and the result counts them.',
+      'Only real pictures come out. Charts, logos and diagrams drawn from lines and shapes are not pictures inside the file, and neither is text. A scanner normally stores each page as one picture, so a scanned PDF gives one image per page. Pictures stored in forms an ordinary image file cannot hold as they are, such as a colour palette, print CMYK, or black-and-white fax and JBIG2 scans, are decoded the way a PDF reader shows them and saved as PNG; the result line says which.',
       'Pictures in a document someone sent you may belong to them or to someone else, so check before reusing them. To capture a page exactly as it looks, drawings and words included, use [PDF to images](/tools/pdf-to-images/) instead.',
     ],
     faq: [

@@ -651,19 +651,19 @@ export const GUIDES: readonly Guide[] = [
     description: 'Combine photos of your Aadhaar front and back into one PDF, or onto one A4 sheet, in your browser. Free, no sign-up, and the photos are never uploaded.',
     tool: 'images-to-pdf',
     related: ['n-up', 'compress', 'scan'],
-    intro: 'Make the two photos one PDF with Images to PDF, then use Pages per sheet with 2 per sheet to put both sides on a single A4 page.',
+    intro: 'Make the two photos one PDF with Images to PDF, then use Pages per sheet with 2 pages on each sheet to put both sides on a single A4 page.',
     steps: [
       'Open Images to PDF and add the front photo, then the back.',
       'Choose Same as each image for the page size and press Make a PDF.',
       'Tap Then on the result and choose Pages per sheet.',
-      'Pick 2 per sheet and A4, and press Lay it out.',
+      'Pick 2 pages on each sheet and A4, and press Lay it out.',
       'Save the one-page PDF, or compress it if a portal has a size limit.',
     ],
     sections: [
       {
         heading: 'One PDF, or one page?',
         paragraphs: [
-          'Many forms just want both sides in one file. Images to PDF alone does that: two pages, front then back. When the form says one page, or you want to print both sides on one sheet, [Pages per sheet](/tools/n-up/) puts the two pages side by side on a landscape A4.',
+          'Many forms just want both sides in one file. Images to PDF alone does that: two pages, front then back. When the form says one page, or you want to print both sides on one sheet, [Pages per sheet](/tools/n-up/) puts the two pages on one A4 sheet, turned whichever way shows them biggest: two wide card photos go one above the other on an upright sheet, like a photocopy of both sides.',
         ],
       },
       {
@@ -701,7 +701,7 @@ export const GUIDES: readonly Guide[] = [
     faq: [
       { q: 'Are my Aadhaar photos uploaded?', a: 'No. The PDF is made in your browser and the photos never leave your device.' },
       { q: 'My iPhone photos will not open. Why?', a: 'Some browsers cannot read iPhone HEIC photos. Share them as JPEG, or set Settings, Camera, Formats to Most Compatible, and add them again.' },
-      { q: 'Can I put them one above the other instead?', a: 'Pages per sheet places two pages side by side on a landscape sheet. With 4 per sheet they go in the top row of a portrait sheet.' },
+      { q: 'Will they go side by side or one above the other?', a: 'Whichever shows them bigger. Wide card photos go one above the other on an upright sheet; upright pages go side by side on a sideways one.' },
       { q: 'Can I do the same for a PAN card or driving licence?', a: 'Yes. The same steps work for any two-sided card.' },
       { q: 'Should the copy be in colour?', a: 'Colour shows the photo and any hologram best, and many offices prefer it; grey prints cheaper and is often accepted. Check what the office asks for.' },
     ],
@@ -766,7 +766,7 @@ export const GUIDES: readonly Guide[] = [
       { q: 'Does it make the photos blurry?', a: 'No. JPEG and PNG pictures go in exactly as they are. WebP, BMP and HEIC pictures, and photos that need turning upright, are saved again as high-quality JPEGs, and GIFs as PNGs.' },
       { q: 'The PDF is too big for a form. What now?', a: 'Tap Then on the result and choose Compress, then pick a size such as 200 KB. See [compress to 200 KB](/guides/compress-pdf-to-200kb/).' },
       { q: 'Can I make a PDF from PNG screenshots?', a: 'Yes. PNG pictures go in exactly as they are, and Same as each image keeps each page the shape of the screen.' },
-      { q: 'Can I make one PDF per photo?', a: 'Yes. Add one photo at a time and press Make a PDF each time; each run gives one PDF.' },
+      { q: 'Can I make one PDF per photo?', a: 'Yes. Tick A separate PDF for each image: every photo becomes its own PDF, named after it, in one go.' },
     ],
   },
   {
@@ -1856,7 +1856,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'What comes across',
         paragraphs: [
-          'Headings, paragraphs, lists and tables are worked out from where the words sit on each page, so a tidy PDF comes out tidy. Fonts become their nearest Word font. Pictures stay in the PDF for now, so a document with photos comes across as its text and tables.',
+          'Headings, paragraphs, lists and tables are worked out from where the words sit on each page, so a tidy PDF comes out tidy, and bold stays bold. Photos and pictures come along in their places. Page numbers and headers repeated on every page are left out, and a paragraph split by a page break is joined again. Fonts become their nearest Word font.',
         ],
       },
       {
@@ -1880,7 +1880,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'What converts well, and what does not',
         paragraphs: [
-          'Typed documents with one column of text, clear headings and simple tables convert best: letters, reports, notices, and resumes made in a word processor. Brochures with text in boxes, magazines with several columns, and forms built from many small pieces of text come out with the right words in a layout that needs tidying. Pictures stay in the PDF for now.',
+          'Typed documents with one column of text, clear headings and simple tables convert best: letters, reports, notices, and resumes made in a word processor. Brochures with text in boxes, magazines with several columns, and forms built from many small pieces of text come out with the right words in a layout that needs tidying. Their pictures come along, placed between the paragraphs rather than floating where they were.',
           'Text that was typed into the PDF comes across exactly, letter for letter, because it is copied rather than read from a picture. Only scanned pages depend on the text reader, so a mostly typed document with a scanned annexure converts well everywhere except the annexure, which is worth checking line by line.',
         ],
       },
@@ -1918,14 +1918,14 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'What is kept',
         paragraphs: [
-          'Headings, lists, tables, links and pictures are laid out on A4, with the words kept as real text you can select and search. Wide spreadsheets go on sideways pages. Lines in Malayalam, Hindi and other scripts are drawn by your browser and placed as pictures, so they show correctly but cannot be selected or searched.',
+          'Headings, lists, tables, links and pictures are laid out on the Word file’s own page size, with the words kept as real text you can select and search. Headers and footers go on every page with their page numbers worked out, and footnotes are gathered under Notes at the end. Wide spreadsheets go on sideways pages. Lines in Malayalam, Hindi and other scripts are drawn by your browser and placed as pictures, so they show correctly but cannot be selected or searched.',
         ],
       },
       {
         heading: 'What is not, yet',
         paragraphs: [
-          'Fonts become the nearest of Helvetica, Times or Courier. Headers, footers and footnotes are left out for now. Older .doc and .xls files need saving as .docx or .xlsx first.',
-          'If you have Word, Google Docs or LibreOffice, their own Save as PDF or Download as PDF keeps your exact fonts and headers. This tool is for when you do not have them, such as on a phone, or on a work computer where you should not upload files.',
+          'Fonts become the nearest of Helvetica, Times or Courier, so a document set in a special font looks plainer. Footnotes move to the end rather than the foot of each page. Older .doc and .xls files need saving as .docx or .xlsx first.',
+          'If you have Word, Google Docs or LibreOffice, their own Save as PDF or Download as PDF keeps your exact fonts and spacing. This tool is for when you do not have them, such as on a phone, or on a work computer where you should not upload files.',
         ],
       },
       {
@@ -1943,14 +1943,14 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Excel sheets as PDF',
         paragraphs: [
-          'Each sheet in a workbook comes out in turn, as a table, with its name as a heading when there is more than one sheet. Columns that are empty all the way down are left out, numbers line up on the right, and the first row is set in bold. A sheet too wide for an upright A4 page goes on sideways pages. Charts are not drawn; for those, use the spreadsheet app’s own export.',
+          'Each sheet in a workbook comes out in turn, as a table, with its name as a heading when there is more than one sheet. Columns that are empty all the way down are left out, numbers line up on the right, and the first row is set in bold and comes back at the top of every page. Dates and amounts show as their cells show them. A sheet too wide for an upright A4 page goes on sideways pages, in smaller type when even that is too narrow. Charts are not drawn; for those, use the spreadsheet app’s own export.',
           'Check that totals worked out by formulas show the figures you expect before you send the PDF. If only one sheet of a workbook should become a PDF, delete the others from a copy of the workbook first, or save that sheet as a workbook of its own, and convert that.',
         ],
       },
       {
         heading: 'Common mistakes',
         paragraphs: [
-          'Converting an old .doc file: save it as .docx first in any office app. Relying on headers and footers, which are not carried across yet; add page numbers afterwards with [Page numbers](/tools/page-numbers/). And checking the PDF only on a computer when it will mostly be read on a phone: open it on both if it matters.',
+          'Converting an old .doc file: save it as .docx first in any office app. Typing page numbers by hand into a document: use Word’s own page-number field in the footer, which comes out right on every page. And checking the PDF only on a computer when it will mostly be read on a phone: open it on both if it matters.',
         ],
       },
     ],
@@ -2050,7 +2050,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'When it finds nothing, or one image per page',
         paragraphs: [
-          'Drawings, charts and text are not pictures, so they do not come out. A scanned PDF usually stores each page as one image, so you get one picture per page. A few images use colour formats that cannot be saved as files yet; the result says how many. To capture a page exactly as it looks, use [PDF to images](/tools/pdf-to-images/).',
+          'Drawings, charts and text are not pictures, so they do not come out. A scanned PDF usually stores each page as one image, so you get one picture per page. Pictures stored as a colour palette, in print CMYK, or as black-and-white fax or JBIG2 scans are decoded the way a reader shows them and saved as PNG. To capture a page exactly as it looks, use [PDF to images](/tools/pdf-to-images/).',
         ],
       },
       {
@@ -2298,7 +2298,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'What to expect',
         paragraphs: [
-          'Chapters start at each heading. The page layout gives way to plain flowing text, so it suits books, reports and notes much better than forms, slides or anything laid out in columns. Amazon’s Send to Kindle accepts EPUB files.',
+          'Chapters start at each main heading, or at each section when the title is the only main heading, and photos come along in their places. Page numbers and running headers are dropped. The page layout gives way to plain flowing text, so it suits books, reports and notes much better than forms, slides or anything laid out in columns. Amazon’s Send to Kindle accepts EPUB files.',
         ],
       },
       {
@@ -2323,13 +2323,13 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Common mistakes',
         paragraphs: [
-          'Converting a form, a slide deck or a page of wide tables, which loses its layout; read those as PDFs. Converting a scan without ticking Read scanned pages too, which gives an empty book. And expecting the pictures to come along: the conversion is about the text, so a picture book or a comic is better kept as a PDF.',
+          'Converting a form, a slide deck or a page of wide tables, which loses its layout; read those as PDFs. Converting a scan without ticking Read scanned pages too, which gives an empty book. And converting a picture book or a comic: its pictures come along, but cut from the pages and set between the words, so it reads better kept as a PDF.',
         ],
       },
     ],
     faq: [
       { q: 'Is my book uploaded?', a: 'No. It is converted in your browser.' },
-      { q: 'Are pictures kept?', a: 'The conversion is about the text. For a picture-heavy PDF, read it as a PDF instead.' },
+      { q: 'Are pictures kept?', a: 'Yes. Photos and pictures come along in their places, cut from the page as it looks. For a picture-heavy PDF, reading it as a PDF may still suit better.' },
       { q: 'What is the web page option for?', a: 'One .html file that opens in any browser, with the text reflowing like an e-book. Handy for sharing or for screen readers.' },
       { q: 'Can I convert a book in Malayalam?', a: 'If the PDF holds real Malayalam text, it comes across as it is stored. Scanned pages are read in English only, so a scanned Malayalam book will not convert well.' },
       { q: 'Why did my book come out as one long chapter?', a: 'Chapters start at each main heading the converter finds. A book whose chapter titles look like ordinary text gives it nothing to cut at.' },
