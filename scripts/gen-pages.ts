@@ -102,10 +102,10 @@ interface HeadOptions {
   readonly path: string | null;
   readonly script: string;
   /** Structured data for search engines, one object per type. */
-  readonly ld?: readonly object[];
-  readonly noindex?: boolean;
+  readonly ld?: readonly object[] | undefined;
+  readonly noindex?: boolean | undefined;
   /** Open Graph type: 'website', or 'article' for a guide. */
-  readonly kind?: 'website' | 'article';
+  readonly kind?: 'website' | 'article' | undefined;
 }
 
 const absolute = (path: string) => `${SITE_ORIGIN ?? ''}${path}`;
