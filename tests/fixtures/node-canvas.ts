@@ -42,7 +42,10 @@ export function installNodeCanvas(): void {
       if (!(image.width > 0 && image.height > 0)) throw new DOMException('The source image could not be decoded.', 'InvalidStateError');
       return Object.assign(image, { close: () => undefined });
     }
-    return Object.assign(source, { close: () => undefined });
+    // A bitmap is a copy, as in a browser: the canvas it came from may be cleared straight after.
+    const copy = createCanvas(Math.max(1, source.width), Math.max(1, source.height));
+    copy.getContext('2d').drawImage(source, 0, 0);
+    return Object.assign(copy, { close: () => undefined });
   };
 }
 

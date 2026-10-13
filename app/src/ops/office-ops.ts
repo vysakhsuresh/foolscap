@@ -255,9 +255,9 @@ export const pdfToEpubOp = converter<PdfToEpubParams>(
 /** About 150 dpi across a slide: sharp on a projector, a few hundred KB a slide. */
 const SLIDE_PIXELS = 1600;
 
-/** A page drawn as pixels: what the slide's colours are read from. */
-async function pixelsOf(png: Uint8Array): Promise<ImageData> {
-  const bitmap = await createImageBitmap(new Blob([png as Uint8Array<ArrayBuffer>], { type: 'image/png' }));
+/** A page drawn as pixels: what the slide's colours are read from. Straight from the drawing, with no PNG in between. */
+async function pixelsOf(view: PdfView, index: number, width: number, signal: AbortSignal): Promise<ImageData> {
+  const bitmap = await view.render(index, { width, signal });
   try {
     const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
     const c = canvas.getContext('2d');
@@ -282,29 +282,47 @@ function inkOf(box: SlideText, page: { width: number; height: number }, withText
   const y0 = Math.max(0, Math.floor(box.y * sy));
   const x1 = Math.min(withText.width, Math.ceil((box.x + box.width) * sx));
   const y1 = Math.min(withText.height, Math.ceil((box.y + box.height) * sy));
-  const hits: Array<[number, number]> = [];
-  for (let y = y0; y < y1; y++) {
-    for (let x = x0; x < x1; x++) {
-      const at = (y * withText.width + x) * 4;
-      const d = Math.abs((withText.data[at] ?? 0) - (without.data[at] ?? 0)) + Math.abs((withText.data[at + 1] ?? 0) - (without.data[at + 1] ?? 0)) + Math.abs((withText.data[at + 2] ?? 0) - (without.data[at + 2] ?? 0));
-      if (d > 60) hits.push([d, at]);
+  const area = Math.max(1, (x1 - x0) * (y1 - y0));
+  // A big paragraph is sampled every other pixel: plenty to read a colour from, a quarter of the work.
+  const step = area > 120_000 ? 2 : 1;
+  const a = withText.data;
+  const b = without.data;
+  const stride = withText.width * 4;
+  // How strongly each pixel differs, counted by strength, so the strongest can be picked without sorting.
+  const counts = new Uint32Array(766);
+  let hits = 0;
+  for (let y = y0; y < y1; y += step) {
+    for (let x = x0, at = y * stride + x0 * 4; x < x1; x += step, at += 4 * step) {
+      const d = Math.abs((a[at] ?? 0) - (b[at] ?? 0)) + Math.abs((a[at + 1] ?? 0) - (b[at + 1] ?? 0)) + Math.abs((a[at + 2] ?? 0) - (b[at + 2] ?? 0));
+      if (d > 60) {
+        counts[d] = (counts[d] ?? 0) + 1;
+        hits++;
+      }
     }
   }
-  const area = Math.max(1, (x1 - x0) * (y1 - y0));
-  if (hits.length < Math.max(4, area * 0.002)) return null;
+  if (hits < Math.max(4, (area / (step * step)) * 0.002)) return null;
   // The strongest quarter are the middles of the strokes, clear of the soft edges.
-  hits.sort((a, b) => b[0] - a[0]);
-  const core = hits.slice(0, Math.max(1, Math.ceil(hits.length / 4)));
+  let need = Math.ceil(hits / 4);
+  let cut = 765;
+  while (cut > 61 && need > 0) need -= counts[cut--] ?? 0;
   let r = 0;
   let g = 0;
-  let b = 0;
-  for (const [, at] of core) {
-    r += withText.data[at] ?? 0;
-    g += withText.data[at + 1] ?? 0;
-    b += withText.data[at + 2] ?? 0;
+  let bl = 0;
+  let n = 0;
+  for (let y = y0; y < y1; y += step) {
+    for (let x = x0, at = y * stride + x0 * 4; x < x1; x += step, at += 4 * step) {
+      const d = Math.abs((a[at] ?? 0) - (b[at] ?? 0)) + Math.abs((a[at + 1] ?? 0) - (b[at + 1] ?? 0)) + Math.abs((a[at + 2] ?? 0) - (b[at + 2] ?? 0));
+      if (d > cut) {
+        r += a[at] ?? 0;
+        g += a[at + 1] ?? 0;
+        bl += a[at + 2] ?? 0;
+        n++;
+      }
+    }
   }
-  const hex = (v: number) => Math.round(v / core.length).toString(16).padStart(2, '0');
-  return `#${hex(r)}${hex(g)}${hex(b)}`;
+  if (n === 0) return null;
+  const hex = (v: number) => Math.round(v / n).toString(16).padStart(2, '0');
+  return `#${hex(r)}${hex(g)}${hex(bl)}`;
 }
 
 /** Back to bytes: the background a slide's text boxes sit on. */
@@ -364,8 +382,8 @@ export const pdfToPowerPointOp = converter<PdfToPowerPointParams>(
           const complete = text.replace(/\s+/g, '').length <= laidOut * 1.05 + 3;
           const found = complete ? slideBoxes(layout) : [];
           if (found.length > 0) {
-            const withText = await pixelsOf(await view.encode(index, { width: SLIDE_PIXELS, format: 'png', signal: ctx.signal }));
-            const without = await pixelsOf(await bare.encode(index, { width: withText.width, format: 'png', signal: ctx.signal }));
+            const withText = await pixelsOf(view, index, SLIDE_PIXELS, ctx.signal);
+            const without = await pixelsOf(bare, index, withText.width, ctx.signal);
             if (without.width === withText.width && without.height === withText.height) {
               const texts: SlideText[] = [];
               for (const box of found) {
