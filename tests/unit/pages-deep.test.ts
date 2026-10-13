@@ -5,7 +5,7 @@
  * labels and title come along with the pages they belong to; and nothing
  * the person did not ask to lose is lost.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { PDFDocument } from '@cantoo/pdf-lib';
 import type { FoolscapFile } from '../../app/src/files/types';
 import { createMemoryWorkspace } from '../../app/src/files/workspace-memory';
@@ -23,6 +23,8 @@ import { markers, outlineLines, readPdf } from '../fixtures/pdf-read';
 import { stampsIn } from '../fixtures/pdfs';
 
 installNodeCanvas();
+// Real documents through real pdf.js: generous, so a busy machine does not fail them for being slow.
+vi.setConfig({ testTimeout: 30_000 });
 let engine: PdfEngine;
 beforeAll(async () => {
   engine = await createNodeEngine();

@@ -63,13 +63,13 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     about: 'Organise shows every page as a picture so you can move pages earlier or later, turn them a quarter turn, or delete them, then save it all in one go. Rotation is saved into the file, so pages stay upright for everyone. A deleted page is not hidden: it is not in the new file at all.',
     steps: [
       'Add the PDF; every page appears as a small picture with its number.',
-      'Tap Move earlier or Move later under a page to shift it one place at a time.',
+      'Drag a page to where it belongs (on a phone, hold it a moment first), or tap Move earlier or Move later under it to shift it one place.',
       'Tap the rotate button to turn a page a quarter turn clockwise, as often as it needs.',
       'Tap the bin to delete a page, or tap it again to bring the page back.',
       'Press Save the new order and save the new file.',
     ],
     notes: [
-      'There is no dragging and no rotate-all button. Each page has its own four buttons, which work the same with a finger, a mouse or the keyboard. To move a page a long way in a big document, it can be easier to cut the file with [Extract or remove pages](/tools/extract-pages/) and join the pieces in a new order with [Merge](/tools/merge/).',
+      'A page held near the top or bottom of the screen while you drag it scrolls a long document along with it. For many pages at once, tap Select pages, tap each one you want, then turn them, delete them, or send them to the start or the end in one tap. Turn every page fixes a whole scan that came out sideways. With a keyboard, Alt (Option on a Mac) and an arrow key moves the page you are on, and Home or End sends it to the front or the back.',
       'When you only reorder and rotate, the pages are moved rather than copied, so nothing about them changes. When you delete pages, a fresh file is built from the pages you kept, which means a deleted page’s text and pictures are not left behind anywhere inside it.',
       'Nothing is saved until you press the button, so try things freely. The result line then says what changed, such as “Same 7 pages, reordered, 2 rotated”, which is a quick check before you send it. A locked PDF comes back locked with the same password.',
     ],
@@ -77,7 +77,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
       { q: 'Can I rotate just one page?', a: 'Yes. Each page has its own rotate button. See [rotate PDF pages](/guides/rotate-pdf-pages/).' },
       { q: 'Can I get a deleted page back?', a: 'Tap its bin again before you save. After saving, your original file is still unchanged.' },
       { q: 'Can I organise two files together?', a: 'Join them with [Merge](/tools/merge/) first, then tap Then to bring the result here.' },
-      { q: 'Can I rotate every page at once?', a: 'Not with one button. Tap the rotate button on each page; for a short scan that is only a few taps.' },
+      { q: 'Can I rotate every page at once?', a: 'Yes. Tap Turn every page; each tap turns them all a quarter turn. To turn only some, tap Select pages, pick them, then Turn.' },
     ],
   },
   'extract-pages': {
@@ -121,20 +121,21 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   crop: {
-    about: 'Trim the same margin, in millimetres, off every edge of every page, or fit every page onto A4 or Letter. Cropping hides what falls outside the new edge; it does not remove it, and someone could undo it. To take something out for good, use [Remove areas](/tools/remove-areas/).',
+    about: 'Trim the margins off a PDF’s pages: the same amount from every edge, a different amount from each edge, or just the white space around the words, found for you. Or fit every page onto A4 or Letter. Cropping hides what falls outside the new edge; it does not remove it, and someone could undo it. To take something out for good, use [Remove areas](/tools/remove-areas/).',
     steps: [
       'Add one or more PDFs.',
-      'Choose Trim the margins and type how many millimetres to take off every edge, from 1 to 100.',
+      'Choose Trim the margins and type the millimetres to take off every edge, or Trim each edge separately, or Remove the white margins.',
       'Or choose Fit every page on A4, or on Letter, to put each page on a standard sheet.',
       'Press Crop it and save the result.',
     ],
     notes: [
       'Trimming sets a new visible edge for each page; it does not cut anything out of the file. Whatever lies beyond the edge is still inside, and any PDF editor could widen the page again to show it. That makes trimming right for tidying wide scanner borders, and wrong for hiding a name or a number.',
       'Fit to A4 suits a document put together from pages of many sizes, such as a phone screenshot, a US Letter form and a scanned receipt. Each page is scaled to fit the sheet, kept in proportion and centred, and the sheet turns sideways for a page wider than it is tall, so the whole file prints at one size.',
-      'The trim is the same on every page and every edge. If the margin you ask for would leave almost nothing of a page, the tool refuses and names the page rather than producing a sliver. Start with 10 mm, look at the result, and go further if you need to.',
+      'Edges are measured as you see the page, so the top is the top even on a page that was scanned sideways. Type pages in Which pages to crop only those, and leave it empty for all of them. If the margin you ask for would leave almost nothing of a page, the tool refuses and names the page rather than producing a sliver. For printing an ID card or a receipt on A4, tick Leave smaller pages at their real size so it is not blown up to fill the sheet.',
     ],
     faq: [
-      { q: 'Can I crop just one page?', a: 'Not yet. The same trim goes on every page.' },
+      { q: 'Can I crop just one page?', a: 'Yes. Type its number in Which pages; the other pages stay as they are.' },
+      { q: 'Can it find the margins for me?', a: 'Yes. Remove the white margins trims each page to just outside its words and pictures, leaving a thin border.' },
       { q: 'What does fit to A4 do?', a: 'Each page is scaled to fit an A4 sheet and turned to match its own shape, so a mix of sizes prints evenly.' },
       { q: 'Does cropping make the file smaller?', a: 'Hardly. The hidden parts are still in the file. To make it smaller, use [Compress](/tools/compress/).' },
     ],
@@ -170,7 +171,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     notes: [
       'Labels are what a reader shows in its page box and under its thumbnails. Nothing is printed on the page: a book whose pages already carry printed numbers keeps them, and the labels simply make the reader agree with what is printed.',
       'This matters most for long documents people cite by page: a thesis, a court bundle, a report with an index. When someone says “see page 12”, typing 12 in the reader then lands on the page that says 12, not on the twelfth sheet counted from the cover.',
-      'A prefix goes before every number in the main part, such as A- for an appendix that runs A-1, A-2. The front pages always count from i. Remove the labels takes them all away, and readers go back to counting from the cover.',
+      'A prefix goes before every number in the main part, such as A- for an appendix that runs A-1, A-2. The front pages can be i, ii, iii or I, II, III, and the rest can count in numbers, Roman numerals or letters. Remove the labels takes them all away, and readers go back to counting from the cover.',
     ],
     faq: [
       { q: 'Why would I want this?', a: 'So typing 1 in the reader’s page box goes to page 1 of the book, not the cover.' },

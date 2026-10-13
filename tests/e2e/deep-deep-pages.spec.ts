@@ -28,15 +28,9 @@ async function pick(page: Page, files: readonly Doc[]): Promise<void> {
 /** Saves result `n` and reads it back. */
 async function saved(page: Page, n = 0): Promise<{ name: string; bytes: Uint8Array; read: ReadPdf }> {
   const item = page.getByTestId('result-item').nth(n);
-  await centre(page, item.getByTestId('save-button'));
   const { name, bytes } = await downloadFrom(page, item.getByTestId('save-button'));
   expect(stampsIn(bytes)).toEqual([]);
   return { name, bytes, read: await readPdf(bytes) };
-}
-
-/** Scrolled to the middle of the screen, clear of the pinned corners (Buy me a coffee, Get help). */
-async function centre(page: Page, target: ReturnType<Page['getByTestId']>): Promise<void> {
-  await target.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
 }
 
 async function lock(bytes: Uint8Array, password: string): Promise<Uint8Array> {
@@ -139,7 +133,13 @@ test.describe('merge', () => {
 
     await pick(page, [await slip(), await lease()]);
     await run(page);
+    // The result glides into view; wait for it to stop before tapping.
+    await expect.poll(() => page.evaluate(() => new Promise<number>((r) => {
+      const y = window.scrollY;
+      setTimeout(() => r(Math.abs(window.scrollY - y)), 250);
+    }))).toBe(0);
     await page.getByTestId('then-menu').click();
+    await expect(page.getByTestId('then-organise')).toBeVisible();
     await page.getByTestId('then-organise').click();
     await page.waitForURL('**/tools/organise/');
     await expect(page.locator('body[data-ready="true"]')).toBeAttached({ timeout: 30_000 });
@@ -168,7 +168,6 @@ test.describe('split', () => {
       'Annual report 06 Appendix.pdf',
     ]);
     await expect(page.getByTestId('result-detail')).toHaveText(['1 page', '1 page', '2 pages', '2 pages', '1 page', '1 page']);
-    await centre(page, page.getByTestId('save-all-button'));
     const { bytes } = await downloadFrom(page, page.getByTestId('save-all-button'));
     const zip = unzipSync(bytes);
     expect(Object.keys(zip).sort()).toEqual([...names].sort());
@@ -286,6 +285,155 @@ test.describe('organise', () => {
   });
 });
 
+test.describe('organise: drag, keys and select', () => {
+  const order = (page: Page) => page.getByTestId('page-tile').evaluateAll((els) => els.map((e) => Number(e.getAttribute('data-source'))));
+  const tile = (page: Page, source: number) => page.locator(`[data-testid="page-tile"][data-source="${source}"]`);
+
+  /** Presses on `from`'s picture and lets go over the left or right half of `to`, with the mouse. */
+  async function mouseDrag(page: Page, from: number, to: number, side: 'left' | 'right'): Promise<void> {
+    await tile(page, from).locator('.page-tile__thumb').evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    const a = (await tile(page, from).locator('.page-tile__thumb').boundingBox())!;
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + a.width / 2 + 10, a.y + a.height / 2 + 10, { steps: 3 });
+    const b = (await tile(page, to).locator('.page-tile__thumb').boundingBox())!;
+    const x = side === 'left' ? b.x + b.width * 0.2 : b.x + b.width * 0.8;
+    await page.mouse.move(x, b.y + b.height / 2, { steps: 12 });
+    await page.mouse.up();
+  }
+
+  test('drag a page with the mouse, then with the keyboard; the file comes out in that order', async ({ page }) => {
+    await openTool(page, 'organise');
+    await pick(page, [await report()]);
+    await expect(page.getByTestId('page-tile')).toHaveCount(8);
+    await mouseDrag(page, 2, 0, 'left');
+    await expect.poll(() => order(page)).toEqual([2, 0, 1, 3, 4, 5, 6, 7]);
+    await expect(page.getByTestId('grid-status')).toHaveText('Page 3 moved to position 1 of 8.');
+    await mouseDrag(page, 0, 3, 'right');
+    await expect.poll(() => order(page)).toEqual([2, 1, 3, 0, 4, 5, 6, 7]);
+
+    // Keys: Alt with an arrow moves one place; Home and End go all the way.
+    await tile(page, 4).focus();
+    await page.keyboard.press('Alt+ArrowLeft');
+    await expect.poll(() => order(page)).toEqual([2, 1, 3, 4, 0, 5, 6, 7]);
+    await expect(page.getByTestId('grid-status')).toHaveText('Page 5 moved to position 4 of 8.');
+    await expect(tile(page, 4)).toBeFocused();
+    await page.keyboard.press('End');
+    await expect.poll(() => order(page)).toEqual([2, 1, 3, 0, 5, 6, 7, 4]);
+    await tile(page, 6).focus();
+    await page.keyboard.press('Home');
+    await expect.poll(() => order(page)).toEqual([6, 2, 1, 3, 0, 5, 7, 4]);
+    await page.keyboard.press('Alt+ArrowRight');
+    await expect.poll(() => order(page)).toEqual([2, 6, 1, 3, 0, 5, 7, 4]);
+
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('Same 8 pages, reordered');
+    const { read } = await saved(page);
+    expect(markers(read, 'Report')).toEqual([3, 7, 2, 4, 1, 6, 8, 5]);
+  });
+
+  test('a dragged page held at the edge scrolls a long document to where it goes', async ({ page }) => {
+    await openTool(page, 'organise');
+    await pick(page, [{ name: 'Long.pdf', bytes: await pagesPdf(30) }]);
+    await expect(page.getByTestId('page-tile')).toHaveCount(30);
+    const last = tile(page, 29).locator('.page-tile__thumb');
+    await last.evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    const a = (await last.boundingBox())!;
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + a.width / 2, 40, { steps: 10 });
+    await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 20_000 }).toBe(0);
+    const b = (await tile(page, 0).locator('.page-tile__thumb').boundingBox())!;
+    await page.mouse.move(b.x + b.width * 0.2, b.y + b.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(async () => (await order(page)).slice(0, 3)).toEqual([29, 0, 1]);
+  });
+
+  test('select pages, then move, turn and delete them in one tap each; and turn every page', async ({ page }) => {
+    await openTool(page, 'organise');
+    await pick(page, [await report()]);
+    await expect(page.getByTestId('grid-select-bar')).toBeHidden();
+    await expect(page.getByTestId('page-select').first()).toBeHidden();
+    await page.getByTestId('grid-select').click();
+    await expect(page.getByTestId('grid-select')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('grid-sel-count')).toHaveText('0 selected');
+    await expect(page.getByTestId('grid-sel-start')).toBeDisabled();
+    // A tap on the picture selects, and so does the box.
+    await tile(page, 4).locator('.page-tile__thumb').click();
+    await tile(page, 6).getByTestId('page-select').check();
+    await expect(page.getByTestId('grid-sel-count')).toHaveText('2 selected');
+    await expect(tile(page, 4)).toHaveAttribute('data-selected', 'true');
+    await page.getByTestId('grid-sel-start').click();
+    await expect.poll(() => order(page)).toEqual([4, 6, 0, 1, 2, 3, 5, 7]);
+    await expect(page.getByTestId('grid-status')).toHaveText('2 pages moved to the start.');
+    await page.getByTestId('grid-sel-turn').click();
+    await expect(tile(page, 4)).toHaveAttribute('data-rotation', '90');
+    await expect(tile(page, 6)).toHaveAttribute('data-rotation', '90');
+    await page.getByTestId('grid-sel-all').click();
+    await expect(page.getByTestId('grid-sel-count')).toHaveText('8 selected');
+    await page.getByTestId('grid-sel-all').click();
+    await expect(page.getByTestId('grid-sel-count')).toHaveText('0 selected');
+    await tile(page, 1).locator('.page-tile__thumb').click();
+    await tile(page, 3).locator('.page-tile__thumb').click();
+    await page.getByTestId('grid-sel-end').click();
+    await expect.poll(() => order(page)).toEqual([4, 6, 0, 2, 5, 7, 1, 3]);
+    await page.getByTestId('grid-sel-delete').click();
+    await expect(tile(page, 1)).toHaveAttribute('data-deleted', 'true');
+    await expect(tile(page, 3)).toHaveAttribute('data-deleted', 'true');
+    await expect(page.getByTestId('grid-sel-delete')).toHaveText('Restore');
+    await page.getByTestId('grid-select').click();
+    await expect(page.getByTestId('grid-select-bar')).toBeHidden();
+    await expect(page.locator('[data-testid="page-tile"][data-selected="true"]')).toHaveCount(0);
+    // Out of select mode, a tap on a picture selects nothing.
+    await tile(page, 0).locator('.page-tile__thumb').click();
+    await expect(tile(page, 0)).toHaveAttribute('data-selected', 'false');
+
+    await page.getByTestId('grid-turn-all').click();
+    await expect(page.getByTestId('grid-status')).toHaveText('Every page turned a quarter turn.');
+    await expect(tile(page, 0)).toHaveAttribute('data-rotation', '90');
+    await expect(tile(page, 4)).toHaveAttribute('data-rotation', '180');
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('6 pages, 6 rotated, 2 removed');
+    const { read } = await saved(page);
+    expect(markers(read, 'Report')).toEqual([5, 7, 1, 3, 6, 8]);
+    expect(read.pages.map((p) => p.rotation)).toEqual([180, 180, 90, 90, 90, 90]);
+  });
+
+  test('with a finger: hold a page, then drag it; a quick swipe scrolls and moves nothing', async ({ page }, info) => {
+    test.skip(info.project.name !== 'phone', 'Touch is the phone’s.');
+    await openTool(page, 'organise');
+    await pick(page, [await report()]);
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number, y: number) =>
+      cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+    await tile(page, 1).locator('.page-tile__thumb').evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+
+    // A swipe: no hold, straight up. The page scrolls; the order stays.
+    const s = (await tile(page, 1).locator('.page-tile__thumb').boundingBox())!;
+    const before = await page.evaluate(() => window.scrollY);
+    await touch('touchStart', s.x + s.width / 2, s.y + s.height / 2);
+    for (let k = 1; k <= 8; k++) await touch('touchMove', s.x + s.width / 2, s.y + s.height / 2 - k * 25);
+    await touch('touchEnd', 0, 0);
+    await expect.poll(() => order(page)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(await page.evaluate(() => window.scrollY)).not.toBe(before);
+
+    // A hold, then a drag: page 2 goes after page 4.
+    await tile(page, 1).locator('.page-tile__thumb').evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    const a = (await tile(page, 1).locator('.page-tile__thumb').boundingBox())!;
+    const b = (await tile(page, 3).locator('.page-tile__thumb').boundingBox())!;
+    await touch('touchStart', a.x + a.width / 2, a.y + a.height / 2);
+    await page.waitForTimeout(600);
+    await expect(tile(page, 1)).toHaveClass(/page-tile--dragging/);
+    const steps = 10;
+    for (let k = 1; k <= steps; k++) {
+      await touch('touchMove', a.x + a.width / 2 + ((b.x + b.width * 0.8 - (a.x + a.width / 2)) * k) / steps, a.y + a.height / 2 + ((b.y + b.height / 2 - (a.y + a.height / 2)) * k) / steps);
+    }
+    await touch('touchEnd', 0, 0);
+    await expect.poll(() => order(page)).toEqual([0, 2, 3, 1, 4, 5, 6, 7]);
+    await expect(page.getByTestId('grid-status')).toHaveText('Page 2 moved to position 4 of 8.');
+  });
+});
+
 // ---------------------------------------------------------------- Extract or remove pages
 
 test.describe('extract pages', () => {
@@ -337,7 +485,6 @@ test.describe('extract pages', () => {
     await page.getByTestId('opt-pages').fill('5-6');
     await run(page);
     await expect(page.getByTestId('result-detail')).toHaveText('2 pages kept of 8, still locked with the same password');
-    await centre(page, page.getByTestId('save-button'));
     const { bytes } = await downloadFrom(page, page.getByTestId('save-button'));
     await expect(readPdf(bytes)).rejects.toThrow();
     const read = await readPdf(bytes, 'coir@26');
@@ -655,6 +802,36 @@ test.describe('split by size', () => {
 });
 
 // ---------------------------------------------------------------- The phone
+
+test.describe('pinned corners', () => {
+  test('anything scrolled into view lands clear of Buy me a coffee and of the pinned button', async ({ page }) => {
+    await openTool(page, 'split');
+    await pick(page, [await report()]);
+    await page.getByTestId('split-mode-single').check();
+    await run(page);
+    const pill = (await page.getByTestId('support').boundingBox())!;
+    for (let i = 0; i < 8; i++) {
+      const save = page.getByTestId('result-item').nth(i).getByTestId('save-button');
+      // As the keyboard, a link or a script would bring it into view: to the top edge, then to the bottom edge.
+      await save.evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+      let box = (await save.boundingBox())!;
+      expect(box.y, `save ${i + 1} at the top`).toBeGreaterThanOrEqual(pill.y + pill.height);
+      await save.evaluate((el) => el.scrollIntoView({ block: 'end', behavior: 'instant' }));
+      box = (await save.boundingBox())!;
+      // Whatever is drawn at the middle of the button is the button: not the pinned run button or the orb.
+      const hit = await save.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return el.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+      });
+      expect(hit, `save ${i + 1} at the bottom is not covered`).toBe(true);
+      expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+      // And a plain click lands on it, wherever the test runner scrolls it to.
+      await save.evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+      await page.evaluate(() => window.scrollBy(0, -1));
+    }
+    await saved(page, 7);
+  });
+});
 
 test.describe('on a phone', () => {
   test('the pinned button sits under the thumb, in view and on top, and nothing scrolls sideways', async ({ page }, info) => {

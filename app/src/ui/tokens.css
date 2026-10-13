@@ -143,6 +143,20 @@ html {
   overflow-x: clip;
   background: var(--bg);
   scroll-behavior: smooth;
+  /*
+   * Anything scrolled into view (by the keyboard, a link, scrollIntoView)
+   * stops clear of what is pinned: Buy me a coffee at the top right, and
+   * Get help and the way home at the bottom corners.
+   */
+  scroll-padding-top: calc(var(--space-3) + 46px + var(--space-3));
+  scroll-padding-bottom: calc(60px + 30px + var(--space-3));
+}
+
+/* On a phone the tool's main button is pinned at the bottom too. */
+@media (max-width: 819px) {
+  html {
+    scroll-padding-bottom: 9rem;
+  }
 }
 
 body {
