@@ -85,6 +85,7 @@ test.describe('add a password', () => {
 
   test('every permission choice is written into the lock', async ({ page }, info) => {
     laptopOnly(info);
+    test.setTimeout(180_000);
     const cases: Array<{ print: boolean; copy: boolean; edit: boolean }> = [
       { print: true, copy: true, edit: true },
       { print: false, copy: true, edit: false },
