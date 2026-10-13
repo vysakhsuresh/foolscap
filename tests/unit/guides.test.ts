@@ -2,7 +2,10 @@
  * The guides and the tool pages' help text are copy, but copy with rules: a
  * search result shows the title and description, so their lengths matter;
  * structured data needs the steps and questions in range; and a link to a
- * tool that is not live, or a guide that does not exist, is a dead end.
+ * tool that is not live, or a guide that does not exist, is a dead end. And
+ * the pages are reviewed for thin content, so each guide and each tool's
+ * help carries a floor of real words, and no tool borrows another's
+ * sentences.
  */
 import { describe, expect, it } from 'vitest';
 import { GUIDES } from '../../app/src/site/guides';
@@ -25,11 +28,35 @@ function guideStrings(g: (typeof GUIDES)[number]): Array<[string, string]> {
   ];
 }
 
-function copyStrings(): Array<[string, string]> {
-  return Object.entries(TOOL_COPY).flatMap(([id, c]): Array<[string, string]> =>
-    c === undefined ? [] : [[`${id} about`, c.about], ...c.faq.flatMap((f, i): Array<[string, string]> => [[`${id} faq ${i + 1} q`, f.q], [`${id} faq ${i + 1} a`, f.a]])],
-  );
+/** Every string one tool's copy carries, labelled so a failure says where. */
+function toolStrings(id: string, c: NonNullable<(typeof TOOL_COPY)[keyof typeof TOOL_COPY]>): Array<[string, string]> {
+  return [
+    [`${id} about`, c.about],
+    ...c.steps.map((s, i): [string, string] => [`${id} step ${i + 1}`, s]),
+    ...c.notes.map((n, i): [string, string] => [`${id} note ${i + 1}`, n]),
+    ...c.faq.flatMap((f, i): Array<[string, string]> => [[`${id} faq ${i + 1} q`, f.q], [`${id} faq ${i + 1} a`, f.a]]),
+  ];
 }
+
+function copyStrings(): Array<[string, string]> {
+  return Object.entries(TOOL_COPY).flatMap(([id, c]): Array<[string, string]> => (c === undefined ? [] : toolStrings(id, c)));
+}
+
+/** Words a reader sees: a link counts as its words, not its address. */
+const words = (texts: readonly string[]): number =>
+  texts
+    .join(' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .split(/\s+/)
+    .filter(Boolean).length;
+
+/** The sentences of a text, links stripped, spaces tidied. */
+const sentences = (text: string): string[] =>
+  text
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
 
 const LINK = /\[([^\]]*)\]\(([^)]*)\)/g;
 
@@ -96,10 +123,17 @@ describe('guides.ts', () => {
       expect(g.steps.length, `${g.slug} steps`).toBeGreaterThanOrEqual(3);
       expect(g.steps.length, `${g.slug} steps`).toBeLessThanOrEqual(6);
       expect(g.sections.length, `${g.slug} sections`).toBeGreaterThanOrEqual(2);
-      expect(g.sections.length, `${g.slug} sections`).toBeLessThanOrEqual(4);
+      expect(g.sections.length, `${g.slug} sections`).toBeLessThanOrEqual(6);
       expect(g.faq.length, `${g.slug} faq`).toBeGreaterThanOrEqual(3);
-      expect(g.faq.length, `${g.slug} faq`).toBeLessThanOrEqual(5);
+      expect(g.faq.length, `${g.slug} faq`).toBeLessThanOrEqual(6);
       for (const s of g.sections) expect(s.paragraphs.length, `${g.slug}: ${s.heading}`).toBeGreaterThan(0);
+    }
+  });
+
+  it('says at least 600 words in each guide', () => {
+    for (const g of GUIDES) {
+      const body = [g.intro, ...g.steps, ...g.sections.flatMap((s) => [s.heading, ...s.paragraphs]), ...g.faq.flatMap((f) => [f.q, f.a])];
+      expect(words(body), g.slug).toBeGreaterThanOrEqual(600);
     }
   });
 
@@ -133,13 +167,46 @@ describe('tool-copy.ts', () => {
     expect(ids).toEqual([...LIVE].sort());
   });
 
-  it('has two to four questions per tool, and an about', () => {
+  it('has an about, three to five steps, two or three notes and three to five questions per tool', () => {
     for (const [id, copy] of Object.entries(TOOL_COPY)) {
       expect(copy, id).toBeDefined();
-      expect(copy?.about.trim().length ?? 0, `${id} about`).toBeGreaterThan(0);
-      expect(copy?.faq.length ?? 0, `${id} faq`).toBeGreaterThanOrEqual(2);
-      expect(copy?.faq.length ?? 0, `${id} faq`).toBeLessThanOrEqual(4);
+      if (copy === undefined) continue;
+      expect(copy.about.trim().length, `${id} about`).toBeGreaterThan(0);
+      expect(copy.steps.length, `${id} steps`).toBeGreaterThanOrEqual(3);
+      expect(copy.steps.length, `${id} steps`).toBeLessThanOrEqual(5);
+      expect(copy.notes.length, `${id} notes`).toBeGreaterThanOrEqual(2);
+      expect(copy.notes.length, `${id} notes`).toBeLessThanOrEqual(3);
+      expect(copy.faq.length, `${id} faq`).toBeGreaterThanOrEqual(3);
+      expect(copy.faq.length, `${id} faq`).toBeLessThanOrEqual(5);
+      for (const text of [copy.about, ...copy.steps, ...copy.notes]) expect(text.trim().length, id).toBeGreaterThan(0);
     }
+  });
+
+  it('says at least 300 words for each tool', () => {
+    for (const [id, copy] of Object.entries(TOOL_COPY)) {
+      if (copy === undefined) continue;
+      expect(words(toolStrings(id, copy).map(([, text]) => text)), id).toBeGreaterThanOrEqual(300);
+    }
+  });
+
+  it('never repeats a sentence of more than twelve words across tools', () => {
+    const seen = new Map<string, string>();
+    const repeats: string[] = [];
+    for (const [id, copy] of Object.entries(TOOL_COPY)) {
+      if (copy === undefined) continue;
+      const mine = new Set([copy.about, ...copy.steps, ...copy.notes].flatMap(sentences).filter((s) => s.split(' ').length > 12));
+      for (const sentence of mine) {
+        const other = seen.get(sentence);
+        if (other !== undefined) repeats.push(`${id} and ${other}: ${sentence}`);
+        else seen.set(sentence, id);
+      }
+    }
+    expect(repeats).toEqual([]);
+  });
+
+  it('keeps links out of the steps', () => {
+    const bad = Object.entries(TOOL_COPY).flatMap(([id, c]) => (c?.steps ?? []).filter((t) => linkTargets(t).length > 0).map((t) => `${id}: ${t}`));
+    expect(bad).toEqual([]);
   });
 
   it('links only to live tools and existing guides', () => {
