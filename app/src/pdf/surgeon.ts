@@ -116,14 +116,16 @@ export function createSurgeon(): PdfSurgeon {
       probe.close();
       const date = new Date();
       const reason = opts.reason?.trim();
+      const location = opts.location?.trim();
       const bytes = await signPdf(
         pdf,
         {
-          page: pages - 1,
+          page: opts.page === 'first' ? 0 : pages - 1,
           name: identity.subject,
           date,
           ...(reason ? { reason } : {}),
-          // Bottom right of the last page, where a signature is looked for.
+          ...(location ? { location } : {}),
+          // Bottom right of the page, where a signature is looked for.
           ...(opts.visible ? { area: { x: 0.52, y: 0.84, w: 0.42, h: 0.1 } } : {}),
         },
         (data) => signDetached(identity, data, date),

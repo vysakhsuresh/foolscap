@@ -719,3 +719,206 @@ test.describe('remove areas', () => {
     expect(latin1(out.bytes)).not.toContain('Aadhaar 2345');
   });
 });
+
+// ============================================================ Digital signature
+
+interface Signature {
+  readonly range: [number, number, number, number];
+  readonly ok: boolean;
+  readonly signer: string;
+  readonly dict: string;
+}
+
+/** Every signature in the file, checked the way a validator does: the byte range, then the CMS over exactly those bytes. */
+async function signaturesIn(bytes: Uint8Array): Promise<Signature[]> {
+  const text = latin1(bytes);
+  const out: Signature[] = [];
+  for (const m of text.matchAll(/\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g)) {
+    const range = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])] as [number, number, number, number];
+    const [a, b, c, d] = range;
+    const covered = new Uint8Array(b + d);
+    covered.set(bytes.subarray(a, a + b), 0);
+    covered.set(bytes.subarray(c, c + d), b);
+    const der = new Uint8Array(Buffer.from(text.slice(b + 1, c - 1), 'hex'));
+    const cms = der.subarray(0, asn1js.fromBER(der).offset);
+    const signed = new SignedData({ schema: ContentInfo.fromBER(cms.slice()).content });
+    let ok = false;
+    let signer = '';
+    try {
+      const result = await signed.verify({ signer: 0, data: covered.slice().buffer, checkChain: false, extendedMode: true });
+      ok = result.signatureVerified === true;
+      const { displayName } = await import('../../app/src/sign/identity');
+      signer = result.signerCertificate ? displayName(result.signerCertificate.subject) : '';
+    } catch {
+      ok = false;
+    }
+    // The dictionary around this hole: from the last "<<" before it to the ">>" after.
+    const open = text.lastIndexOf('/Type /Sig', b);
+    out.push({ range, ok, signer, dict: text.slice(open, text.indexOf('>>', c)) });
+  }
+  // The last signature covers the whole file, so nothing was added after it.
+  const last = out[out.length - 1];
+  if (last) expect(last.range[2] + last.range[3], 'the last signature runs to the end of the file').toBe(bytes.length);
+  return out;
+}
+
+/** A /Name, /Reason or /Location, decoded from its UTF-16 hex. */
+function sigText(dict: string, key: string): string | null {
+  const m = new RegExp(`/${key}\\s*<([0-9A-Fa-f]+)>`).exec(dict);
+  if (!m) return null;
+  const hex = m[1]!;
+  let s = '';
+  for (let i = 4; i + 4 <= hex.length; i += 4) s += String.fromCharCode(Number.parseInt(hex.slice(i, i + 4), 16));
+  return s;
+}
+
+async function chooseCertificate(page: Page, base64: string, name = 'me.pfx'): Promise<void> {
+  await page.getByTestId('opt-certificate').setInputFiles([{ name, mimeType: 'application/x-pkcs12', buffer: Buffer.from(base64, 'base64') }]);
+  await expect(page.getByTestId('certificate-picked')).toHaveText('Certificate ready. Type its password below.');
+}
+
+test.describe('digital signature', () => {
+  test('seals a three-page lease: the original bytes untouched, the signature verifies, the box on the last page, reason and place written', async ({ page }, info) => {
+    laptopOnly(info);
+    const lease = await leasePdf(1);
+    await openTool(page, 'digital-sign');
+    await pick(page, [{ name: 'Lease.pdf', bytes: lease }]);
+    await expect(page.locator('.run__note')).toHaveText('Choose your certificate file (.pfx or .p12).');
+    await chooseCertificate(page, AES_EC384);
+    await page.getByTestId('opt-cert-password').fill('pässword');
+    await expect(page.getByTestId('opt-sign-page-last')).toBeChecked();
+    await page.getByTestId('opt-reason').fill('I agree to the terms of this licence');
+    await page.getByTestId('opt-location').fill('Kochi');
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('Signed by Kerala Test Co, certificate from Kerala Test Co; shown at the foot of the last page');
+    const { name, bytes } = await save(page);
+    expect(name).toBe('Lease (signed).pdf');
+    // An incremental update: every byte of the original is still where it was.
+    expect(Buffer.from(bytes.subarray(0, lease.length)).equals(Buffer.from(lease))).toBe(true);
+    const [sig, ...more] = await signaturesIn(bytes);
+    expect(more).toEqual([]);
+    expect(sig!.ok).toBe(true);
+    expect(sig!.signer).toBe('Kerala Test Co');
+    expect(sigText(sig!.dict, 'Reason')).toBe('I agree to the terms of this licence');
+    expect(sigText(sig!.dict, 'Location')).toBe('Kochi');
+    // The visible box sits at the foot of the last page, and only there.
+    const details = await pdfDetails(bytes);
+    expect(details.annotations[0]).toEqual([]);
+    expect(details.annotations[1]).toEqual([]);
+    const widget = details.annotations[2]!.find((a) => a.fieldType === 'Sig');
+    expect(widget).toBeDefined();
+    const [x1, y1, x2, y2] = widget!.rect as [number, number, number, number];
+    expect(x1 / 595.28).toBeGreaterThan(0.5);
+    expect(x2 / 595.28).toBeLessThan(0.96);
+    expect(1 - y2 / 841.89).toBeGreaterThan(0.82);
+    expect(1 - y1 / 841.89).toBeLessThan(0.96);
+    const px = await renderPage(bytes, 2, 2);
+    expect(darkShare(px, { x: 0.53, y: 0.85, w: 0.4, h: 0.08 }, 120)).toBeGreaterThan(0.01);
+    // The words of the lease are unchanged.
+    expect((await pdfText(bytes)).pages.slice(0, 3)).toEqual((await pdfText(lease)).pages);
+  });
+
+  test('on the first page, or invisibly; a wrong password says so, and the empty-password certificate needs none', async ({ page }, info) => {
+    laptopOnly(info);
+    const lease = await leasePdf(1);
+    await openTool(page, 'digital-sign');
+    await pick(page, [{ name: 'Lease.pdf', bytes: lease }]);
+    await chooseCertificate(page, AES_EC384);
+    await page.getByTestId('opt-cert-password').fill('password');
+    await page.getByTestId('opt-sign-page-first').check();
+    await run(page);
+    await expect(page.getByTestId('failure-item')).toContainText("That password didn't open the certificate.");
+    await page.getByTestId('opt-cert-password').fill('pässword');
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('Signed by Kerala Test Co, certificate from Kerala Test Co; shown at the foot of the first page');
+    let out = await save(page);
+    let details = await pdfDetails(out.bytes);
+    expect(details.annotations[0]!.some((a) => a.fieldType === 'Sig')).toBe(true);
+    expect(details.annotations[2]).toEqual([]);
+    expect((await signaturesIn(out.bytes))[0]!.ok).toBe(true);
+
+    await page.getByTestId('start-over').click();
+    await pick(page, [{ name: 'Lease.pdf', bytes: lease }]);
+    await chooseCertificate(page, EMPTY_PASSWORD_EC256);
+    await page.getByTestId('opt-cert-password').fill('');
+    await page.getByTestId('opt-visible').uncheck();
+    await expect(page.getByTestId('opt-sign-page-last')).toBeHidden();
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('Signed by Ravi Kumar, certificate from Ravi Kumar; invisible on the page, listed in any reader’s signature panel');
+    out = await save(page);
+    const [sig] = await signaturesIn(out.bytes);
+    expect(sig!.ok).toBe(true);
+    expect(sig!.signer).toBe('Ravi Kumar');
+    details = await pdfDetails(out.bytes);
+    const widget = details.annotations.flat().find((a) => a.fieldType === 'Sig');
+    expect(widget === undefined || widget.rect[2]! - widget.rect[0]! === 0).toBe(true);
+    const [before, after] = [await renderPage(lease, 2, 1), await renderPage(out.bytes, 2, 1)];
+    expect(Buffer.from(after.data).equals(Buffer.from(before.data))).toBe(true);
+  });
+
+  test('signed twice, by two people, both signatures still verify', async ({ page }, info) => {
+    laptopOnly(info);
+    await openTool(page, 'digital-sign');
+    await pick(page, [{ name: 'Agreement.pdf', bytes: await leasePdf(2) }]);
+    await chooseCertificate(page, AES_EC384);
+    await page.getByTestId('opt-cert-password').fill('pässword');
+    await page.getByTestId('opt-reason').fill('Licensor');
+    await run(page);
+    const first = await save(page);
+    // The second party signs the copy the first one saved.
+    await page.getByTestId('start-over').click();
+    await expect(page.getByTestId('file-item')).toHaveCount(0);
+    await pick(page, [{ name: 'Agreement (signed).pdf', bytes: first.bytes }]);
+    // The certificate chosen before is still there, for the next document; this is someone else's.
+    await expect(page.getByTestId('certificate-picked')).toHaveText('Certificate ready. Type its password below.');
+    await chooseCertificate(page, EMPTY_PASSWORD_EC256);
+    await page.getByTestId('opt-cert-password').fill('');
+    await page.getByTestId('opt-sign-page-first').check();
+    await page.getByTestId('opt-reason').fill('Licensee');
+    await run(page);
+    const { bytes } = await save(page);
+    const sigs = await signaturesIn(bytes);
+    expect(sigs.map((s) => [s.ok, s.signer, sigText(s.dict, 'Reason')])).toEqual([
+      [true, 'Kerala Test Co', 'Licensor'],
+      [true, 'Ravi Kumar', 'Licensee'],
+    ]);
+  });
+
+  test('a locked PDF is signed once its password is typed, and the result says the lock is gone; not a certificate says so', async ({ page }, info) => {
+    laptopOnly(info);
+    await openTool(page, 'digital-sign');
+    await pick(page, [{ name: 'Locked slip.pdf', bytes: await lock(await salarySlipPdf(), 'ANJA1990') }]);
+    await page.getByTestId('file-password').fill('ANJA1990');
+    await page.getByTestId('file-unlock').click();
+    await expect(page.getByTestId('file-item')).toHaveAttribute('data-pages', '1');
+    await page.getByTestId('opt-certificate').setInputFiles([{ name: 'not-a-cert.pfx', mimeType: 'application/x-pkcs12', buffer: Buffer.from(await leasePdf(1)) }]);
+    await page.getByTestId('opt-cert-password').fill('x');
+    await run(page);
+    await expect(page.getByTestId('failure-item')).toBeVisible();
+    const words = await page.getByTestId('failure-item').textContent();
+    expect(words).toMatch(/certificate/i);
+    await chooseCertificate(page, AES_EC384);
+    await page.getByTestId('opt-cert-password').fill('pässword');
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText(
+      'Signed by Kerala Test Co, certificate from Kerala Test Co; shown at the foot of the last page. The signed copy opens without the password: locking it again would break the signature',
+    );
+    const { bytes } = await save(page);
+    expect(await opens(bytes)).toBe('opens');
+    expect((await signaturesIn(bytes))[0]!.ok).toBe(true);
+    expect((await pdfText(bytes)).pages[0]).toContain(SLIP.employee);
+  });
+
+  test('a file that only restricts printing is signed, and says the restrictions went', async ({ page }, info) => {
+    laptopOnly(info);
+    await openTool(page, 'digital-sign');
+    await pick(page, [{ name: 'Form.pdf', bytes: await restrictedPdf() }]);
+    await expect(page.getByTestId('file-item')).toHaveAttribute('data-pages', '2');
+    await chooseCertificate(page, AES_EC384);
+    await page.getByTestId('opt-cert-password').fill('pässword');
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toContainText('Its printing and copying restrictions are gone: setting them again would break the signature');
+    const { bytes } = await save(page);
+    expect((await signaturesIn(bytes))[0]!.ok).toBe(true);
+  });
+});

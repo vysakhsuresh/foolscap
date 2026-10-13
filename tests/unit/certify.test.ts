@@ -72,6 +72,6 @@ describe('digital signature', () => {
     expect(await sign([input], { password: 'wrong' }, h.ctx)).toMatchObject([{ kind: 'failed', reason: "That password didn't open the certificate." }]);
     expect(await sign([input], { certificate: new Uint8Array(0) }, h.ctx)).toMatchObject([{ kind: 'failed', reason: 'Choose your certificate file (.pfx or .p12).' }]);
     const locked = await h.add('Locked.pdf', await encryptedPdf('x', 1));
-    expect(await sign([locked], {}, h.ctx)).toMatchObject([{ kind: 'failed', reason: 'This PDF is locked with a password. Remove the password first, then sign it.' }]);
+    expect(await sign([locked], {}, h.ctx)).toMatchObject([{ kind: 'failed', reason: 'This PDF is locked with a password. Type it on the file above and tap Unlock, then sign it.' }]);
   });
 });

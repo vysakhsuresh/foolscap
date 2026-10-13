@@ -570,17 +570,30 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       stack.append(words, picked);
       certField.append(stack, fileInput);
       const password = field('cert-password', { label: 'Its password', type: 'password', autocomplete: 'off' }, onChange);
-      const visible = check('visible', 'Show the signature on the last page', true, onChange, 'A box with your name and the date. Off: the signature is still there, in the reader’s signature panel.');
+      const signPage = choices<'last' | 'first'>('sign-page', 'On which page', [{ value: 'last', title: 'Last page' }, { value: 'first', title: 'First page' }], 'last', onChange, 'pills');
+      const visible = check('visible', 'Show the signature on the page', true, () => {
+        signPage.root.hidden = !visible.checked();
+        onChange();
+      }, 'A box at the foot of the page with your name and the date. Off: the signature is still there, in the reader’s signature panel.');
       const reason = field('reason', { label: 'Reason (optional)', placeholder: 'e.g. I approve this document' }, onChange);
+      const place = field('location', { label: 'Place (optional)', placeholder: 'e.g. Kochi' }, onChange);
       return {
         root: group([
           certField,
           password.root,
           visible.root,
-          reason.root,
+          signPage.root,
+          el2([reason.root, place.root]),
           note('This is the signature Acrobat checks: it proves who signed and that nothing changed since. Your certificate and password stay on this device and are forgotten when you leave the page. A drawn signature is in Sign.'),
         ]),
-        params: (): DigitalSignParams => ({ certificate: certificate ?? new Uint8Array(0), password: password.value(), visible: visible.checked(), reason: reason.value() }),
+        params: (): DigitalSignParams => ({
+          certificate: certificate ?? new Uint8Array(0),
+          password: password.value(),
+          visible: visible.checked(),
+          page: signPage.value(),
+          reason: reason.value(),
+          location: place.value(),
+        }),
         problem: () => (reading ? 'Reading the certificate…' : certificate === null ? 'Choose your certificate file (.pfx or .p12).' : null),
       };
     }

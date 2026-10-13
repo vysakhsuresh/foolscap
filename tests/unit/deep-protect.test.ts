@@ -5,6 +5,11 @@
 import { PDFDocument, PDFHexString, PDFName, PDFString, type PDFRef } from '@cantoo/pdf-lib';
 import { describe, expect, it } from 'vitest';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
+import type { FoolscapFile } from '../../app/src/files/types';
+import { createMemoryWorkspace } from '../../app/src/files/workspace-memory';
+import { getOp } from '../../app/src/ops';
+import type { OpContext, Outcome } from '../../app/src/ops/op';
+import { AES_EC384 } from '../fixtures/certificates';
 import { pagesPdf } from '../fixtures/pdfs';
 import { pdfDetails, withPdf } from '../fixtures/protect-inspect';
 
@@ -115,5 +120,49 @@ describe('find and remove covers a number to its first and last digit', () => {
       expect(left - area!.x * 595).toBeLessThan(size);
       expect((area!.x + area!.w) * 595 - right).toBeLessThan(size);
     }
+  });
+});
+
+function harness() {
+  const workspace = createMemoryWorkspace();
+  const ctx: OpContext = {
+    workspace,
+    engine: () => Promise.reject(new Error('no engine')),
+    surgeon: createSurgeon(),
+    passwords: new Map(),
+    signal: new AbortController().signal,
+    progress: () => undefined,
+  };
+  return {
+    ctx,
+    add: (name: string, bytes: Uint8Array) => workspace.put(name, bytes, 'pdf', { kind: 'picked' }),
+    bytesOf: async (file: FoolscapFile) => new Uint8Array(await (await workspace.read(file)).arrayBuffer()),
+  };
+}
+
+const produced = (outcomes: Outcome[]) => outcomes.filter((o): o is Extract<Outcome, { kind: 'produced' }> => o.kind === 'produced');
+
+describe('digital signature on a locked file', () => {
+  const certificate = new Uint8Array(Buffer.from(([] as string[]).concat(AES_EC384).join(''), 'base64'));
+
+  it('signs it once its password is typed, says the lock is gone, and puts the box on the page asked for', async () => {
+    const surgeon = createSurgeon();
+    const locked = await (await surgeon.open(await pagesPdf(3))).save({ encrypt: { userPassword: 'tea', allowPrinting: true, allowCopying: true } });
+    const h = harness();
+    const file = await h.add('Locked.pdf', locked);
+    const ctx: OpContext = { ...h.ctx, passwords: new Map([[file.id, 'tea']]) };
+    const [out] = produced(
+      await getOp('digital-sign').run([file], { certificate, password: 'pässword', visible: true, page: 'first', reason: 'Approved', location: 'Kochi' }, ctx),
+    );
+    expect(out?.detail).toBe(
+      'Signed by Kerala Test Co, certificate from Kerala Test Co; shown at the foot of the first page. The signed copy opens without the password: locking it again would break the signature',
+    );
+    const bytes = await h.bytesOf(out!.file);
+    const text = new TextDecoder('latin1').decode(bytes);
+    expect(text).not.toMatch(/\/Encrypt/);
+    expect(text).toMatch(/\/Location <FEFF004B006F006300680069>/i);
+    const details = await pdfDetails(bytes);
+    expect(details.annotations[0]?.some((a) => a.fieldType === 'Sig')).toBe(true);
+    expect(details.annotations[2]).toEqual([]);
   });
 });

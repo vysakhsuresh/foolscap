@@ -206,9 +206,13 @@ export type LinePainter = (
 ) => Promise<{ png: Uint8Array; width: number; height: number } | null>;
 
 export interface CertificateSignOptions {
-  /** Show the signature at the foot of the last page; otherwise it is invisible. */
+  /** Show the signature at the foot of a page; otherwise it is invisible. */
   readonly visible: boolean;
+  /** Which page carries it: the last (where a signature is looked for) unless the first is asked for. */
+  readonly page?: 'first' | 'last';
   readonly reason?: string;
+  /** Where it was signed, as a reader's signature panel shows it ("Kochi"). */
+  readonly location?: string;
 }
 
 export type CertificateSignResult =

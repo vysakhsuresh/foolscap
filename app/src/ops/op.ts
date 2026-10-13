@@ -417,9 +417,13 @@ export interface DigitalSignParams {
   /** The .pfx / .p12 file's bytes. Never stored; gone when the run ends. */
   readonly certificate: Uint8Array;
   readonly password: string;
-  /** Show a signature box at the foot of the last page, or sign invisibly. */
+  /** Show a signature box at the foot of a page, or sign invisibly. */
   readonly visible: boolean;
+  /** The page the box goes on; the last when not said. */
+  readonly page?: 'first' | 'last';
   readonly reason: string;
+  /** Where it was signed, for the reader's signature panel. */
+  readonly location?: string;
 }
 
 export type NoParams = Record<string, never>;
