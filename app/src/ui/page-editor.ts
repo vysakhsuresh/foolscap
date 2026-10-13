@@ -384,7 +384,12 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       );
     });
   } else if (mode === 'create-form') {
-    fieldKind = choices<FieldKind>('field-kind', 'Field', (Object.keys(FIELD_NAMES) as FieldKind[]).map((k) => ({ value: k, title: FIELD_NAMES[k] })), 'text', () => sync(), 'pills');
+    // Choosing a kind starts a new field: the name and choices typed next are for it, not the one still selected.
+    fieldKind = choices<FieldKind>('field-kind', 'Field', (Object.keys(FIELD_NAMES) as FieldKind[]).map((k) => ({ value: k, title: FIELD_NAMES[k] })), 'text', () => {
+      select(null);
+      if (fieldName) fieldName.input.value = '';
+      sync();
+    }, 'pills');
     fieldName = field('field-name', { label: 'Its name', placeholder: 'e.g. Full name', hint: 'What a reader shows beside the field. Tap a field to rename it.' }, () => {
       if (selected?.kind === 'field' && fieldName) {
         selected.name = fieldName.value();

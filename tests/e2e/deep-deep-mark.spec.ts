@@ -1412,3 +1412,121 @@ test.describe('page background', () => {
     await expect(page.getByTestId('failure-item')).toContainText('This file has 2 pages; none of the pages typed are in it.');
   });
 });
+
+/** Each field of a form: its kind, its box in fractions of its page as seen, and its choices. */
+async function formFields(bytes: Uint8Array): Promise<Array<{ name: string; type: string; page: number; box: Box; options: string[]; multiline: boolean }>> {
+  const pdf = await openPdf(bytes);
+  try {
+    const out: Array<{ name: string; type: string; page: number; box: Box; options: string[]; multiline: boolean }> = [];
+    for (const [name, widgets] of Object.entries(await pdf.fields())) {
+      for (const w of widgets) {
+        if (typeof w['type'] !== 'string' || w['type'] === '') continue;
+        const page = w['page'] as number;
+        const { width, height } = await pdf.size(page);
+        const [x0, y0, x1, y1] = w['rect'] as [number, number, number, number];
+        const items = (w['items'] as Array<{ displayValue: string }> | undefined) ?? [];
+        out.push({ name, type: w['type'] as string, page, box: { x: x0 / width, y: 1 - y1 / height, w: (x1 - x0) / width, h: (y1 - y0) / height }, options: items.map((i) => i.displayValue), multiline: w['multiline'] === true });
+      }
+    }
+    return out;
+  } finally {
+    await pdf.close();
+  }
+}
+
+test.describe('create a form', () => {
+  test('finds the blanks on a printed lease, names each after its label, and the result fills in', async ({ page }) => {
+    const input = await leasePdf();
+    await openTool(page, 'create-form');
+    await pick(page, [{ name: 'Lease.pdf', bytes: input }]);
+    await expect(page.locator('.run__note')).toHaveText('Draw a field, or tap “Find the blanks for me”.');
+    await page.getByTestId('form-detect').click();
+    await expect(page.getByTestId('form-detect-said')).toHaveText('Found 3 blanks, each now a field named after the words beside it. Check them: tap one to rename it or take it away.');
+    const out = await runAndSave(page);
+    expect(out.name).toBe('Lease (form).pdf');
+    await expect(page.getByTestId('result-detail')).toHaveText('3 text fields added: anyone can fill it in, in any PDF reader');
+    const fields = await formFields(out.bytes);
+    expect(fields.map((f) => f.name).sort()).toEqual(['Date', 'Owner', 'Tenant']);
+    // Each sits on page 2, over its line of underscores.
+    const pdf = await openPdf(input);
+    const words = await pdf.words(1);
+    const { width, height } = await pdf.size(1);
+    await pdf.close();
+    for (const f of fields) {
+      expect(f.page).toBe(1);
+      expect(f.type).toBe('text');
+      const line = words.find((w) => w.text.startsWith(`${f.name}:`))!;
+      const blankEnd = (line.x + line.width) / width;
+      expect(Math.abs(f.box.x + f.box.w - blankEnd)).toBeLessThan(0.02);
+      expect(Math.abs(f.box.y + f.box.h - line.y / height)).toBeLessThan(0.02);
+    }
+
+    // Then… straight into Fill in a form with the new form.
+    await page.getByTestId('then-menu').click();
+    await page.getByTestId('then-fill-form').click();
+    await page.waitForURL(/\/tools\/fill-form\/$/);
+    await expect(page.getByTestId('file-item')).toHaveCount(1);
+    await page.getByTestId('form-field-Owner').fill('Joseph Mathew');
+    await page.getByTestId('form-field-Tenant').fill('Anjali Menon');
+    const filled = await runAndSave(page);
+    const values = await fieldValues(filled.bytes);
+    expect(values['Owner']).toBe('Joseph Mathew');
+    expect(values['Tenant']).toBe('Anjali Menon');
+  });
+
+  test('every kind of field drawn by hand, named, with choices, where it was drawn', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'create-form');
+    await pick(page, [{ name: 'Survey.pdf', bytes: input }]);
+    await page.getByTestId('opt-field-name').fill('Full name');
+    await dragPage(page, [0.2, 0.2], [0.7, 0.24]);
+    await page.getByTestId('opt-field-kind-multiline').check();
+    await page.getByTestId('opt-field-name').fill('');
+    await dragPage(page, [0.2, 0.3], [0.8, 0.42]);
+    // Renamed after it was drawn: tap it, then type.
+    await page.getByTestId('opt-field-name').fill('Address');
+    await page.getByTestId('opt-field-kind-check').check();
+    await page.getByTestId('opt-field-name').fill('');
+    await tapPage(page, 0.25, 0.5);
+    await page.getByTestId('opt-field-name').fill('Agree');
+    await page.getByTestId('opt-field-kind-choice').check();
+    await expect(page.getByTestId('opt-field-options')).toBeVisible();
+    await page.getByTestId('opt-field-options').fill('Kochi, Chennai, Dubai');
+    await page.getByTestId('opt-field-name').fill('City');
+    await dragPage(page, [0.2, 0.6], [0.5, 0.63]);
+    // A tap with the text tool is too small to be a field, and says so.
+    await page.getByTestId('opt-field-kind-text').check();
+    await tapPage(page, 0.8, 0.8);
+    await expect(page.getByTestId('editor-hint')).toHaveText('Drag across the space, from one corner to the other.');
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('1 text field, 1 paragraph field, 1 tick box and 1 choice list added: anyone can fill it in, in any PDF reader');
+    const fields = await formFields(out.bytes);
+    const by = (name: string) => fields.find((f) => f.name === name)!;
+    expect(by('Full name').type).toBe('text');
+    expect(by('Full name').box.x).toBeCloseTo(0.2, 1);
+    expect(by('Full name').box.w).toBeCloseTo(0.5, 1);
+    expect(by('Address').multiline).toBe(true);
+    expect(by('Address').box.h).toBeCloseTo(0.12, 1);
+    expect(by('Agree').type).toBe('checkbox');
+    expect(by('City').type).toBe('combobox');
+    expect(by('City').options).toEqual(['Kochi', 'Chennai', 'Dubai']);
+    expect(by('City').box.y).toBeCloseTo(0.6, 1);
+  });
+
+  test('two fields given one name stay two fields, and × takes one away', async ({ page }) => {
+    await openTool(page, 'create-form');
+    await pick(page, [{ name: 'Sheet.pdf', bytes: await applicationBlank() }]);
+    await page.getByTestId('opt-field-name').fill('Phone');
+    await dragPage(page, [0.2, 0.2], [0.6, 0.23]);
+    await dragPage(page, [0.2, 0.3], [0.6, 0.33]);
+    await dragPage(page, [0.2, 0.4], [0.6, 0.43]);
+    await expect(page.locator('.editor__item--field-text')).toHaveCount(3);
+    await page.locator('.editor__item.is-selected [data-testid="editor-remove"]').click();
+    await expect(page.locator('.editor__item--field-text')).toHaveCount(2);
+    const out = await runAndSave(page);
+    const names = (await formFields(out.bytes)).map((f) => f.name).sort();
+    expect(names).toHaveLength(2);
+    expect(new Set(names).size).toBe(2);
+    expect(names[0]).toBe('Phone');
+  });
+});
