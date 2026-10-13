@@ -422,6 +422,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       let typed = false;
       let prefilled = false;
       let files = 0;
+      let loads = 0;
       const editHint = mode.root.querySelector<HTMLElement>('[data-testid="opt-mode-edit"]')?.closest('label')?.querySelector<HTMLElement>('.choice__hint') ?? null;
       editBox.addEventListener('input', () => {
         typed = true;
@@ -433,7 +434,10 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         // What the file says now, so changing the title does not quietly wipe the author.
         async load(view) {
           const details = await view.details();
-          if (typed || files > 1) return;
+          // What was typed before any file came is kept; a new file after Start over starts from its own details.
+          loads++;
+          if ((typed && loads === 1) || files > 1) return;
+          typed = false;
           (['title', 'author', 'subject', 'keywords'] as const).forEach((key, i) => {
             const box = fields[i]?.input;
             if (box) box.value = details[key] ?? '';

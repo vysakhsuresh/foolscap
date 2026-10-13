@@ -411,6 +411,13 @@ test.describe('clean hidden data', () => {
     expect(after.xmp.join('')).not.toContain('Payslip September 2026');
     const details = await pdfDetails(bytes);
     expect(details.info['Title']).toBe('Salary slip, September 2026');
+    // Start over with another file: the boxes start from its details, not what was typed for the last one.
+    await page.getByTestId('start-over').click();
+    await expect(page.getByTestId('file-item')).toHaveCount(0);
+    await pick(page, [{ name: 'Report.pdf', bytes: await reportPdf() }]);
+    await expect(page.getByTestId('file-item')).toHaveAttribute('data-pages', '2');
+    await expect(page.getByTestId('opt-title')).toHaveValue('');
+    await expect(page.getByTestId('opt-author')).toHaveValue('');
   });
 
   test('with several files, what is typed is set on all, and an empty box keeps each file its own', async ({ page }, info) => {
@@ -1607,6 +1614,14 @@ test.describe('on a phone', () => {
     await expect(page.getByTestId('editor-item')).toHaveCount(4);
     await runOnPhone(page);
     await expect(page.getByTestId('result-detail')).toContainText('4 areas removed');
+    // Start over: the marks go with the file.
+    await page.getByTestId('start-over').click();
+    await expect(page.getByTestId('file-item')).toHaveCount(0);
+    await expect(page.getByTestId('editor-item')).toHaveCount(0);
+    await pick(page, [{ name: 'Lease.pdf', bytes: await leasePdf(1) }]);
+    await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 3');
+    await expect(page.getByTestId('editor-item')).toHaveCount(0);
+    await expect(page.getByTestId('run-button')).toBeDisabled();
   });
 
   test('scan: the photo cards, their handles and the looks fit, and a page comes out', async ({ page }, info) => {
@@ -1622,6 +1637,9 @@ test.describe('on a phone', () => {
     for (const id of ['scan-turn', 'opt-look-bw', 'opt-paper-letter']) await tappable(page, id);
     await runOnPhone(page);
     await expect(page.getByTestId('result-detail')).toHaveText('1 page in grey on A4');
+    await page.getByTestId('start-over').click();
+    await expect(page.getByTestId('scan-card')).toHaveCount(0);
+    await expect(page.getByTestId('result')).toHaveCount(0);
   });
 
   test('read, make searchable, extract text and summarise fit', async ({ page }, info) => {
