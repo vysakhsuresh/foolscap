@@ -666,7 +666,10 @@ async function imagesIn(bytes: Uint8Array): Promise<Array<{ width: number; heigh
   const out: Array<{ width: number; height: number; filter: string; mask: boolean }> = [];
   for (const [, object] of doc.context.enumerateIndirectObjects()) {
     if (!(object instanceof PDFRawStream) || object.dict.lookup(PDFName.of('Subtype'))?.toString() !== '/Image') continue;
-    const n = (key: string) => (object.dict.lookup(PDFName.of(key)) as InstanceType<typeof PDFNumber>).asNumber();
+    const n = (key: string) => {
+      const v = object.dict.lookup(PDFName.of(key));
+      return v instanceof PDFNumber ? v.asNumber() : 0;
+    };
     out.push({ width: n('Width'), height: n('Height'), filter: String(object.dict.lookup(PDFName.of('Filter')) ?? ''), mask: object.dict.has(PDFName.of('SMask')) });
   }
   return out;

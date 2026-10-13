@@ -78,7 +78,7 @@ export async function openPdf(bytes: Uint8Array, password?: string): Promise<Ope
     fontExtraProperties: true,
   });
   const doc = await task.promise;
-  return {
+  const opened: Opened = {
     pageCount: doc.numPages,
     async size(index) {
       const page = await doc.getPage(index + 1);
@@ -106,7 +106,7 @@ export async function openPdf(bytes: Uint8Array, password?: string): Promise<Ope
         });
     },
     async text(index) {
-      return (await this.words(index)).map((w) => w.text).join(' ');
+      return (await opened.words(index)).map((w: Word) => w.text).join(' ');
     },
     async render(index, scale = 1) {
       const page = await doc.getPage(index + 1);
@@ -145,6 +145,7 @@ export async function openPdf(bytes: Uint8Array, password?: string): Promise<Ope
       await task.destroy();
     },
   };
+  return opened;
 }
 
 /** The colour at a point given in fractions of the picture (top-left origin). */
