@@ -1,35 +1,99 @@
 /** The Mark up family's stamping tools: watermark, page numbers, header and footer. */
 import type { FoolscapFile } from '../files/types';
-import type { Anchor } from '../pdf';
+import type { Anchor, PdfDoc, TextStamp } from '../pdf';
 import { baseName, forEachPdf, lockNote, plural, refused, saveKeepingLock, store } from './common';
+import { paintLine } from './office-ops';
+import { PageSelection } from '../pdf/page-selection';
 import { checkCancelled, type HeaderFooterParams, type Op, type OpContext, type Outcome, type PageNumbersParams, type WatermarkParams } from './op';
 
 const GREY: readonly [number, number, number] = [0.42, 0.42, 0.46];
 const INK: readonly [number, number, number] = [0.2, 0.2, 0.24];
 const OPACITY: Record<WatermarkParams['strength'], number> = { light: 0.12, medium: 0.22, strong: 0.38 };
 
+/**
+ * The letter height, in pixels, a picture of words is drawn at for words
+ * `size` points tall: about four pixels a point (sharp in print), in steps,
+ * so pages of nearly the same size share one picture, and never a huge one.
+ */
+const picturePixels = (size: number): number => Math.min(512, Math.max(32, 2 ** Math.ceil(Math.log2(Math.max(1, size) * 4))));
+
+/**
+ * Stamps words on a page: as real text when the built-in font can draw them,
+ * and otherwise (Malayalam, Hindi, Arabic, emoji) as a picture of the words
+ * the browser shapes, placed the same way. `cache` keeps one picture per
+ * wording for a whole run, so a watermark on 300 pages goes in once.
+ */
+export async function stampWords(doc: PdfDoc, index: number, stamp: TextStamp, cache: Map<string, Promise<{ png: Uint8Array; width: number; height: number } | null>>): Promise<void> {
+  const text = stamp.text.replace(/[\r\n\t]+/g, ' ').trim();
+  if (text.length === 0 || doc.canDraw(text)) {
+    doc.stampText(index, stamp);
+    return;
+  }
+  const px = picturePixels(stamp.size);
+  const color = stamp.color ?? [0, 0, 0];
+  const key = [text, px, stamp.bold === true, ...color].join('|');
+  let made = cache.get(key);
+  if (made === undefined) {
+    // Drawn at 1 point = 1 pixel times `px`: the picture is `px` pixels to the point size.
+    made = paintLine(text, { size: px, bold: stamp.bold === true, italic: false, family: 'sans', color }, 1).catch(() => null);
+    cache.set(key, made);
+  }
+  const picture = await made;
+  // No way to draw it here at all: stampText says so in words.
+  if (picture === null) {
+    doc.stampText(index, stamp);
+    return;
+  }
+  const scale = px / stamp.size;
+  await doc.stampPicture(index, {
+    anchor: stamp.anchor,
+    ...(stamp.opacity === undefined ? {} : { opacity: stamp.opacity }),
+    ...(stamp.margin === undefined ? {} : { margin: stamp.margin }),
+    ...(stamp.angle === undefined ? {} : { angle: stamp.angle }),
+    ...(stamp.tiled === undefined ? {} : { tiled: stamp.tiled }),
+    png: picture.png,
+    width: picture.width / scale,
+    height: picture.height / scale,
+  });
+}
+
+const COLOURS: Record<NonNullable<WatermarkParams['color']>, readonly [number, number, number]> = {
+  grey: GREY,
+  red: [0.8, 0.12, 0.12],
+  blue: [0.1, 0.27, 0.72],
+};
+
 export const watermarkOp: Op<WatermarkParams> = {
   tool: 'watermark',
   arity: { kind: 'each' },
   title: (p) => `Watermark "${p.text}"`,
   async run(inputs, params, ctx) {
-    const text = params.text.trim();
+    const text = params.text.replace(/[\r\n\t]+/g, ' ').trim();
     if (text.length === 0) return inputs.map((input) => refused([input], 'Type the watermark text, such as DRAFT or COPY.'));
+    const color = COLOURS[params.color ?? 'grey'] ?? GREY;
+    const opacity = OPACITY[params.strength] ?? OPACITY.medium;
+    const pictures = new Map<string, Promise<{ png: Uint8Array; width: number; height: number } | null>>();
     return forEachPdf(inputs, ctx, async (doc, input) => {
-      for (let i = 0; i < doc.pageCount; i++) {
+      const n = doc.pageCount;
+      const pages = (params.pages ?? '').trim() === '' ? PageSelection.all(n) : PageSelection.parse(params.pages ?? '', n);
+      if (pages.length === 0) return refused([input], `This file has ${plural(n, 'page')}; none of the pages typed are in it.`);
+      for (const i of pages) {
         checkCancelled(ctx.signal);
         const box = doc.visibleBox(i);
         const short = Math.min(box.width, box.height);
         if (params.layout === 'tiled') {
-          doc.stampText(i, { text, anchor: 'center', size: Math.max(14, short * 0.045), bold: true, opacity: OPACITY[params.strength], color: GREY, angle: 30, tiled: true });
+          await stampWords(doc, i, { text, anchor: 'center', size: Math.max(14, short * 0.045), bold: true, opacity, color, angle: 30, tiled: true }, pictures);
         } else {
-          // Sized to the page and to the word, so DRAFT and CONFIDENTIAL both cross the page without running off it.
-          const size = Math.min(short * 0.2, (Math.hypot(box.width, box.height) * 0.7) / Math.max(4, text.length * 0.6));
-          doc.stampText(i, { text, anchor: 'center', size, bold: true, opacity: OPACITY[params.strength], color: GREY, angle: 45 });
+          // Sized to the page and to the word, so DRAFT and CONFIDENTIAL both cross the page; anything longer is shrunk to fit inside it.
+          const straight = params.layout === 'straight';
+          const across = straight ? box.width : Math.hypot(box.width, box.height);
+          const size = Math.min(short * 0.2, (across * 0.7) / Math.max(4, text.length * 0.6));
+          await stampWords(doc, i, { text, anchor: 'center', size, bold: true, opacity, color, angle: straight ? 0 : 45 }, pictures);
         }
       }
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
-      const detail = `"${text}" ${params.layout === 'tiled' ? 'repeated across' : 'across'} ${plural(doc.pageCount, 'page')}${lockNote(relocked)}`;
+      const which = pages.length === n ? plural(n, 'page') : `${pages.length === 1 ? 'page' : 'pages'} ${PageSelection.describe(pages)}`;
+      const detail = `"${text}" ${params.layout === 'tiled' ? 'repeated across' : 'across'} ${which}${lockNote(relocked)}`;
       return store(ctx, 'watermark', [input], `${baseName(input.name)} watermarked.pdf`, bytes, detail);
     });
   },
@@ -67,7 +131,8 @@ export const pageNumbersOp: Op<PageNumbersParams> = {
         doc.stampText(i, { text: numberText(params.format, start + i - skip, last), anchor: params.position as Anchor, size: 10, color: INK, margin: 28 });
       }
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
-      const detail = (skip ? `Pages 2 to ${doc.pageCount} numbered ${start} to ${last}; cover left blank` : `Numbered ${start} to ${last}`) + lockNote(relocked);
+      const numbers = start === last ? `numbered ${start}` : `numbered ${start} to ${last}`;
+      const detail = (skip ? `${doc.pageCount === 2 ? 'Page 2' : `Pages 2 to ${doc.pageCount}`} ${numbers}; cover left blank` : `${numbers.charAt(0).toUpperCase()}${numbers.slice(1)}`) + lockNote(relocked);
       return store(ctx, 'page-numbers', [input], `${baseName(input.name)} numbered.pdf`, bytes, detail);
     });
   },
@@ -83,11 +148,12 @@ async function batesNumbers(inputs: readonly FoolscapFile[], params: PageNumbers
   const prefix = (params.prefix ?? '').replace(/[\r\n\t]+/g, ' ').slice(0, 40);
   const digits = Math.min(12, Math.max(1, Math.floor(params.digits ?? 6)));
   let next = start;
+  const pictures = new Map<string, Promise<{ png: Uint8Array; width: number; height: number } | null>>();
   return forEachPdf(inputs, ctx, async (doc, input) => {
     const first = next;
     for (let i = 0; i < doc.pageCount; i++) {
       checkCancelled(ctx.signal);
-      doc.stampText(i, { text: `${prefix}${String(next).padStart(digits, '0')}`, anchor: params.position as Anchor, size: 9, color: INK, margin: 22 });
+      await stampWords(doc, i, { text: `${prefix}${String(next).padStart(digits, '0')}`, anchor: params.position as Anchor, size: 9, color: INK, margin: 22 }, pictures);
       next++;
     }
     const from = `${prefix}${String(first).padStart(digits, '0')}`;
@@ -123,18 +189,23 @@ export const headerFooterOp: Op<HeaderFooterParams> = {
       return inputs.map((input) => refused([input], 'Type a header, a footer, or both.'));
     }
     const date = today();
+    const footerAlign = params.footerAlign ?? params.align;
+    const pictures = new Map<string, Promise<{ png: Uint8Array; width: number; height: number } | null>>();
     return forEachPdf(inputs, ctx, async (doc, input) => {
       const name = baseName(input.name);
-      for (let i = 0; i < doc.pageCount; i++) {
+      // A cover is left plain when asked, unless it is the only page.
+      const from = params.skipFirst === true && doc.pageCount > 1 ? 1 : 0;
+      for (let i = from; i < doc.pageCount; i++) {
         checkCancelled(ctx.signal);
         const values = { page: i + 1, total: doc.pageCount, date, name };
-        if (header) doc.stampText(i, { text: fillTokens(header, values), anchor: `top-${params.align}` as Anchor, size: 9, color: INK, margin: 24 });
-        if (footer) doc.stampText(i, { text: fillTokens(footer, values), anchor: `bottom-${params.align}` as Anchor, size: 9, color: INK, margin: 24 });
+        if (header) await stampWords(doc, i, { text: fillTokens(header, values), anchor: `top-${params.align}` as Anchor, size: 9, color: INK, margin: 24 }, pictures);
+        if (footer) await stampWords(doc, i, { text: fillTokens(footer, values), anchor: `bottom-${footerAlign}` as Anchor, size: 9, color: INK, margin: 24 }, pictures);
       }
       const which = header && footer ? 'Header and footer' : header ? 'Header' : 'Footer';
       const suffix = header && footer ? 'with header and footer' : header ? 'with header' : 'with footer';
+      const where = from === 1 ? `${doc.pageCount === 2 ? 'page 2' : `pages 2 to ${doc.pageCount}`}; the first page left plain` : plural(doc.pageCount, 'page');
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
-      return store(ctx, 'header-footer', [input], `${name} ${suffix}.pdf`, bytes, `${which} on ${plural(doc.pageCount, 'page')}${lockNote(relocked)}`);
+      return store(ctx, 'header-footer', [input], `${name} ${suffix}.pdf`, bytes, `${which} on ${where}${lockNote(relocked)}`);
     });
   },
 };

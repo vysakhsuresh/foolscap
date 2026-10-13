@@ -47,12 +47,21 @@ export interface DrawCall {
 const WHITE = new Set([0x00, 0x09, 0x0a, 0x0c, 0x0d, 0x20]);
 const DELIM = new Set([0x28, 0x29, 0x3c, 0x3e, 0x5b, 0x5d, 0x7b, 0x7d, 0x2f, 0x25]);
 
-/** Every `Do` in `bytes`, in order, with the position it draws at. */
-export function drawCalls(bytes: Uint8Array): DrawCall[] {
-  const out: DrawCall[] = [];
+/** One operand before an operator: a number, a name (without its slash), or '' for anything else; and where it starts. */
+interface Operand {
+  readonly value: number | string;
+  readonly start: number;
+}
+
+/**
+ * Reads `bytes` operator by operator, following q/Q and cm, and calls
+ * `visit` with each operator, its operands, where the operator itself sits
+ * in the bytes, and the drawing position then. `visit` returns false to stop.
+ */
+function scan(bytes: Uint8Array, visit: (op: string, operands: readonly Operand[], at: { start: number; end: number }, ctm: Matrix) => boolean | void): void {
   const stack: Matrix[] = [];
   let ctm: Matrix = IDENTITY;
-  const operands: Array<{ value: number | string; start: number }> = [];
+  const operands: Operand[] = [];
   let i = 0;
   const n = bytes.length;
   const text = (from: number, to: number) => String.fromCharCode(...bytes.subarray(from, to));
@@ -138,6 +147,7 @@ export function drawCalls(bytes: Uint8Array): DrawCall[] {
       operands.push({ value: num, start });
       continue;
     }
+    if (visit(word, operands, { start, end: i }, ctm) === false) return;
     switch (word) {
       case 'q':
         stack.push(ctm);
@@ -150,15 +160,10 @@ export function drawCalls(bytes: Uint8Array): DrawCall[] {
         if (m.length === 6) ctm = multiply(m as unknown as Matrix, ctm);
         break;
       }
-      case 'Do': {
-        const operand = operands[operands.length - 1];
-        if (operand && typeof operand.value === 'string' && operand.value !== '') out.push({ name: operand.value, start: operand.start, end: i, ctm });
-        break;
-      }
       case 'BI': {
         // An inline image: its data runs from ID to EI and may hold any bytes.
         const id = indexOfWord(bytes, 'ID', i);
-        if (id < 0) return out;
+        if (id < 0) return;
         const ei = findEI(bytes, id + 3);
         i = ei < 0 ? n : ei + 2;
         break;
@@ -168,7 +173,158 @@ export function drawCalls(bytes: Uint8Array): DrawCall[] {
     }
     operands.length = 0;
   }
+}
+
+/** Every `Do` in `bytes`, in order, with the position it draws at. */
+export function drawCalls(bytes: Uint8Array): DrawCall[] {
+  const out: DrawCall[] = [];
+  scan(bytes, (op, operands, at, ctm) => {
+    if (op !== 'Do') return;
+    const operand = operands[operands.length - 1];
+    if (operand && typeof operand.value === 'string' && operand.value !== '') out.push({ name: operand.value, start: operand.start, end: at.end, ctm });
+  });
   return out;
+}
+
+/**
+ * Where a page paints itself white before drawing anything else, as Chrome,
+ * Skia and many printers-to-PDF do: the fill operators (`f`, `f*`, `F`,
+ * `B`, `B*`, `b`, `b*`) of rectangles in white that cover most of `page`
+ * (in page space), up to the first words, picture, line or coloured fill.
+ * A colour put behind such a page would never show; Page background turns
+ * these fills off instead, byte for byte, so nothing else moves.
+ */
+export function paperFills(
+  bytes: Uint8Array,
+  page: { readonly x: number; readonly y: number; readonly width: number; readonly height: number },
+): { fills: Array<{ start: number; end: number; op: string }>; drawing: boolean } {
+  const out: Array<{ start: number; end: number; op: string }> = [];
+  let drawing = false;
+  let white = false;
+  let box: [number, number, number, number] | null = null;
+  /** The path so far has more than rectangles in it. */
+  let shaped = false;
+  /** Corners of a path drawn with m and l (as pdf-lib draws a rectangle), in page space. */
+  let corners: Array<[number, number]> = [];
+  const lined = (): [number, number, number, number] | null => {
+    if (corners.length < 4) return null;
+    const xs = corners.map((p) => p[0]);
+    const ys = corners.map((p) => p[1]);
+    const b: [number, number, number, number] = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+    const onCorner = (p: [number, number]) => (Math.abs(p[0] - b[0]) < 0.5 || Math.abs(p[0] - b[2]) < 0.5) && (Math.abs(p[1] - b[1]) < 0.5 || Math.abs(p[1] - b[3]) < 0.5);
+    return corners.every(onCorner) ? b : null;
+  };
+  const nums = (operands: readonly Operand[], count: number): number[] | null => {
+    const tail = operands.slice(-count);
+    return tail.length === count && tail.every((o) => typeof o.value === 'number') ? tail.map((o) => o.value as number) : null;
+  };
+  scan(bytes, (op, operands, at, ctm) => {
+    switch (op) {
+      case 'g':
+      case 'rg': {
+        const v = nums(operands, op === 'g' ? 1 : 3);
+        white = v !== null && v.every((x) => x >= 0.97);
+        return;
+      }
+      case 'k': {
+        const v = nums(operands, 4);
+        white = v !== null && v.every((x) => x <= 0.03);
+        return;
+      }
+      case 'sc':
+      case 'scn': {
+        const v = operands.filter((o) => typeof o.value === 'number').map((o) => o.value as number);
+        white = (v.length === 1 || v.length === 3) && v.every((x) => x >= 0.97);
+        return;
+      }
+      case 'cs':
+        white = false;
+        return;
+      case 're': {
+        const v = nums(operands, 4);
+        if (v === null) {
+          drawing = true;
+          return false;
+        }
+        const [x, y, w, h] = v as [number, number, number, number];
+        const [x0, y0, x1, y1] = unitBox(multiply([w, 0, 0, h, x, y], ctm));
+        box = box === null ? [x0, y0, x1, y1] : [Math.min(box[0], x0), Math.min(box[1], y0), Math.max(box[2], x1), Math.max(box[3], y1)];
+        return;
+      }
+      case 'f':
+      case 'F':
+      case 'f*':
+      case 'B':
+      case 'B*':
+      case 'b':
+      case 'b*': {
+        if (corners.length > 0) {
+          const b = lined();
+          if (b === null) shaped = true;
+          else box = box === null ? b : [Math.min(box[0], b[0]), Math.min(box[1], b[1]), Math.max(box[2], b[2]), Math.max(box[3], b[3])];
+        }
+        const covered = box === null || shaped ? 0 : (Math.max(0, Math.min(box[2], page.x + page.width) - Math.max(box[0], page.x)) * Math.max(0, Math.min(box[3], page.y + page.height) - Math.max(box[1], page.y))) / (page.width * page.height);
+        box = null;
+        shaped = false;
+        corners = [];
+        // Anything but white paper over the page ends the search: from here on it is the page's own drawing.
+        if (!white || covered < 0.9) {
+          drawing = true;
+          return false;
+        }
+        out.push({ ...at, op });
+        return;
+      }
+      case 'n':
+        box = null;
+        shaped = false;
+        corners = [];
+        return;
+      case 'm':
+      case 'l': {
+        const v = nums(operands, 2);
+        if (v === null) {
+          shaped = true;
+          return;
+        }
+        const [x, y] = v as [number, number];
+        corners.push([x * ctm[0] + y * ctm[2] + ctm[4], x * ctm[1] + y * ctm[3] + ctm[5]]);
+        return;
+      }
+      case 'c':
+      case 'v':
+      case 'y':
+      case 'h':
+        // A path that is not a plain rectangle: not paper.
+        if (op !== 'h') shaped = true;
+        return;
+      case 'q':
+      case 'Q':
+      case 'cm':
+      case 'w':
+      case 'J':
+      case 'j':
+      case 'M':
+      case 'd':
+      case 'ri':
+      case 'i':
+      case 'gs':
+      case 'G':
+      case 'RG':
+      case 'K':
+      case 'CS':
+      case 'SC':
+      case 'SCN':
+      case 'W':
+      case 'W*':
+        return;
+      default:
+        // Words, pictures, strokes, shadings: the page's own drawing has begun.
+        drawing = true;
+        return false;
+    }
+  });
+  return { fills: out, drawing };
 }
 
 function decodeName(raw: string): string {

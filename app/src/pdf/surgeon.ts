@@ -57,6 +57,7 @@ import {
   degrees,
   rgb,
   type PDFFont,
+  type PDFImage,
   drawPage as drawPageOperators,
 } from '@cantoo/pdf-lib';
 import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './common';
@@ -67,7 +68,7 @@ import { readIdentity } from '../sign/identity';
 import { signPdf } from './sign-pdf';
 import { layoutFlow } from './surgeon-flow';
 import { srgbProfile } from './icc';
-import { drawCalls, invert, multiply, unitBox, type Matrix } from './content-stream';
+import { drawCalls, invert, multiply, paperFills, unitBox, type Matrix } from './content-stream';
 import { appendCopies, carryLabels, carryOutline, finishCopies, fitToPaper, formDefaults, rewriteOutline, type PendingLink } from './surgeon-pages';
 import {
   PdfError,
@@ -89,6 +90,8 @@ import {
   type PdfSurgeon,
   type RecompressedImage,
   type Rotation,
+  type AnswerPicture,
+  type TextFace,
   type TextStamp,
 } from './types';
 
@@ -323,6 +326,8 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
   let replaced = false;
   /** Tiled watermarks already drawn as a form, by what they say and the page size they cover. */
   const tiles = new Map<string, PDFRef>();
+  /** Pictures of words already embedded, so one drawn for every page goes into the file once. */
+  const pictures = new WeakMap<Uint8Array, PDFImage>();
   /** One object copier per source document, so what its pages share is copied into this one once. */
   const copiers = new WeakMap<PDFDocument, PDFObjectCopier>();
   /** Per source document: which of its pages are in this one's page tree, and as which copy. */
@@ -397,6 +402,25 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
     }
     return f;
   };
+  /** The built-in face nearest to `face`: the standard 14 cover sans, serif and fixed-width, each plain, bold, italic or both. */
+  const faces = new Map<StandardFonts, PDFFont>();
+  const fontFor = (face: TextFace | undefined): PDFFont => {
+    const b = face?.bold === true;
+    const i = face?.italic === true;
+    if (face === undefined || ((face.family ?? 'sans') === 'sans' && !i)) return font(b);
+    const table: Record<'sans' | 'serif' | 'mono', [StandardFonts, StandardFonts, StandardFonts, StandardFonts]> = {
+      sans: [StandardFonts.Helvetica, StandardFonts.HelveticaBold, StandardFonts.HelveticaOblique, StandardFonts.HelveticaBoldOblique],
+      serif: [StandardFonts.TimesRoman, StandardFonts.TimesRomanBold, StandardFonts.TimesRomanItalic, StandardFonts.TimesRomanBoldItalic],
+      mono: [StandardFonts.Courier, StandardFonts.CourierBold, StandardFonts.CourierOblique, StandardFonts.CourierBoldOblique],
+    };
+    const name = table[face.family ?? 'sans'][(b ? 1 : 0) + (i ? 2 : 0)] ?? StandardFonts.Helvetica;
+    let f = faces.get(name);
+    if (f === undefined) {
+      f = live().embedStandardFont(name);
+      faces.set(name, f);
+    }
+    return f;
+  };
 
   /**
    * pdf-lib does not refuse a character its font lacks: it draws an empty
@@ -455,12 +479,12 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const angle = stamp.angle ?? 0;
       let size = stamp.size;
       let margin = stamp.margin;
-      if (stamp.tiled !== true && angle === 0) {
+      if (stamp.tiled !== true) {
         // A small page (a till receipt, a card) gets a margin to match, and
-        // words that would still run off its edge are made smaller to fit.
+        // words that would still run off its edge, straight or turned, are
+        // made smaller to fit.
         margin = Math.min(stamp.margin ?? 36, Math.min(view.width, view.height) * 0.08);
-        const room = view.width - 2 * margin;
-        if (room > 0 && f.widthOfTextAtSize(text, size) > room) size = Math.max(1, (size * room) / f.widthOfTextAtSize(text, size));
+        size = fitted(view, angle, margin, size, (s) => [f.widthOfTextAtSize(text, s), f.heightAtSize(s, { descender: false })]);
       }
       const width = f.widthOfTextAtSize(text, size);
       const capHeight = f.heightAtSize(size, { descender: false });
@@ -512,6 +536,55 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
           rotate: degrees(angle + view.rotation),
         });
       }
+    },
+
+    canDraw(text) {
+      drawable ??= new Set(font(false).getCharacterSet());
+      return [...text].every((ch) => ch === '\n' || drawable?.has(ch.codePointAt(0) ?? 0));
+    },
+
+    async stampPicture(index, stamp) {
+      const page = pageAt(index);
+      const view = viewOf(page);
+      const angle = stamp.angle ?? 0;
+      let { width, height } = stamp;
+      if (!(width > 0 && height > 0)) return;
+      let margin = stamp.margin;
+      if (stamp.tiled !== true) {
+        margin = Math.min(stamp.margin ?? 36, Math.min(view.width, view.height) * 0.08);
+        const k = fitted(view, angle, margin, 1, (s) => [width * s, height * s]);
+        width *= k;
+        height *= k;
+      }
+      let image = pictures.get(stamp.png);
+      if (image === undefined) {
+        image = await live().embedPng(stamp.png);
+        pictures.set(stamp.png, image);
+      }
+      const rad = (angle * Math.PI) / 180;
+      const opacity = stamp.opacity ?? 1;
+      const placed = { ...stamp, ...(margin === undefined ? {} : { margin }) };
+      const centres = stamp.tiled === true ? tileCentres(view, width, height / 1.35) : [anchorCentre(view, { ...placed, text: '', size: 0 }, width, height)];
+      // The same as the words would be: the picture's own corner, turned about its centre, upright as the reader sees the page.
+      const operators = [pushGraphicsState(), setGraphicsState('GS0')];
+      for (const [cx, cy] of centres) {
+        const vx = cx - (Math.cos(rad) * width) / 2 + (Math.sin(rad) * height) / 2;
+        const vy = cy - (Math.sin(rad) * width) / 2 - (Math.cos(rad) * height) / 2;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        operators.push(pushGraphicsState(), concatTransformationMatrix(width * cos, width * sin, -height * sin, height * cos, vx, vy), drawObject('Im0'), popGraphicsState());
+      }
+      operators.push(popGraphicsState());
+      const context = live().context;
+      // Drawn once into a form the page then draws, as a tiled watermark is: a couple of hundred copies stay one picture.
+      const form = context.register(
+        context.formXObject(operators, {
+          BBox: [Math.min(0, -view.width), Math.min(0, -view.height), view.width * 2, view.height * 2],
+          Resources: { XObject: { Im0: image.ref }, ExtGState: { GS0: { Type: 'ExtGState', ca: opacity, CA: opacity } } },
+        }),
+      );
+      const name = page.node.newXObject('Wp', form);
+      page.pushOperators(pushGraphicsState(), concatTransformationMatrix(...view.matrix()), drawObject(name), popGraphicsState());
     },
 
     addBlankPage(width, height) {
@@ -592,9 +665,34 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const [r, g, b] = color;
       const n = (v: number) => Math.min(1, Math.max(0, v)).toFixed(4);
       const paint = d.context.register(d.context.flateStream(`q ${n(r)} ${n(g)} ${n(b)} rg ${x} ${y} ${width} ${height} re f Q\n`));
-      // First in the page's contents, so everything already there is drawn over it.
       page.node.normalize();
       const contents = page.node.Contents();
+      // A page that paints itself white before anything else (as browsers print) would hide the
+      // colour: those white fills are turned off, byte for byte, so the colour shows and nothing else moves.
+      if (contents instanceof PDFArray) {
+        const visible = page.getCropBox();
+        for (let k = 0; k < contents.size(); k++) {
+          const ref = contents.get(k);
+          const stream = ref instanceof PDFRef ? d.context.lookup(ref) : ref;
+          if (!(stream instanceof PDFRawStream || stream instanceof PDFContentStream)) break;
+          const bytes = stream instanceof PDFRawStream ? decodePDFRawStream(stream).decode() : stream.getUnencodedContents();
+          const { fills, drawing } = paperFills(bytes, visible);
+          if (fills.length === 0) {
+            // Only "q" and settings so far (pdf-lib opens an edited page that way): look on.
+            if (drawing) break;
+            continue;
+          }
+          const patched = new Uint8Array(bytes);
+          const off: Record<string, string> = { f: 'n', F: 'n', 'f*': 'n ', B: 'S', 'B*': 'S ', b: 's', 'b*': 's ' };
+          for (const fill of fills) {
+            const word = off[fill.op] ?? 'n';
+            for (let c = 0; c < word.length; c++) patched[fill.start + c] = word.charCodeAt(c);
+          }
+          contents.set(k, d.context.register(d.context.flateStream(patched)));
+          if (drawing) break;
+        }
+      }
+      // First in the page's contents, so everything already there is drawn over it.
       if (contents instanceof PDFArray) contents.insert(0, paint);
       else page.node.addContentStream(paint);
     },
@@ -864,7 +962,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
             break;
           }
           case 'text': {
-            const f = font(false);
+            const f = fontFor(mark.face);
             const lines = mark.text.replace(/\r\n?/g, '\n').replace(/\t/g, ' ').split('\n');
             assertDrawable(f, lines.join(''));
             const size = mark.size * W;
@@ -1137,22 +1235,26 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       return { scripts: removed.scripts, attachments: removed.attachments, fontsMissing: countUnembeddedFonts(d) };
     },
 
-    fillForm(values, seal) {
+    async fillForm(values, seal, pictures) {
       const d = live();
       const form = d.getForm();
       const f = font(false);
       let matched = 0;
+      /** Fields shown with a picture of their answer: their appearance is ours, not pdf-lib's. */
+      const pictured: Array<{ field: PDFTextField | PDFDropdown; lines: readonly AnswerPicture[] }> = [];
       for (const [name, value] of Object.entries(values)) {
         const field = form.getFieldMaybe(name);
         if (field === undefined) continue;
         matched++;
         if (field instanceof PDFTextField) {
           const text = typeof value === 'string' ? value : '';
-          assertDrawable(f, text.replace(/\n/g, ''));
           const max = field.getMaxLength();
-          if (max !== undefined && text.length > max) {
+          if (max !== undefined && [...text].length > max) {
             throw new PdfError(`One answer is longer than its box allows (${max} characters). Shorten it and try again.`, 'unknown');
           }
+          const lines = pictures?.get(name);
+          if (!self.canDraw(text) && lines !== undefined && lines.length > 0) pictured.push({ field, lines });
+          else assertDrawable(f, text.replace(/\n/g, ''));
           field.setText(text.length > 0 ? text : undefined);
         } else if (field instanceof PDFCheckBox) {
           if (value === true) field.check();
@@ -1163,11 +1265,19 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         } else if (field instanceof PDFDropdown || field instanceof PDFOptionList) {
           if (typeof value === 'string' && value.length > 0) {
             const options = field.getOptions();
-            if (options.includes(value)) field.select(value);
+            if (options.includes(value)) {
+              field.select(value);
+              const lines = pictures?.get(name);
+              if (field instanceof PDFDropdown && !self.canDraw(value) && lines !== undefined && lines.length > 0) pictured.push({ field, lines });
+            }
           } else if (value === '') {
             field.clear();
           }
         }
+      }
+      for (const { field, lines } of pictured) {
+        await pictureAppearance(d, field, lines);
+        form.markFieldAsClean(field.ref);
       }
       try {
         form.updateFieldAppearances(f);
@@ -1372,6 +1482,54 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
   return self;
 }
 
+/**
+ * A field's look made from pictures of its answer, one per line, for letters
+ * the PDF fonts cannot draw: left-aligned with a little air, a single line
+ * centred in its box and shrunk to fit it, several lines from the top. Every
+ * reader shows it, and sealing draws it into the page.
+ */
+async function pictureAppearance(doc: PDFDocument, field: PDFTextField | PDFDropdown, lines: readonly AnswerPicture[]): Promise<void> {
+  const images: PDFImage[] = [];
+  for (const line of lines) images.push(await doc.embedPng(line.png));
+  const multiline = field instanceof PDFTextField && field.isMultiline();
+  for (const widget of field.acroField.getWidgets()) {
+    const { width: w, height: h } = widget.getRectangle();
+    const pad = 2;
+    // Points per pixel: words about as tall as pdf-lib would size them, never wider than the box.
+    let size = multiline ? Math.min(12, (h - 2 * pad) / (lines.length * 1.25)) : Math.min(12, (h - 2 * pad) * 0.62);
+    const widest = Math.max(...lines.map((l) => l.width / l.size));
+    if (widest * size > w - 2 * pad) size = (w - 2 * pad) / widest;
+    // The field's own background and border, as its other fields show them.
+    const look = widget.getAppearanceCharacteristics();
+    const colour = (c: number[] | undefined, fill: boolean): string | null => {
+      if (c === undefined || c.length === 0) return null;
+      const n = (v: number | undefined) => (v ?? 0).toFixed(3);
+      if (c.length === 1) return `${n(c[0])} ${fill ? 'g' : 'G'}`;
+      if (c.length === 4) return `${n(c[0])} ${n(c[1])} ${n(c[2])} ${n(c[3])} ${fill ? 'k' : 'K'}`;
+      return `${n(c[0])} ${n(c[1])} ${n(c[2])} ${fill ? 'rg' : 'RG'}`;
+    };
+    const operators: string[] = [];
+    const background = colour(look?.getBackgroundColor(), true);
+    if (background) operators.push(`q ${background} 0 0 ${w.toFixed(3)} ${h.toFixed(3)} re f Q`);
+    const border = colour(look?.getBorderColor(), false);
+    const bw = widget.getBorderStyle()?.getWidth() ?? 1;
+    if (border && bw > 0) operators.push(`q ${border} ${bw} w ${bw / 2} ${bw / 2} ${(w - bw).toFixed(3)} ${(h - bw).toFixed(3)} re S Q`);
+    operators.push('/Tx BMC', 'q');
+    const xobjects: Record<string, PDFRef> = {};
+    lines.forEach((line, i) => {
+      const k = size / line.size;
+      const lw = line.width * k;
+      const lh = line.height * k;
+      const y = multiline ? h - pad - (i + 1) * lh : (h - lh) / 2;
+      xobjects[`Ln${i}`] = images[i]!.ref;
+      operators.push(`q ${lw.toFixed(3)} 0 0 ${lh.toFixed(3)} ${pad} ${y.toFixed(3)} cm /Ln${i} Do Q`);
+    });
+    operators.push('Q', 'EMC');
+    const stream = doc.context.stream(operators.join('\n'), { Type: 'XObject', Subtype: 'Form', BBox: [0, 0, w, h], Resources: { XObject: xobjects } });
+    widget.setNormalAppearance(doc.context.register(stream));
+  }
+}
+
 function assertPermutation(order: readonly number[], pageCount: number): void {
   if (order.length !== pageCount) {
     throw new Error(`reorder needs exactly ${pageCount} indices, got ${order.length}.`);
@@ -1454,6 +1612,23 @@ function viewOf(page: PDFPage): PageView {
       }
     },
   };
+}
+
+/**
+ * The size at which something `measure(size)` = [width, height] across, turned
+ * `angle` degrees, fits on the page inside `margin`: `size` itself when it
+ * already does.
+ */
+function fitted(view: PageView, angle: number, margin: number, size: number, measure: (size: number) => [number, number]): number {
+  const rad = (angle * Math.PI) / 180;
+  const [w, h] = measure(size);
+  const across = Math.abs(Math.cos(rad)) * w + Math.abs(Math.sin(rad)) * h;
+  const down = Math.abs(Math.sin(rad)) * w + Math.abs(Math.cos(rad)) * h;
+  const roomX = view.width - 2 * margin;
+  const roomY = view.height - 2 * margin;
+  if (!(roomX > 0 && roomY > 0 && across > 0 && down > 0)) return size;
+  const k = Math.min(1, roomX / across, roomY / down);
+  return k < 1 ? Math.max(size * 0.01, size * k) : size;
 }
 
 function anchorCentre(view: PageView, stamp: TextStamp, width: number, capHeight: number): [number, number] {

@@ -250,7 +250,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
     }
 
     case 'watermark': {
-      const text = field('text', { label: 'Watermark text', value: 'DRAFT', hint: 'English letters and numbers for now.', spellcheck: true }, onChange);
+      const text = field('text', { label: 'Watermark text', value: 'DRAFT', hint: 'Any language: words the PDF fonts cannot draw go on as a picture of them.', spellcheck: true }, onChange);
       const strength = choices<WatermarkParams['strength']>(
         'strength',
         'Strength',
@@ -263,20 +263,34 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         onChange,
         'pills',
       );
+      const colour = choices<NonNullable<WatermarkParams['color']>>(
+        'wm-colour',
+        'Colour',
+        [
+          { value: 'grey', title: 'Grey' },
+          { value: 'red', title: 'Red' },
+          { value: 'blue', title: 'Blue' },
+        ],
+        'grey',
+        onChange,
+        'pills',
+      );
       const layout = choices<WatermarkParams['layout']>(
         'layout',
         'Layout',
         [
-          { value: 'once', title: 'Once, across the middle' },
+          { value: 'once', title: 'Once, diagonally' },
+          { value: 'straight', title: 'Once, straight across' },
           { value: 'tiled', title: 'Repeated all over' },
         ],
         'once',
         onChange,
         'pills',
       );
+      const pages = field('pages', { label: 'Pages', placeholder: 'All pages', hint: 'Leave empty for every page, or type 1-3, 7.' }, onChange);
       return {
-        root: group([text.root, strength.root, layout.root]),
-        params: (): WatermarkParams => ({ text: text.value(), strength: strength.value(), layout: layout.value() }),
+        root: group([text.root, strength.root, colour.root, layout.root, pages.root]),
+        params: (): WatermarkParams => ({ text: text.value(), strength: strength.value(), layout: layout.value(), color: colour.value(), pages: pages.value() }),
         problem: () => (text.value().trim() ? null : 'Type the watermark text.'),
       };
     }
@@ -332,28 +346,38 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
           skipFirst: skip.checked(),
           ...(format.value() === 'bates' ? { prefix: prefix.value(), digits: digits.number() } : {}),
         }),
-        problem: () => null,
+        problem: () => {
+          // An empty box reads as 0 to the browser; say so rather than quietly numbering from 0.
+          const first = start.value().trim();
+          if (!/^\d+$/.test(first) || Number(first) > 100000) return 'Type the first number: a whole number from 0 to 100,000.';
+          if (format.value() === 'bates' && !(/^\d+$/.test(digits.value().trim()) && digits.number() >= 1 && digits.number() <= 12)) return 'Type how many digits, from 1 to 12.';
+          return null;
+        },
       };
     }
 
     case 'header-footer': {
       const header = field('header', { label: 'Header', placeholder: 'e.g. CONFIDENTIAL', spellcheck: true }, onChange);
       const footer = field('footer', { label: 'Footer', placeholder: 'e.g. {name} – page {page} of {total}', spellcheck: true }, onChange);
-      const align = choices<HeaderFooterParams['align']>(
-        'align',
-        'Line up',
-        [
-          { value: 'left', title: 'Left' },
-          { value: 'center', title: 'Centre' },
-          { value: 'right', title: 'Right' },
-        ],
-        'center',
-        onChange,
-        'pills',
-      );
+      const lineUp = (name: string, legend: string) =>
+        choices<HeaderFooterParams['align']>(
+          name,
+          legend,
+          [
+            { value: 'left', title: 'Left' },
+            { value: 'center', title: 'Centre' },
+            { value: 'right', title: 'Right' },
+          ],
+          'center',
+          onChange,
+          'pills',
+        );
+      const align = lineUp('align', 'Header sits');
+      const footerAlign = lineUp('footer-align', 'Footer sits');
+      const skip = check('skip-first', 'Leave the first page plain', false, onChange, '(for a cover)');
       return {
-        root: group([header.root, footer.root, align.root, note('{page}, {total}, {date} and {name} are filled in for you. English letters and numbers for now.')]),
-        params: (): HeaderFooterParams => ({ header: header.value(), footer: footer.value(), align: align.value() }),
+        root: group([header.root, align.root, footer.root, footerAlign.root, skip.root, note('{page}, {total}, {date} and {name} (the file’s name) are filled in for you. Any language works: words the PDF fonts cannot draw go on as a picture of them.')]),
+        params: (): HeaderFooterParams => ({ header: header.value(), footer: footer.value(), align: align.value(), footerAlign: footerAlign.value(), skipFirst: skip.checked() }),
         problem: () => (header.value().trim() || footer.value().trim() ? null : 'Type a header, a footer, or both.'),
       };
     }

@@ -87,6 +87,9 @@ export function createEngineOn(host: Host): PdfEngine {
         wasmUrl: PDFJS_ASSETS + 'wasm/',
         iccUrl: PDFJS_ASSETS + 'iccs/',
         verbosity: VerbosityLevel.ERRORS,
+        // Without it pdf.js drops each font's real name ("Helvetica-Bold") on its way to
+        // this thread, and layout() could never tell bold, italic or a serif face.
+        fontExtraProperties: true,
         ...host.options,
         ...(opts?.password === undefined ? {} : { password: opts.password }),
       });

@@ -254,6 +254,18 @@ export interface TextStamp {
   readonly tiled?: boolean;
 }
 
+/**
+ * Words drawn as a picture (shaped by the browser), for letters the built-in
+ * fonts cannot draw: placed exactly as `stampText` would place the words.
+ */
+export interface PictureStamp extends Omit<TextStamp, 'text' | 'size' | 'bold'> {
+  /** A PNG of the words on a see-through ground, tight round them. */
+  readonly png: Uint8Array;
+  /** Its size on the page, in points, before any shrinking to fit. */
+  readonly width: number;
+  readonly height: number;
+}
+
 export type DocInfoField = 'title' | 'author' | 'subject' | 'keywords' | 'creator' | 'producer';
 export type DocInfo = Partial<Record<DocInfoField, string>>;
 
@@ -330,11 +342,34 @@ export interface Area {
 export type Rgb = readonly [number, number, number];
 
 /** Something drawn onto a page by Sign, Add text or Mark up. */
+/** How words look, as far as the built-in PDF fonts can say it. */
+export interface TextFace {
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly family?: 'sans' | 'serif' | 'mono';
+}
+
 export type Mark =
   /** A PNG (a signature, or text in a script the built-in font cannot draw) filling `area`. */
-  | { readonly kind: 'image'; readonly area: Area; readonly png: Uint8Array }
+  | {
+      readonly kind: 'image';
+      readonly area: Area;
+      readonly png: Uint8Array;
+      /** What the picture stands in for, when it is words in a script the PDF fonts cannot draw: so the result can say "1 stamp", not "1 picture". */
+      readonly stands?: 'stamp' | 'text' | 'text-box';
+    }
   /** Lines of text whose first line's top is the area's top; `size` is a fraction of the page width. */
-  | { readonly kind: 'text'; readonly area: Area; readonly text: string; readonly size: number; readonly color: Rgb; readonly boxed?: boolean; readonly align?: 'left' | 'right' }
+  | {
+      readonly kind: 'text';
+      readonly area: Area;
+      readonly text: string;
+      readonly size: number;
+      readonly color: Rgb;
+      readonly boxed?: boolean;
+      readonly align?: 'left' | 'right';
+      /** The nearest built-in face: Helvetica unless told, bold or italic, or Times or Courier for serif and fixed-width text. */
+      readonly face?: TextFace;
+    }
   /**
    * A see-through marker over `area`, multiplied so the words under it stay
    * dark; or, with `style`, a line under the words or through them.
@@ -455,6 +490,14 @@ export type FormField =
 /** What to put in a form: by field name, text for text and choices, true or false for checkboxes. */
 export type FormValues = Readonly<Record<string, string | boolean>>;
 
+/** One line of a form answer as a picture: `width` × `height` pixels, for words `size` pixels tall. */
+export interface AnswerPicture {
+  readonly png: Uint8Array;
+  readonly width: number;
+  readonly height: number;
+  readonly size: number;
+}
+
 /** A photo Compress made: always JPEG, three channels. */
 export interface RecompressedImage {
   readonly bytes: Uint8Array;
@@ -490,6 +533,10 @@ export interface PdfDoc {
   setVisibleBox(index: number, box: Box): void;
   /** Throws PdfError 'unsupported-text' when the built-in fonts cannot draw a character. */
   stampText(index: number, stamp: TextStamp): void;
+  /** Whether the built-in fonts can draw every character of `text`; when not, draw it with `stampPicture`. */
+  canDraw(text: string): boolean;
+  /** A picture of words, placed as `stampText` places words: for Malayalam, Hindi, Arabic, emoji. */
+  stampPicture(index: number, stamp: PictureStamp): Promise<void>;
   /** Appends an empty page. */
   addBlankPage(width: number, height: number): void;
   /**
@@ -550,11 +597,13 @@ export interface PdfDoc {
   replaceWithImage(index: number, jpeg: Uint8Array): Promise<void>;
   /**
    * Puts values into the form. `seal` flattens every field into the page so
-   * the answers can no longer be changed. Throws PdfError 'unsupported-text'
-   * for letters the form's font cannot draw.
+   * the answers can no longer be changed. An answer with letters the form's
+   * font cannot draw (Malayalam, Hindi…) is shown with `pictures` of it, one
+   * per line, drawn by the browser; the field still holds the words
+   * themselves. Without a picture such an answer throws PdfError
+   * 'unsupported-text'. Returns how many of `values` named a field this form has.
    */
-  /** Returns how many of `values` named a field this form has. */
-  fillForm(values: FormValues, seal: boolean): number;
+  fillForm(values: FormValues, seal: boolean, pictures?: ReadonlyMap<string, readonly AnswerPicture[]>): Promise<number>;
   /** Adds new fillable fields; names already taken get a number. Returns the names given. */
   addFields(fields: readonly NewField[]): string[];
   /**
