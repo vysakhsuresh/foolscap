@@ -78,9 +78,15 @@ export function pieces(text: string, size: number): string[] {
   return out;
 }
 
+/** More than this and the on-device model would take far too long; the status says when a document was cut short. */
+const MAX_PAGES = 300;
+
 export function createAiPanel(): AiPanel {
   let text = '';
   let pages = 0;
+  let total = 0;
+  /** "3 pages", or "the first 300 of 412 pages" when the document was longer than what is read. */
+  const howMany = () => (total > pages ? `the first ${pages} of ${total} pages` : `${pages} ${pages === 1 ? 'page' : 'pages'}`);
   const status = el('p', { class: 'options__note', testid: 'ai-status', attrs: { role: 'status', 'aria-live': 'polite' } });
   const summarise = el('button', { class: 'button', testid: 'ai-summarise', text: 'Summarise it', attrs: { type: 'button' } });
   const target = select<string>('ai-language', 'Translate into', LANGUAGES, 'en', () => undefined);
@@ -139,7 +145,7 @@ export function createAiPanel(): AiPanel {
         }
         const summary = notes.length > 1 ? await summarizer.summarize(notes.join('\n')) : (notes[0] ?? '');
         show(summary);
-        say(`The key points of ${pages} ${pages === 1 ? 'page' : 'pages'}, made on this device.`);
+        say(`The key points of ${howMany()}, made on this device.`);
       } finally {
         summarizer.destroy();
       }
@@ -183,7 +189,7 @@ export function createAiPanel(): AiPanel {
           done.push(await translator.translate(part));
           show(done.join('\n\n'));
         }
-        say(`Translated on this device, ${pages} ${pages === 1 ? 'page' : 'pages'}.`);
+        say(`Translated on this device, ${howMany()}.`);
       } finally {
         translator.destroy();
       }
@@ -207,9 +213,10 @@ export function createAiPanel(): AiPanel {
       say('Reading the words…');
       busy(true);
       try {
-        pages = view.pageCount;
+        total = view.pageCount;
+        pages = Math.min(total, MAX_PAGES);
         const all: string[] = [];
-        for (let i = 0; i < Math.min(view.pageCount, 300); i++) all.push(await view.text(i));
+        for (let i = 0; i < pages; i++) all.push(await view.text(i));
         text = all.join('\n\n').trim();
       } finally {
         await view.close();

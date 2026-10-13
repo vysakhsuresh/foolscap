@@ -242,7 +242,7 @@ describe('clean hidden data', () => {
     const h = harness();
     const input = await h.add('Offer.pdf', await leakyPdf());
     const out = only(await run('document-details', [input], { mode: 'clean', comments: true, attachments: true }, h.ctx));
-    expect(out.detail).toBe('Removed the title, author and hidden metadata, 1 script or action, 1 attached file and 1 comment');
+    expect(out.detail).toBe('Removed the title and author, 1 script or action, 1 attached file and 1 comment');
     const bytes = await h.bytesOf(out.file);
     const text = new TextDecoder('latin1').decode(bytes);
     expect(text).not.toMatch(/JavaScript|app\.alert|secret notes|R\. Menon|Draft v7/);
@@ -257,7 +257,7 @@ describe('clean hidden data', () => {
     const h = harness();
     const input = await h.add('Offer.pdf', await leakyPdf());
     const out = only(await run('document-details', [input], { mode: 'clean', comments: false, attachments: false }, h.ctx));
-    expect(out.detail).toBe('Removed the title, author and hidden metadata and 1 script or action');
+    expect(out.detail).toBe('Removed the title and author and 1 script or action');
     await withPdfJs(await h.bytesOf(out.file), async (doc) => {
       expect((await doc.getAttachments())?.size).toBe(1);
       expect(await (await doc.getPage(1)).getAnnotations()).toHaveLength(1);

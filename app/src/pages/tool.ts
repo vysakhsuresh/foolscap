@@ -219,7 +219,10 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
       delete entry.errorCode;
       if (grid && entries[0] === entry) await grid.load(view);
       else if (panel && entries[0] === entry) await panel.load(view);
-      else await view.close();
+      else {
+        if (options?.load && entries[0] === entry) await options.load(view).catch((error: unknown) => devlog('options', error));
+        await view.close();
+      }
     } catch (error) {
       if (error instanceof PdfError) {
         entry.error = error.message;

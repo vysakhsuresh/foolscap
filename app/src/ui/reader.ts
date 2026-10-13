@@ -73,7 +73,8 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   thenMenu.hidden = true;
   const thenButton = el('button', { class: 'button button--small', testid: 'reader-then', text: 'Then…', attrs: { type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false' } });
   if (handoff) {
-    for (const t of LIVE_TOOLS.filter((t) => t.input === 'one-pdf' || t.input === 'several-pdfs').filter((t) => t.id !== 'read')) {
+    // Every tool that takes a PDF, Attachments (a PDF first, then files) included.
+    for (const t of LIVE_TOOLS.filter((t) => t.input === 'one-pdf' || t.input === 'several-pdfs' || t.input === 'pdf-and-files').filter((t) => t.id !== 'read')) {
       thenMenu.append(
         el('button', { testid: `then-${t.id}`, attrs: { type: 'button', role: 'menuitem' }, on: { click: () => handoff(t.id) } }, [t.title, el('span', { attrs: { 'aria-hidden': 'true' }, text: '→' })]),
       );

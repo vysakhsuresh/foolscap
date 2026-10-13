@@ -373,6 +373,18 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
       return out;
     },
 
+    async details() {
+      const { info } = await live().getMetadata();
+      const raw = (info ?? {}) as Record<string, unknown>;
+      const out: Partial<Record<'title' | 'author' | 'subject' | 'keywords', string>> = {};
+      const keys = { title: 'Title', author: 'Author', subject: 'Subject', keywords: 'Keywords' } as const;
+      for (const [field, key] of Object.entries(keys) as Array<[keyof typeof keys, string]>) {
+        const value = raw[key];
+        if (typeof value === 'string' && value.trim() !== '') out[field] = value.trim();
+      }
+      return out;
+    },
+
     async outline() {
       const current = live();
       const raw = (await current.getOutline()) as readonly RawOutline[] | null;

@@ -418,7 +418,7 @@ describe('document details', () => {
     const h = harness();
     const input = await h.add('CV.pdf', await pagesPdf(1));
     const out = only(await run('document-details', [input], { mode: 'edit', title: 'My CV', author: 'A. Person', subject: '', keywords: '' }, h.ctx));
-    expect(out.detail).toBe('Updated the title and author');
+    expect(out.detail).toBe('Set the title and author');
     const doc = await PDFDocument.load(await h.bytesOf(out.file), { updateMetadata: false });
     expect(doc.getTitle()).toBe('My CV');
     expect(doc.getAuthor()).toBe('A. Person');

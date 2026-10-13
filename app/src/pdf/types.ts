@@ -152,6 +152,8 @@ export interface PdfView {
    * (rotated or vertical) is left out.
    */
   layout(index: number): Promise<PageLayout>;
+  /** The title, author, subject and keywords the document gives itself, where it gives them. */
+  details(): Promise<Readonly<Partial<Record<'title' | 'author' | 'subject' | 'keywords', string>>>>;
   /** The document's own table of contents (bookmarks), with the page each entry opens. Empty when it has none. */
   outline(): Promise<readonly OutlineItem[]>;
   /** The comments a reader lists (notes, highlights, stamps…), in page order. Links and form fields are not comments. */
@@ -204,9 +206,13 @@ export type LinePainter = (
 ) => Promise<{ png: Uint8Array; width: number; height: number } | null>;
 
 export interface CertificateSignOptions {
-  /** Show the signature at the foot of the last page; otherwise it is invisible. */
+  /** Show the signature at the foot of a page; otherwise it is invisible. */
   readonly visible: boolean;
+  /** Which page carries it: the last (where a signature is looked for) unless the first is asked for. */
+  readonly page?: 'first' | 'last';
   readonly reason?: string;
+  /** Where it was signed, as a reader's signature panel shows it ("Kochi"). */
+  readonly location?: string;
 }
 
 export type CertificateSignResult =
@@ -312,6 +318,20 @@ export interface CleanReport {
   readonly attachments: number;
   readonly comments: number;
   readonly metadata: boolean;
+  /** What the metadata strip found, when `metadata` was asked for. */
+  readonly stripped?: StripReport;
+}
+
+/** What `stripMetadata` found and took out. */
+export interface StripReport {
+  /** XMP packets: the document's own and any on pages, pictures or fonts. */
+  readonly xmp: number;
+  /** JPEG photos that carried camera details (Exif, XMP, IPTC or a comment). */
+  readonly photos: number;
+  /** Places an editing program left private data (/PieceInfo). */
+  readonly privateData: number;
+  /** Stored page thumbnails, pictures of how a page once looked. */
+  readonly thumbnails: number;
 }
 
 /** An image embedded in a document, as a file a person can open. */
@@ -526,6 +546,12 @@ export interface PdfDoc {
    * document says how many, because the person did not ask for fewer pages.
    */
   readonly missingPages: number;
+  /**
+   * Whether the file this was opened from carried a digital signature. Any
+   * change saved here rewrites the file, so that signature no longer checks
+   * out in the copy; a tool says so rather than let it be found out later.
+   */
+  readonly signed: boolean;
   pages(): readonly PageInfo[];
   /** The visible area of a page: its CropBox, or its MediaBox when it has none. */
   visibleBox(index: number): Box;
@@ -625,10 +651,20 @@ export interface PdfDoc {
     signal?: AbortSignal,
   ): Promise<CompressReport>;
   info(): DocInfo;
-  /** Sets the fields given; an empty string removes that field. */
-  setInfo(info: DocInfo): void;
-  /** Removes every Info field and the XMP metadata stream. */
-  stripMetadata(): void;
+  /**
+   * Sets the fields given; an empty string removes that field. The document's
+   * XMP copy of its details would still say the old ones, and readers that
+   * prefer XMP would show them, so it goes too; true when there was one.
+   */
+  setInfo(info: DocInfo): boolean;
+  /**
+   * Removes every Info field and every XMP packet (the document's, and any a
+   * page, picture or font carries), the private data editing programs leave
+   * (/PieceInfo), stored page thumbnails, and the camera details inside JPEG photos (Exif, with the
+   * place and time a phone records; XMP; IPTC; comments), byte for byte
+   * without re-encoding the picture.
+   */
+  stripMetadata(): StripReport;
   /**
    * Appends copies of `source`'s pages `indices`, in the order given. The same
    * index may appear twice; a page may be copied from a document into itself.

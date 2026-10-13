@@ -40,6 +40,7 @@ import {
   setStrokingRgbColor,
   stroke,
   PDFArray,
+  PDFCatalog,
   PDFContentStream,
   PDFDict,
   PDFDocument,
@@ -48,9 +49,13 @@ import {
   PDFName,
   PDFNumber,
   PDFObjectCopier,
+  PDFObjectParser,
   PDFPage,
+  PDFPageLeaf,
+  PDFPageTree,
   PDFRawStream,
   PDFRef,
+  PDFStream,
   PDFString,
   StandardFonts,
   decodePDFRawStream,
@@ -65,7 +70,7 @@ import { zlibSync } from 'fflate';
 import { pngFromIdat, pngFromPixels } from './png';
 import { signDetached } from '../sign/cms';
 import { readIdentity } from '../sign/identity';
-import { signPdf } from './sign-pdf';
+import { hasSignatures, signPdf } from './sign-pdf';
 import { layoutFlow } from './surgeon-flow';
 import { srgbProfile } from './icc';
 import { drawCalls, invert, multiply, paperFills, unitBox, type Matrix } from './content-stream';
@@ -89,6 +94,7 @@ import {
   type PdfDoc,
   type PdfSurgeon,
   type RecompressedImage,
+  type StripReport,
   type Rotation,
   type AnswerPicture,
   type TextFace,
@@ -114,14 +120,16 @@ export function createSurgeon(): PdfSurgeon {
       probe.close();
       const date = new Date();
       const reason = opts.reason?.trim();
+      const location = opts.location?.trim();
       const bytes = await signPdf(
         pdf,
         {
-          page: pages - 1,
+          page: opts.page === 'first' ? 0 : pages - 1,
           name: identity.subject,
           date,
           ...(reason ? { reason } : {}),
-          // Bottom right of the last page, where a signature is looked for.
+          ...(location ? { location } : {}),
+          // Bottom right of the page, where a signature is looked for.
           ...(opts.visible ? { area: { x: 0.52, y: 0.84, w: 0.42, h: 0.1 } } : {}),
         },
         (data) => signDetached(identity, data, date),
@@ -175,7 +183,36 @@ async function load(data: Uint8Array, password: string | undefined): Promise<PDF
   }
 }
 
+/**
+ * pdf-lib decrypts a literal string, "(…)", into a PDFString holding the
+ * plain bytes as they are, when a PDFString is meant to hold the string as
+ * written, escapes and all. Saved again, a plain "(" or "\\" in a title or a
+ * note (and in UTF-16 text such bytes are everywhere) unbalances the
+ * brackets, and the unlocked file is damaged or its words changed. So a
+ * decrypted literal comes back as a hex string of exactly its bytes, which
+ * needs no escaping. Only strings the parser actually decrypted are touched:
+ * those it reads with a cipher and an object number, never those inside an
+ * object stream, which arrive already plain and escaped.
+ */
+let decryptedLiteralsFixed = false;
+function fixDecryptedLiterals(): void {
+  if (decryptedLiteralsFixed) return;
+  decryptedLiteralsFixed = true;
+  type Parser = { readonly cryptoFactory?: unknown; parseString(ref?: PDFRef): PDFString | PDFHexString };
+  const proto = PDFObjectParser.prototype as unknown as Parser;
+  const original = proto.parseString;
+  proto.parseString = function (this: Parser, ref?: PDFRef) {
+    const value = original.call(this, ref);
+    if (!this.cryptoFactory || ref === undefined || !(value instanceof PDFString)) return value;
+    const raw = value.asString();
+    let hex = '';
+    for (let i = 0; i < raw.length; i++) hex += (raw.charCodeAt(i) & 0xff).toString(16).padStart(2, '0');
+    return PDFHexString.of(hex);
+  };
+}
+
 async function loadOnce(data: Uint8Array, password: string | undefined): Promise<PDFDocument> {
+  fixDecryptedLiterals();
   try {
     return await PDFDocument.load(data, { updateMetadata: false, ...(password === undefined ? {} : { password }) });
   } catch (error) {
@@ -304,6 +341,174 @@ function repairPageTree(doc: PDFDocument): number {
 }
 
 /**
+ * pdf-lib encrypts streams but never strings. Inside an object stream that
+ * does not matter, because the whole stream is encrypted; but the objects it
+ * writes outside one (the catalog, the page tree and every page, stream
+ * dictionaries, signature dictionaries, anything with a non-zero generation)
+ * keep their strings in plain text, and a reader, which decrypts every string
+ * it meets, turns each of them into garbage: an attachment's name, a page
+ * label's prefix, the text of a note or a link written straight into a page.
+ * So, just before a save with a password, every string in exactly those
+ * objects is encrypted the way the writer encrypts a stream, and the plain
+ * strings are put back afterwards. The list mirrors PDFStreamWriter's own
+ * test for what stays out of an object stream; the /Encrypt dictionary is
+ * left alone, as the standard says.
+ */
+function encryptLooseStrings(doc: PDFDocument): () => void {
+  const { context } = doc;
+  const security = context.security;
+  if (security === undefined) return () => undefined;
+  const undo: Array<() => void> = [];
+  const sealed = (value: PDFString | PDFHexString, seal: (bytes: Uint8Array) => Uint8Array): PDFHexString => {
+    const bytes = seal(value.asBytes());
+    let hex = '';
+    for (const byte of bytes) hex += byte.toString(16).padStart(2, '0');
+    return PDFHexString.of(hex);
+  };
+  const walk = (value: unknown, seal: (bytes: Uint8Array) => Uint8Array, depth: number): void => {
+    if (depth > 64) return;
+    if (value instanceof PDFDict) {
+      for (const [key, inner] of value.entries()) {
+        if (inner instanceof PDFString || inner instanceof PDFHexString) {
+          value.set(key, sealed(inner, seal));
+          undo.push(() => value.set(key, inner));
+        } else {
+          walk(inner, seal, depth + 1);
+        }
+      }
+    } else if (value instanceof PDFArray) {
+      for (let i = 0; i < value.size(); i++) {
+        const inner = value.get(i);
+        if (inner instanceof PDFString || inner instanceof PDFHexString) {
+          value.set(i, sealed(inner, seal));
+          undo.push(() => value.set(i, inner));
+        } else {
+          walk(inner, seal, depth + 1);
+        }
+      }
+    }
+  };
+  const encryptRef = context.trailerInfo.Encrypt;
+  for (const [ref, object] of context.enumerateIndirectObjects()) {
+    if (ref === encryptRef || object instanceof PDFInvalidObject) continue;
+    const loose =
+      object instanceof PDFStream ||
+      object instanceof PDFCatalog ||
+      object instanceof PDFPageTree ||
+      object instanceof PDFPageLeaf ||
+      ref.generationNumber !== 0 ||
+      (object instanceof PDFDict && object.lookup(PDFName.of('Type')) === PDFName.of('Sig'));
+    if (!loose) continue;
+    if (object instanceof PDFRawStream && object.dict.lookup(PDFName.of('Type')) === PDFName.of('XRef')) continue;
+    const seal = security.getEncryptFn(ref.objectNumber, ref.generationNumber);
+    walk(object instanceof PDFStream ? object.dict : object, seal, 0);
+  }
+  return () => {
+    for (let i = undo.length - 1; i >= 0; i--) undo[i]!();
+  };
+}
+
+/**
+ * Every XMP packet and every /PieceInfo, wherever it hangs (the catalog, a
+ * page, a picture, a font, a form), and the camera details inside each JPEG.
+ * The objects themselves are deleted, not only unlinked: pdf-lib writes every
+ * object it holds.
+ */
+function stripHiddenMetadata(doc: PDFDocument): StripReport {
+  const { context } = doc;
+  let xmp = 0;
+  let privateData = 0;
+  let photos = 0;
+  let thumbnails = 0;
+  const strip = (dict: PDFDict): void => {
+    const metadata = dict.get(PDFName.of('Metadata'));
+    if (metadata !== undefined) {
+      const target = metadata instanceof PDFRef ? context.lookup(metadata) : metadata;
+      if (target instanceof PDFStream || target instanceof PDFDict) {
+        if (metadata instanceof PDFRef) context.delete(metadata);
+        dict.delete(PDFName.of('Metadata'));
+        xmp++;
+      }
+    }
+    if (dict.has(PDFName.of('PieceInfo'))) {
+      dict.delete(PDFName.of('PieceInfo'));
+      privateData++;
+    }
+    // A page's stored thumbnail is a picture of how it once looked, which may be before an edit.
+    if (dict.has(PDFName.of('Thumb')) && dict.lookup(PDFName.of('Type')) === PDFName.of('Page')) {
+      const thumb = dict.get(PDFName.of('Thumb'));
+      if (thumb instanceof PDFRef) context.delete(thumb);
+      dict.delete(PDFName.of('Thumb'));
+      thumbnails++;
+    }
+  };
+  for (const [ref, object] of context.enumerateIndirectObjects()) {
+    if (object instanceof PDFDict) strip(object);
+    else if (object instanceof PDFRawStream) {
+      strip(object.dict);
+      const clean = withoutCameraDetails(object);
+      if (clean !== null) {
+        context.assign(ref, PDFRawStream.of(object.dict, clean));
+        photos++;
+      }
+    } else if (object instanceof PDFStream) strip(object.dict);
+  }
+  return { xmp, photos, privateData, thumbnails };
+}
+
+/**
+ * A JPEG with its APP1 (Exif and XMP: the camera, the time and often the
+ * place), APP13 (Photoshop's IPTC) and COM segments cut out, or null when it
+ * has none or is not a plain JPEG. Only the bytes before the picture data are
+ * touched, so the picture is exactly what it was; APP0, APP2 (the colour
+ * profile) and APP14 (Adobe's colour transform) stay, because they change
+ * how it looks.
+ */
+export function withoutCameraDetails(stream: PDFRawStream): Uint8Array | null {
+  const dict = stream.dict;
+  if (dict.lookup(PDFName.of('Subtype')) !== PDFName.of('Image')) return null;
+  const filter = dict.lookup(PDFName.of('Filter'));
+  const only = filter instanceof PDFArray && filter.size() === 1 ? filter.lookup(0) : filter;
+  if (only !== PDFName.of('DCTDecode')) return null;
+  return jpegWithoutCameraDetails(stream.getContents());
+}
+
+export function jpegWithoutCameraDetails(bytes: Uint8Array): Uint8Array | null {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  const keep: Array<[number, number]> = [[0, 2]];
+  let dropped = false;
+  let at = 2;
+  while (at + 4 <= bytes.length) {
+    if (bytes[at] !== 0xff) return null;
+    const marker = bytes[at + 1]!;
+    // Fill bytes before a marker.
+    if (marker === 0xff) {
+      at++;
+      continue;
+    }
+    // Start of scan: the picture itself follows, and is kept whole.
+    if (marker === 0xda) {
+      keep.push([at, bytes.length]);
+      break;
+    }
+    const length = (bytes[at + 2]! << 8) | bytes[at + 3]!;
+    if (length < 2 || at + 2 + length > bytes.length) return null;
+    const end = at + 2 + length;
+    if (marker === 0xe1 || marker === 0xed || marker === 0xfe) dropped = true;
+    else keep.push([at, end]);
+    at = end;
+  }
+  if (!dropped) return null;
+  const out = new Uint8Array(keep.reduce((n, [a, b]) => n + (b - a), 0));
+  let o = 0;
+  for (const [a, b] of keep) {
+    out.set(bytes.subarray(a, b), o);
+    o += b - a;
+  }
+  return out;
+}
+
+/**
  * A JPEG or PNG into the document. pdf-lib's own errors for a picture it
  * cannot read ("SOI not found", "Invalid PNG") would surface as the file
  * being unreadable, when it is the picture that is.
@@ -319,6 +524,12 @@ async function embedPicture(doc: PDFDocument, bytes: Uint8Array, kind: 'jpeg' | 
 
 function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted: boolean, missingPages = 0): PdfDoc {
   let doc: PDFDocument | null = initial;
+  let signed = false;
+  try {
+    signed = hasSignatures(initial);
+  } catch {
+    signed = false;
+  }
   const fonts = new Map<'regular' | 'bold', PDFFont>();
   let drawable: Set<number> | null = null;
   /** Annotations on pages Remove areas turned into pictures; non-empty means save() finishes the job. */
@@ -458,6 +669,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
 
     wasEncrypted,
     missingPages,
+    signed,
 
     visibleBox(index) {
       const { x, y, width, height } = pageAt(index).getCropBox();
@@ -740,9 +952,9 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
 
     clean(opts) {
       const report = cleanDocument(live(), opts);
-      if (opts.metadata) self.stripMetadata();
+      const stripped = opts.metadata ? self.stripMetadata() : undefined;
       dropUnreachable(live().context);
-      return report;
+      return stripped === undefined ? report : { ...report, stripped };
     },
 
     addTextLayer(index, words) {
@@ -1313,6 +1525,9 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
 
     setInfo(info) {
       const d = live();
+      const xmp = d.catalog.get(PDFName.of('Metadata'));
+      if (xmp instanceof PDFRef) d.context.delete(xmp);
+      d.catalog.delete(PDFName.of('Metadata'));
       for (const [field, value] of Object.entries(info) as Array<[DocInfoField, string | undefined]>) {
         if (value === undefined) continue;
         if (value.length === 0) {
@@ -1326,6 +1541,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         else if (field === 'creator') d.setCreator(value);
         else d.setProducer(value);
       }
+      return xmp !== undefined;
     },
 
     stripMetadata() {
@@ -1337,9 +1553,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const infoRef = context.trailerInfo.Info;
       if (infoRef instanceof PDFRef) context.delete(infoRef);
       delete (context.trailerInfo as { Info?: unknown }).Info;
-      const metadata = d.catalog.get(PDFName.of('Metadata'));
-      if (metadata instanceof PDFRef) context.delete(metadata);
-      d.catalog.delete(PDFName.of('Metadata'));
+      return stripHiddenMetadata(d);
     },
 
     pages(): readonly PageInfo[] {
@@ -1464,11 +1678,14 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
           },
         });
       }
+      const restore = encrypt === undefined ? null : encryptLooseStrings(d);
       try {
         return await d.save({ useObjectStreams: true });
       } catch (error) {
         if (isMemoryFailure(error)) throw tooLarge(byteLength, error);
         throw error;
+      } finally {
+        restore?.();
       }
     },
 
@@ -2009,12 +2226,29 @@ function fileFromSpec(context: PDFDocument['context'], spec: unknown, fallback: 
 function readAttachments(doc: PDFDocument): Attachment[] {
   const { context } = doc;
   const out: Attachment[] = [];
+  const seen = new Set<string>();
+  const once = (value: unknown): boolean => {
+    if (!(value instanceof PDFRef)) return true;
+    if (seen.has(value.toString())) return false;
+    seen.add(value.toString());
+    return true;
+  };
   const names = doc.catalog.lookup(PDFName.of('Names'));
   if (names instanceof PDFDict) {
     walkNameTree(context, names.get(PDFName.of('EmbeddedFiles')), (key, value) => {
+      if (!once(value)) return;
       const file = fileFromSpec(context, value, key || `attachment ${out.length + 1}`);
       if (file) out.push(file);
     });
+  }
+  // Files listed only as the document's "associated files" (PDF/A-3 invoices do this).
+  const af = doc.catalog.lookup(PDFName.of('AF'));
+  if (af instanceof PDFArray) {
+    for (const value of af.asArray()) {
+      if (!once(value)) continue;
+      const file = fileFromSpec(context, value, `attachment ${out.length + 1}`);
+      if (file) out.push(file);
+    }
   }
   for (const page of doc.getPages()) {
     const annots = page.node.lookup(PDFName.of('Annots'));
@@ -2116,9 +2350,26 @@ function cleanDocument(doc: PDFDocument, opts: CleanOptions): CleanReport {
       scripts++;
     }
   }
-  if (opts.attachments && names instanceof PDFDict && names.has(PDFName.of('EmbeddedFiles'))) {
-    walkNameTree(context, names.get(PDFName.of('EmbeddedFiles')), () => attachments++);
-    names.delete(PDFName.of('EmbeddedFiles'));
+  if (opts.attachments) {
+    // A file is listed in the /EmbeddedFiles name tree, and often again in
+    // /AF ("associated files", which pdf-lib and PDF/A-3 invoices write):
+    // both lists go, or the file stays inside, reachable from the other.
+    const seen = new Set<unknown>();
+    const count = (value: unknown) => {
+      const key = value instanceof PDFRef ? value.toString() : value;
+      if (seen.has(key)) return;
+      seen.add(key);
+      attachments++;
+    };
+    if (names instanceof PDFDict && names.has(PDFName.of('EmbeddedFiles'))) {
+      walkNameTree(context, names.get(PDFName.of('EmbeddedFiles')), (_key, value) => count(value));
+      names.delete(PDFName.of('EmbeddedFiles'));
+    }
+    for (const holder of [doc.catalog, ...doc.getPages().map((p) => p.node)]) {
+      const af = holder.lookup(PDFName.of('AF'));
+      if (af instanceof PDFArray) for (const spec of af.asArray()) count(spec);
+      holder.delete(PDFName.of('AF'));
+    }
   }
   for (const page of doc.getPages()) {
     if (opts.scripts && page.node.has(PDFName.of('AA'))) {

@@ -29,6 +29,7 @@ import type {
   WatermarkParams,
 } from '../ops/op';
 import type { ToolId } from '../ops/tools';
+import type { PdfView } from '../pdf/types';
 import { check, choices, field, group, note, select } from './fields';
 import { createOcrOptions } from './ocr-options';
 import { createSplitOptions } from './split-options';
@@ -38,6 +39,8 @@ export interface ToolOptions {
   params(): unknown;
   /** Why the run cannot start yet, given how many files are in, or null. */
   problem(fileCount: number): string | null;
+  /** Settings that start from what the first file says (its details, say) read it here. */
+  load?(view: PdfView): Promise<void>;
 }
 
 const PAGES_PLACEHOLDER = '1-3, 7, 12-';
@@ -399,13 +402,31 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
           onChange();
         },
       );
-      const printing = check('allow-printing', 'Allow printing', true, onChange);
-      const copying = check('allow-copying', 'Allow copying text', false, onChange);
-      const editing = check('allow-editing', 'Allow changes and comments', false, onChange);
+      // Whoever has the password is usually meant to use the file fully, so a
+      // lock allows everything until a box is unticked; restricting is the
+      // point of the other choice, so it starts with copying and changes off.
+      // Once a box has been touched, switching between the two leaves it alone.
+      let touched = false;
+      const touch = () => {
+        touched = true;
+        onChange();
+      };
+      const printing = check('allow-printing', 'Allow printing', true, touch);
+      const copying = check('allow-copying', 'Allow copying text', true, touch);
+      const editing = check('allow-editing', 'Allow changes and comments', true, touch);
+      const tick = (box: typeof printing, on: boolean) => {
+        const input = box.root.querySelector('input');
+        if (input) input.checked = on;
+      };
       const lockNote = note('Locked with AES-256. Write the password down: nobody, us included, can open the file without it. It is never stored or sent anywhere.');
       const restrictNote = note('Honest note: these settings are a request, not a lock. Adobe, Chrome and most readers obey them, but a determined person with the right tool can switch them off. For anything secret, use a password.');
       const sync = () => {
         const restrict = mode.value() === 'restrict';
+        if (!touched) {
+          tick(printing, true);
+          tick(copying, !restrict);
+          tick(editing, !restrict);
+        }
         passwordBox.hidden = restrict;
         lockNote.hidden = restrict;
         restrictNote.hidden = !restrict;
@@ -462,7 +483,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
             field: cleanBox,
           },
           { value: 'strip', title: 'Remove the hidden details', hint: 'Title, author, the app that made it, dates, and hidden XMP metadata. The pages stay as they are.' },
-          { value: 'edit', title: 'Set new details', hint: 'Leave a box empty to remove that detail.', field: editBox },
+          { value: 'edit', title: 'Set new details', hint: ONE_FILE_HINT, field: editBox },
         ],
         'clean',
         onChange,
@@ -471,19 +492,49 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         const radio = mode.root.querySelector<HTMLInputElement>('[data-testid="opt-mode-clean"]');
         if (radio) radio.checked = true;
       });
+      let typed = false;
+      let prefilled = false;
+      let files = 0;
+      let loads = 0;
+      const editHint = mode.root.querySelector<HTMLElement>('[data-testid="opt-mode-edit"]')?.closest('label')?.querySelector<HTMLElement>('.choice__hint') ?? null;
       editBox.addEventListener('input', () => {
+        typed = true;
         const radio = mode.root.querySelector<HTMLInputElement>('[data-testid="opt-mode-edit"]');
         if (radio) radio.checked = true;
       });
       return {
         root: mode.root,
+        // What the file says now, so changing the title does not quietly wipe the author.
+        async load(view) {
+          const details = await view.details();
+          // What was typed before any file came is kept; a new file after Start over starts from its own details.
+          loads++;
+          if ((typed && loads === 1) || files > 1) return;
+          typed = false;
+          (['title', 'author', 'subject', 'keywords'] as const).forEach((key, i) => {
+            const box = fields[i]?.input;
+            if (box) box.value = details[key] ?? '';
+          });
+          prefilled = true;
+        },
         params: (): DocumentDetailsParams =>
           mode.value() === 'strip'
             ? { mode: 'strip' }
             : mode.value() === 'clean'
               ? { mode: 'clean', comments: comments.checked(), attachments: attached.checked() }
               : { mode: 'edit', title: fields[0]!.value(), author: fields[1]!.value(), subject: fields[2]!.value(), keywords: fields[3]!.value() },
-        problem: () => null,
+        problem: (count) => {
+          // Several files: one file's details must not be stamped on the rest, and an empty box keeps each file's own.
+          if (count !== files) {
+            files = count;
+            if (editHint) editHint.textContent = count > 1 ? SEVERAL_FILES_HINT : ONE_FILE_HINT;
+            if (count > 1 && prefilled && !typed) {
+              for (const f of fields) f.input.value = '';
+              prefilled = false;
+            }
+          }
+          return null;
+        },
       };
     }
 
@@ -568,7 +619,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         'mode',
         'What to do',
         [
-          { value: 'attach', title: 'Put files inside the PDF', hint: 'Add the PDF first, then any files: a spreadsheet, photos, the source document. They travel with it.' },
+          { value: 'attach', title: 'Put files inside the PDF', hint: 'Add the PDF and any files: a spreadsheet, photos, the source document. They go inside the first PDF in the list and travel with it.' },
           { value: 'extract', title: 'Take out the attached files', hint: 'Every file a PDF carries inside it, saved as it was.' },
         ],
         'attach',
@@ -632,17 +683,30 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       stack.append(words, picked);
       certField.append(stack, fileInput);
       const password = field('cert-password', { label: 'Its password', type: 'password', autocomplete: 'off' }, onChange);
-      const visible = check('visible', 'Show the signature on the last page', true, onChange, 'A box with your name and the date. Off: the signature is still there, in the reader’s signature panel.');
+      const signPage = choices<'last' | 'first'>('sign-page', 'On which page', [{ value: 'last', title: 'Last page' }, { value: 'first', title: 'First page' }], 'last', onChange, 'pills');
+      const visible = check('visible', 'Show the signature on the page', true, () => {
+        signPage.root.hidden = !visible.checked();
+        onChange();
+      }, 'A box at the foot of the page with your name and the date. Off: the signature is still there, in the reader’s signature panel.');
       const reason = field('reason', { label: 'Reason (optional)', placeholder: 'e.g. I approve this document' }, onChange);
+      const place = field('location', { label: 'Place (optional)', placeholder: 'e.g. Kochi' }, onChange);
       return {
         root: group([
           certField,
           password.root,
           visible.root,
-          reason.root,
+          signPage.root,
+          el2([reason.root, place.root]),
           note('This is the signature Acrobat checks: it proves who signed and that nothing changed since. Your certificate and password stay on this device and are forgotten when you leave the page. A drawn signature is in Sign.'),
         ]),
-        params: (): DigitalSignParams => ({ certificate: certificate ?? new Uint8Array(0), password: password.value(), visible: visible.checked(), reason: reason.value() }),
+        params: (): DigitalSignParams => ({
+          certificate: certificate ?? new Uint8Array(0),
+          password: password.value(),
+          visible: visible.checked(),
+          page: signPage.value(),
+          reason: reason.value(),
+          location: place.value(),
+        }),
         problem: () => (reading ? 'Reading the certificate…' : certificate === null ? 'Choose your certificate file (.pfx or .p12).' : null),
       };
     }
@@ -866,6 +930,9 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       return null;
   }
 }
+
+const ONE_FILE_HINT = 'The boxes start with what the file says now. Leave a box empty to remove that detail.';
+const SEVERAL_FILES_HINT = 'What you type is set on every file. A box left empty keeps what each file already has.';
 
 /** A row of fields that wraps on a phone. */
 function el2(children: ReadonlyArray<HTMLElement>): HTMLElement {
