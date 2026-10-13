@@ -23,16 +23,20 @@ export interface BookmarksPanel {
 
 interface Row {
   title: string;
-  /** Zero-based. */
-  page: number;
+  /** Zero-based; null for a bookmark that opens a web page or something else, not a page. */
+  page: number | null;
   depth: number;
+  /** Where the row came from in the document's own bookmarks, so the writer can keep what it cannot show. */
+  was?: OutlineItem['was'];
 }
 
 const MAX_DEPTH = 4;
 
+/** The tree as rows, depth-first. `was` counts every entry, nested ones included, in the same order. */
 export function flatten(items: readonly OutlineItem[], depth = 0, out: Row[] = []): Row[] {
   for (const item of items) {
-    out.push({ title: item.title, page: item.page ?? 0, depth: Math.min(depth, MAX_DEPTH) });
+    const index = out.length;
+    out.push({ title: item.title, page: item.page, depth: Math.min(depth, MAX_DEPTH), was: item.was ?? { index, title: item.title, page: item.page } });
     flatten(item.items, depth + 1, out);
   }
   return out;
@@ -40,13 +44,13 @@ export function flatten(items: readonly OutlineItem[], depth = 0, out: Row[] = [
 
 /** Rows back into a tree. A row deeper than the one before it by more than one is treated as one deeper. */
 export function toTree(rows: readonly Row[]): OutlineItem[] {
-  type Node = { title: string; page: number; items: Node[] };
+  type Node = { title: string; page: number | null; items: Node[]; was?: NonNullable<OutlineItem['was']> };
   const root: Node[] = [];
   const stack: Node[][] = [root];
   for (const row of rows) {
     const depth = Math.min(row.depth, stack.length - 1);
     stack.length = depth + 1;
-    const node: Node = { title: row.title, page: row.page, items: [] };
+    const node: Node = { title: row.title, page: row.page, items: [], ...(row.was ? { was: row.was } : {}) };
     stack[depth]?.push(node);
     stack.push(node.items);
   }
@@ -90,14 +94,24 @@ export function createBookmarksPanel(onChange: () => void): BookmarksPanel {
             },
           },
         });
+        // A bookmark that opens a web page keeps doing so; typing a page makes it open that page instead.
         const page = el('input', {
           class: 'input bm-row__page',
           testid: `bookmark-page-${i}`,
-          attrs: { type: 'number', min: '1', max: String(pageCount), step: '1', inputmode: 'numeric', value: String(row.page + 1), 'aria-label': `Bookmark ${i + 1} page` },
+          attrs: {
+            type: 'number',
+            min: '1',
+            max: String(pageCount),
+            step: '1',
+            inputmode: 'numeric',
+            ...(row.page === null ? { placeholder: 'Link' } : { value: String(row.page + 1) }),
+            'aria-label': row.page === null ? `Bookmark ${i + 1} opens a link, not a page. Type a page to open that instead` : `Bookmark ${i + 1} page`,
+          },
           on: {
             input: (ev) => {
-              const n = Number((ev.target as HTMLInputElement).value);
-              row.page = Number.isInteger(n) ? n - 1 : -1;
+              const value = (ev.target as HTMLInputElement).value.trim();
+              const n = Number(value);
+              row.page = value === '' && row.was?.page === null ? null : Number.isInteger(n) && value !== '' ? n - 1 : -1;
               onChange();
             },
           },
@@ -154,8 +168,8 @@ export function createBookmarksPanel(onChange: () => void): BookmarksPanel {
   }
 
   add.addEventListener('click', () => {
-    const last = rows[rows.length - 1];
-    rows.push({ title: 'New bookmark', page: Math.min(pageCount - 1, last ? last.page + 1 : 0), depth: 0 });
+    const lastPage = rows.reduce((max, r) => (r.page !== null && r.page > max ? r.page : max), -1);
+    rows.push({ title: 'New bookmark', page: Math.min(pageCount - 1, lastPage + 1), depth: 0 });
     render({ index: rows.length - 1, part: 'title' });
     const input = list.querySelector<HTMLInputElement>(`[data-testid="bookmark-title-${rows.length - 1}"]`);
     queueMicrotask(() => input?.select());
@@ -172,7 +186,9 @@ export function createBookmarksPanel(onChange: () => void): BookmarksPanel {
       empty.textContent = 'Reading the bookmarks…';
       empty.hidden = false;
       try {
-        rows = flatten(await view.outline()).filter((r) => r.page >= 0 && r.page < pageCount);
+        // Every entry is kept, including one that opens a web page (no page) or points past the end
+        // (shown as needing a page): dropping them here would delete them from the file unasked.
+        rows = flatten(await view.outline());
       } catch {
         rows = [];
       } finally {
@@ -188,7 +204,7 @@ export function createBookmarksPanel(onChange: () => void): BookmarksPanel {
     params: () => ({ items: toTree(rows.map((r) => ({ ...r, title: r.title.trim() }))) }),
     problem() {
       if (!loaded) return 'Reading the bookmarks…';
-      const bad = rows.findIndex((r) => !(r.page >= 0 && r.page < pageCount));
+      const bad = rows.findIndex((r) => (r.page === null ? r.was?.page !== null : !(r.page >= 0 && r.page < pageCount)));
       if (bad >= 0) return `Bookmark ${bad + 1} needs a page between 1 and ${pageCount}.`;
       const blank = rows.findIndex((r) => r.title.trim() === '');
       if (blank >= 0) return `Bookmark ${blank + 1} needs a title.`;

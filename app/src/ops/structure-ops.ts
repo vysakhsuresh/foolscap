@@ -52,13 +52,40 @@ export function roman(value: number): string {
   return out;
 }
 
+export type LabelStyle = NonNullable<Extract<PageLabelsParams, { mode: 'set' }>['style']>;
+
 /** The label ranges for "the first `front` pages in roman, then `prefix` + numbers from `start`". */
-export function labelRanges(front: number, start: number, prefix: string, pageCount: number): PageLabelRange[] {
+export function labelRanges(
+  front: number,
+  start: number,
+  prefix: string,
+  pageCount: number,
+  frontStyle: 'roman' | 'Roman' = 'roman',
+  style: LabelStyle = 'decimal',
+): PageLabelRange[] {
   const lead = Math.min(Math.max(0, Math.floor(front)), pageCount);
   const ranges: PageLabelRange[] = [];
-  if (lead > 0) ranges.push({ start: 0, style: 'roman' });
-  if (lead < pageCount) ranges.push({ start: lead, style: 'decimal', ...(prefix ? { prefix } : {}), first: Math.max(1, Math.floor(start)) });
+  if (lead > 0) ranges.push({ start: 0, style: frontStyle });
+  if (lead < pageCount) ranges.push({ start: lead, style, ...(prefix ? { prefix } : {}), first: Math.max(1, Math.floor(start)) });
   return ranges;
+}
+
+/** What page `n` (counting from 1) is called in `style`: 4 → "iv", "IV", "D", "d" or "4". Letters run A to Z, then AA to ZZ. */
+export function labelFor(n: number, style: LabelStyle | 'roman' | 'Roman'): string {
+  switch (style) {
+    case 'roman':
+      return roman(n);
+    case 'Roman':
+      return roman(n).toUpperCase();
+    case 'alpha':
+    case 'Alpha': {
+      const k = Math.max(1, Math.floor(n));
+      const letter = String.fromCharCode(65 + ((k - 1) % 26)).repeat(Math.floor((k - 1) / 26) + 1);
+      return style === 'alpha' ? letter.toLowerCase() : letter;
+    }
+    case 'decimal':
+      return String(Math.max(1, Math.floor(n)));
+  }
 }
 
 export const pageLabelsOp: Op<PageLabelsParams> = {
@@ -69,6 +96,9 @@ export const pageLabelsOp: Op<PageLabelsParams> = {
     if (params.mode === 'set' && !(Number.isInteger(params.start) && params.start >= 1)) {
       return inputs.map((input) => refused([input], 'The first number must be 1 or more.'));
     }
+    if (params.mode === 'set' && !(Number.isInteger(params.front) && params.front >= 0)) {
+      return inputs.map((input) => refused([input], 'The number of front pages must be 0 or more.'));
+    }
     return forEachPdf(inputs, ctx, async (doc, input) => {
       const n = doc.pageCount;
       const base = baseName(input.name);
@@ -77,16 +107,21 @@ export const pageLabelsOp: Op<PageLabelsParams> = {
         const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
         return store(ctx, 'page-labels', [input], `${base} labels removed.pdf`, bytes, `Page labels removed: readers show plain page numbers${lockNote(relocked)}`);
       }
-      const ranges = labelRanges(params.front, params.start, params.prefix.trim(), n);
+      const frontStyle = params.frontStyle ?? 'roman';
+      const style = params.style ?? 'decimal';
+      const ranges = labelRanges(params.front, params.start, params.prefix.trim(), n, frontStyle, style);
       doc.setPageLabels(ranges);
       const lead = Math.min(params.front, n);
-      const first = `${params.prefix.trim()}${params.start}`;
+      const first = `${params.prefix.trim()}${labelFor(params.start, style)}`;
+      const last = `${params.prefix.trim()}${labelFor(params.start + n - lead - 1, style)}`;
+      const main = n - lead === 1 ? first : `${first} to ${last}`;
+      const pages = n === 1 ? 'Page labelled' : 'Pages labelled';
       const detail =
         lead === 0
-          ? `Pages labelled ${first} onwards`
+          ? `${pages} ${main}`
           : lead === n
-            ? `Pages labelled i to ${roman(n)}`
-            : `Pages labelled i to ${roman(lead)}, then ${first} onwards`;
+            ? `${pages} ${labelFor(1, frontStyle)}${n > 1 ? ` to ${labelFor(n, frontStyle)}` : ''}`
+            : `${pages} ${labelFor(1, frontStyle)}${lead > 1 ? ` to ${labelFor(lead, frontStyle)}` : ''}, then ${main}`;
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
       return store(ctx, 'page-labels', [input], `${base} labelled.pdf`, bytes, `${detail}${lockNote(relocked)}`);
     });
@@ -186,10 +221,12 @@ export const bookmarksOp: Op<BookmarksParams> = {
     const input = inputs[0];
     if (input === undefined || inputs.length !== 1) return [refused(inputs, 'Bookmarks works on one file at a time.')];
     const clean = (list: readonly OutlineItem[]): OutlineItem[] =>
-      list.filter((i) => i.title.trim() !== '').map((i) => ({ title: i.title.trim(), page: i.page, items: clean(i.items) }));
+      list.filter((i) => i.title.trim() !== '').map((i) => ({ title: i.title.trim(), page: i.page, items: clean(i.items), ...(i.was ? { was: i.was } : {}) }));
     const items = clean(params.items);
     return forEachPdf([input], ctx, async (doc) => {
-      const outOfRange = (list: readonly OutlineItem[]): boolean => list.some((i) => i.page === null || i.page < 0 || i.page >= doc.pageCount || outOfRange(i.items));
+      // No page is allowed only for a bookmark the file already had that opens a web page or the like.
+      const outOfRange = (list: readonly OutlineItem[]): boolean =>
+        list.some((i) => (i.page === null ? i.was === undefined || i.was.page !== null : i.page < 0 || i.page >= doc.pageCount) || outOfRange(i.items));
       if (outOfRange(items)) return refused([input], `Every bookmark needs a page between 1 and ${doc.pageCount}.`);
       doc.setBookmarks(items);
       const total = countItems(items);

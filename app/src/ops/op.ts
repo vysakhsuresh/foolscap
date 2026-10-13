@@ -235,11 +235,25 @@ export interface InsertPagesParams {
   readonly replace?: string;
 }
 
-export type CropParams =
-  /** Trim the same margin, in millimetres, from every edge of every page. */
-  | { readonly mode: 'trim'; readonly mm: number }
-  /** Put every page on one paper size, scaled to fit, turned to match. */
-  | { readonly mode: 'paper'; readonly paper: Paper };
+/** Millimetres off each edge of a page as the reader sees it, whatever way round it is stored. */
+export interface CropEdges {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
+
+export type CropParams = (
+  /** Trim the same margin, in millimetres, from every edge; or, with `edges`, a margin of its own from each. */
+  | { readonly mode: 'trim'; readonly mm: number; readonly edges?: CropEdges }
+  /** Trim each page to just outside what is drawn on it: the white margins go. */
+  | { readonly mode: 'auto' }
+  /** Put every page on one paper size, scaled to fit, turned to match. `enlarge` false leaves smaller pages their real size. */
+  | { readonly mode: 'paper'; readonly paper: Paper; readonly enlarge?: boolean }
+) & {
+  /** "1-3, 7"; empty or absent means every page. */
+  readonly pages?: string;
+};
 
 export interface SplitBySizeParams {
   /** The most each part may weigh, in megabytes (1 MB = 1,000,000 bytes, as mail limits count). */
@@ -378,6 +392,10 @@ export type PageLabelsParams =
       /** What the main numbers start at, and what comes before them ("A-"). */
       readonly start: number;
       readonly prefix: string;
+      /** How the front pages are numbered: i, ii, iii (the default) or I, II, III. */
+      readonly frontStyle?: 'roman' | 'Roman';
+      /** How the rest are numbered: 1, 2, 3 (the default), I, II, III, i, ii, iii, A, B, C or a, b, c. */
+      readonly style?: 'decimal' | 'Roman' | 'roman' | 'Alpha' | 'alpha';
     };
 
 export interface AttachmentsParams {

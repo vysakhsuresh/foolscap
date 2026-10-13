@@ -114,7 +114,7 @@ describe('page labels', () => {
     const h = harness();
     const input = await h.add('Thesis.pdf', await pagesPdf(5));
     const out = only(await run('page-labels', [input], { mode: 'set', front: 2, start: 1, prefix: '' }, h.ctx));
-    expect(out.detail).toBe('Pages labelled i to ii, then 1 onwards');
+    expect(out.detail).toBe('Pages labelled i to ii, then 1 to 3');
     const labels = await withPdfJs(await h.bytesOf(out.file), (doc) => doc.getPageLabels());
     expect(labels).toEqual(['i', 'ii', '1', '2', '3']);
     const removed = only(await run('page-labels', [out.file], { mode: 'remove' }, h.ctx));

@@ -68,6 +68,7 @@ import { signPdf } from './sign-pdf';
 import { layoutFlow } from './surgeon-flow';
 import { srgbProfile } from './icc';
 import { drawCalls, invert, multiply, unitBox, type Matrix } from './content-stream';
+import { appendCopies, carryLabels, carryOutline, finishCopies, fitToPaper, formDefaults, rewriteOutline, type PendingLink } from './surgeon-pages';
 import {
   PdfError,
   type Box,
@@ -324,6 +325,21 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
   const tiles = new Map<string, PDFRef>();
   /** One object copier per source document, so what its pages share is copied into this one once. */
   const copiers = new WeakMap<PDFDocument, PDFObjectCopier>();
+  /** Per source document: which of its pages are in this one's page tree, and as which copy. */
+  const placedFrom = new WeakMap<PDFDocument, Map<string, PDFRef>>();
+  const placedOf = (from: PDFDocument): Map<string, PDFRef> => {
+    let placed = placedFrom.get(from);
+    if (placed === undefined) {
+      placed = new Map();
+      placedFrom.set(from, placed);
+    }
+    return placed;
+  };
+  /** Whether pages were copied in, so save() finishes the links and forms they brought. */
+  let appended = false;
+  let fieldDefaults: PDFDict | null = null;
+  /** Links on copied pages, pointed at their pages' copies (or taken out) on save. */
+  const pendingLinks: PendingLink[] = [];
   const copierFrom = (from: PDFDocument): PDFObjectCopier => {
     let copier = copiers.get(from);
     if (copier === undefined) {
@@ -1244,11 +1260,9 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         // every page shares is copied once, not once per batch of pages.
         await from.flush();
         const copier = copierFrom(from);
-        const pages = from.getPages();
-        for (const index of indices) {
-          const node = copier.copy(pages[index]!.node);
-          target.addPage(PDFPage.of(node, target.context.register(node), target));
-        }
+        appended = true;
+        fieldDefaults ??= formDefaults(from, copier);
+        appendCopies(target, from, copier, indices, placedOf(from), pendingLinks);
       } catch (error) {
         if (isMemoryFailure(error)) throw tooLarge(byteLength, error);
         throw error;
@@ -1291,9 +1305,35 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       live().setTitle(title, { showInWindowTitleBar: true });
     },
 
+    carryOver(source, what) {
+      const target = live();
+      const from = documents.get(source);
+      if (from === undefined) throw new Error('The source document is not open.');
+      const placed = placedOf(from);
+      if (what.bookmarks === true) carryOutline(target, from, placed, copierFrom(from));
+      if (what.labels === true) carryLabels(target, from, placed);
+      if (what.details === true) {
+        const info = source.info();
+        self.setInfo({
+          ...(info.title ? { title: info.title } : {}),
+          ...(info.author ? { author: info.author } : {}),
+          ...(info.subject ? { subject: info.subject } : {}),
+          ...(info.keywords ? { keywords: info.keywords } : {}),
+        });
+      }
+    },
+
+    fitToPaper(index, width, height, enlarge) {
+      fitToPaper(live(), pageAt(index), width, height, enlarge);
+    },
+
     async save(opts) {
       const d = live();
       if (replaced) finishRedaction(d, removedWidgets);
+      if (appended) {
+        finishCopies(d, fieldDefaults, pendingLinks);
+        dropUnreachable(d.context);
+      }
       const encrypt = opts?.encrypt;
       if (encrypt !== undefined) {
         if (encrypt.userPassword.length === 0 && encrypt.restrictOnly !== true) throw new Error('A password cannot be empty.');
@@ -1868,46 +1908,8 @@ function readBookmarks(doc: PDFDocument): OutlineItem[] {
 }
 
 function writeBookmarks(doc: PDFDocument, items: readonly OutlineItem[]): void {
-  const { context } = doc;
-  const old = doc.catalog.get(PDFName.of('Outlines'));
-  doc.catalog.delete(PDFName.of('Outlines'));
-  if (old instanceof PDFRef) dropUnreachable(context);
-  const pages = doc.getPages();
-  const usable = (list: readonly OutlineItem[]): OutlineItem[] =>
-    list.filter((i) => i.page !== null && i.page >= 0 && i.page < pages.length).map((i) => ({ ...i, items: usable(i.items) }));
-  const top = usable(items);
-  if (top.length === 0) return;
-  const root = context.register(context.obj({ Type: 'Outlines' }));
-  // Builds one level under `parent` and returns how many entries it holds, open.
-  const level = (list: readonly OutlineItem[], parent: PDFRef): number => {
-    const refs = list.map(() => context.nextRef());
-    let count = 0;
-    list.forEach((item, i) => {
-      const dict = context.obj({});
-      dict.set(PDFName.of('Title'), PDFHexString.fromText(item.title.slice(0, 500)));
-      dict.set(PDFName.of('Parent'), parent);
-      dict.set(PDFName.of('Dest'), context.obj([pages[item.page ?? 0]!.ref, PDFName.of('Fit')]));
-      if (i > 0) dict.set(PDFName.of('Prev'), refs[i - 1]!);
-      if (i < list.length - 1) dict.set(PDFName.of('Next'), refs[i + 1]!);
-      context.assign(refs[i]!, dict);
-      count++;
-      if (item.items.length > 0) {
-        const inner = level(item.items, refs[i]!);
-        dict.set(PDFName.of('Count'), PDFNumber.of(inner));
-        count += inner;
-      }
-    });
-    const parentDict = context.lookup(parent);
-    if (parentDict instanceof PDFDict && refs.length > 0) {
-      parentDict.set(PDFName.of('First'), refs[0]!);
-      parentDict.set(PDFName.of('Last'), refs[refs.length - 1]!);
-    }
-    return count;
-  };
-  const total = level(top, root);
-  const rootDict = context.lookup(root);
-  if (rootDict instanceof PDFDict) rootDict.set(PDFName.of('Count'), PDFNumber.of(total));
-  doc.catalog.set(PDFName.of('Outlines'), root);
+  rewriteOutline(doc, items);
+  dropUnreachable(doc.context);
 }
 
 /** Takes scripts, attachments and comments out, counting each; the caller strips metadata and sweeps. */

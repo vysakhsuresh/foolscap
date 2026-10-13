@@ -46,7 +46,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
   switch (id) {
     case 'split': {
       const split = createSplitOptions(onChange);
-      return { root: split.root, params: () => split.params(), problem: () => null };
+      return { root: split.root, params: () => split.params(), problem: () => split.problem() };
     }
 
     case 'extract-pages': {
@@ -106,24 +106,73 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
 
     case 'crop': {
       const mm = field('mm', { label: 'Millimetres from every edge', type: 'number', min: 1, max: 100, value: '10', bare: true }, onChange);
-      const mode = choices<'trim' | Paper>(
+      mm.input.setAttribute('step', 'any');
+      const edge = (name: 'top' | 'right' | 'bottom' | 'left', caption: string) => {
+        const f = field(`edge-${name}`, { label: `${caption} margin in millimetres`, type: 'number', min: 0, max: 300, value: name === 'top' || name === 'bottom' ? '15' : '10', bare: true }, onChange);
+        f.input.setAttribute('step', 'any');
+        const box = document.createElement('span');
+        box.className = 'edge-field';
+        const word = document.createElement('span');
+        word.className = 'edge-field__word';
+        word.textContent = caption;
+        box.append(word, f.input);
+        return { root: box, f };
+      };
+      const edges = [edge('top', 'Top'), edge('right', 'Right'), edge('bottom', 'Bottom'), edge('left', 'Left')] as const;
+      const edgeBox = el2(edges.map((e) => e.root));
+      edgeBox.classList.add('edge-row');
+      const mode = choices<'trim' | 'edges' | 'auto' | Paper>(
         'crop',
         'How to crop',
         [
-          { value: 'trim', title: 'Trim the margins', hint: 'The same amount off every edge of every page.', field: mm.root },
+          { value: 'trim', title: 'Trim the margins', hint: 'The same amount off every edge, in millimetres.', field: mm.root },
+          { value: 'edges', title: 'Trim each edge separately', hint: 'Millimetres off the top, right, bottom and left, as you see the page.', field: edgeBox },
+          { value: 'auto', title: 'Remove the white margins', hint: 'Each page is trimmed to just outside its words and pictures.' },
           { value: 'a4', title: 'Fit every page on A4', hint: 'Scaled to fit, turned to match each page.' },
           { value: 'letter', title: 'Fit every page on Letter', hint: 'Scaled to fit, turned to match each page.' },
         ],
         'trim',
-        onChange,
+        () => {
+          sync();
+          onChange();
+        },
       );
+      const realSize = check('real-size', 'Leave smaller pages at their real size', false, onChange, '(an ID card stays card-sized, for printing)');
+      const pages = field('pages', { label: 'Which pages', placeholder: 'All pages', hint: 'Leave empty for every page, or type some, like 1-3, 7.' }, onChange);
+      const sync = () => {
+        realSize.root.hidden = !(mode.value() === 'a4' || mode.value() === 'letter');
+      };
+      sync();
+      const edgeValues = () => ({ top: edges[0].f.number(), right: edges[1].f.number(), bottom: edges[2].f.number(), left: edges[3].f.number() });
       return {
         root: group([
           mode.root,
+          realSize.root,
+          pages.root,
           note('Cropping hides what falls outside the edge; it does not remove it. Someone could crop the other way and see it again. To take something out for good, use Remove areas.'),
         ]),
-        params: (): CropParams => (mode.value() === 'trim' ? { mode: 'trim', mm: mm.number() } : { mode: 'paper', paper: mode.value() as Paper }),
-        problem: () => null,
+        params: (): CropParams => {
+          const which = pages.value().trim() ? { pages: pages.value() } : {};
+          switch (mode.value()) {
+            case 'trim':
+              return { mode: 'trim', mm: mm.number(), ...which };
+            case 'edges':
+              return { mode: 'trim', mm: 0, edges: edgeValues(), ...which };
+            case 'auto':
+              return { mode: 'auto', ...which };
+            default:
+              return { mode: 'paper', paper: mode.value() as Paper, enlarge: !realSize.checked(), ...which };
+          }
+        },
+        problem: () => {
+          if (mode.value() === 'trim' && !(mm.number() > 0 && mm.number() <= 100)) return 'Type a margin between 1 and 100 mm.';
+          if (mode.value() === 'edges') {
+            const all = Object.values(edgeValues());
+            if (!all.every((v) => Number.isFinite(v) && v >= 0 && v <= 300)) return 'Type a margin between 0 and 300 mm for each edge.';
+            if (!all.some((v) => v > 0)) return 'Type a margin for at least one edge.';
+          }
+          return null;
+        },
       };
     }
 
@@ -447,10 +496,24 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
     }
 
     case 'page-labels': {
-      const front = field('front', { label: 'Front pages in i, ii, iii', type: 'number', min: 0, max: 999, value: '0', hint: 'A cover and contents, say. 0 for none.' }, onChange);
-      const start = field('start', { label: 'Then number from', type: 'number', min: 1, value: '1' }, onChange);
+      const front = field('front', { label: 'Front pages', type: 'number', min: 0, max: 9999, value: '0', hint: 'A cover and contents, say. 0 for none.' }, onChange);
+      const frontStyle = select<'roman' | 'Roman'>('front-style', 'Front pages numbered', [{ value: 'roman', title: 'i, ii, iii' }, { value: 'Roman', title: 'I, II, III' }], 'roman', onChange);
+      const style = select<NonNullable<Extract<PageLabelsParams, { mode: 'set' }>['style']>>(
+        'style',
+        'The rest numbered',
+        [
+          { value: 'decimal', title: '1, 2, 3' },
+          { value: 'Roman', title: 'I, II, III' },
+          { value: 'roman', title: 'i, ii, iii' },
+          { value: 'Alpha', title: 'A, B, C' },
+          { value: 'alpha', title: 'a, b, c' },
+        ],
+        'decimal',
+        onChange,
+      );
+      const start = field('start', { label: 'Starting at', type: 'number', min: 1, value: '1' }, onChange);
       const prefix = field('prefix', { label: 'Before each number', placeholder: 'Optional, like A-', value: '' }, onChange);
-      const setBox = group([el2([front.root, start.root]), prefix.root]);
+      const setBox = group([el2([front.root, frontStyle.root]), el2([style.root, start.root]), prefix.root]);
       const mode = choices<PageLabelsParams['mode']>(
         'mode',
         'What to do',
@@ -464,8 +527,15 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       return {
         root: group([mode.root, note('Labels change what a reader calls each page, not what is printed on it. To print numbers on the pages, use Page numbers.')]),
         params: (): PageLabelsParams =>
-          mode.value() === 'remove' ? { mode: 'remove' } : { mode: 'set', front: front.number(), start: start.number(), prefix: prefix.value() },
-        problem: () => (mode.value() === 'set' && !(start.number() >= 1) ? 'The first number must be 1 or more.' : null),
+          mode.value() === 'remove'
+            ? { mode: 'remove' }
+            : { mode: 'set', front: front.number(), start: start.number(), prefix: prefix.value(), frontStyle: frontStyle.value(), style: style.value() },
+        problem: () => {
+          if (mode.value() !== 'set') return null;
+          if (!(Number.isInteger(front.number()) && front.number() >= 0)) return 'Type how many front pages, or 0 for none.';
+          if (!(Number.isInteger(start.number()) && start.number() >= 1)) return 'The first number must be 1 or more.';
+          return null;
+        },
       };
     }
 

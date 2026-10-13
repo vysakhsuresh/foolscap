@@ -57,6 +57,8 @@ export const organiseOp: Op<OrganiseParams> = {
         const out = await ctx.surgeon.create();
         try {
           await out.appendPages(doc, order);
+          // The bookmarks, labels and details the file had, for the pages it still has.
+          out.carryOver(doc, { bookmarks: true, labels: true, details: true });
           pages.forEach((page, i) => out.setRotation(i, page.rotation));
           checkCancelled(ctx.signal);
           ctx.progress({ done: 0, total: 0, label: 'Writing the file…' });
