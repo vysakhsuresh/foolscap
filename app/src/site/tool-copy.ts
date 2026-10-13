@@ -459,7 +459,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     notes: [
       'The words go on in bold grey, set at an angle. Once, across the middle is sized to the page and to your words, so DRAFT and a long line such as FOR OFFICE USE ONLY both cross the page without running off it. Repeated all over sets smaller copies in rows across the whole page, which is much harder to crop out or cover up.',
       'Light lets the page read almost as normal, Medium is clearly visible without getting in the way, and Strong is for when the mark matters more than easy reading. The watermark is laid over the page, so it shows on scanned pages and photos as well as on typed text.',
-      'The text takes English letters, numbers and common punctuation for now, and the tool says so if you type something its font cannot draw. Every file you add gets the same mark, and a locked file comes back locked with its own password.',
+      'Words in English letters go on as real text. Malayalam, Hindi, Tamil and other scripts go on too, drawn by your browser as a picture of the words in the same place, so they cannot be selected. Every file you add gets the same mark, and a locked file comes back locked with its own password.',
     ],
     faq: [
       { q: 'Can I watermark an ID copy?', a: 'Yes. Something like FOR BANK KYC ONLY, repeated and light, is a common habit. See [add a watermark](/guides/add-watermark-to-pdf/).' },
@@ -525,7 +525,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
     faq: [
       { q: 'Will others see my notes?', a: 'Yes. Notes are standard PDF comments, shown by most readers and listed in [Read](/tools/read/).' },
-      { q: 'Which stamps are there?', a: 'Approved, Paid, Received, Draft, Confidential, Urgent, Copy and Void.' },
+      { q: 'Which stamps are there?', a: 'Approved, Paid, Received, Draft, Confidential, Urgent, Copy and Void, or your own words in any script, such as a name or Verified.' },
       { q: 'Can I undo a mark?', a: 'Lines and pen strokes undo; other marks can be moved or removed until you save.' },
       { q: 'Do the marks print?', a: 'Highlights, shapes, pen strokes and stamps print with the page. How a note prints depends on the reader; many show only its small icon.' },
     ],
@@ -542,7 +542,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     notes: [
       'Each change paints over the old words in the colour behind them and writes the new words in the same place and size, in the closest of the PDF’s built-in fonts. Amounts and dates keep their right edge, so a changed figure still lines up in its column, and the ink colour is read from the print, so black stays black.',
       'The old words are not deleted. They sit under the paint, and anyone who copies or searches the text can find them. That is fine for correcting a typo or updating a date, and wrong for hiding anything: for that, Remove areas takes the words out of the file.',
-      'New words take English letters, numbers and common symbols. A decorative font is replaced by a plainer one, which can show when you change one word in the middle of a line, so changing the whole line often looks better. For a long rewrite, [PDF to Word](/tools/pdf-to-word/) is the better route.',
+      'New words in English letters keep the line’s weight and style, bold or plain, serif or not; words in Malayalam, Hindi or another script go in as a picture of the words. A decorative font is replaced by a plainer one, which can show when you change one word in the middle of a line, so changing the whole line often looks better. For a long rewrite, [PDF to Word](/tools/pdf-to-word/) is the better route.',
     ],
     faq: [
       { q: 'Can I edit a scanned PDF?', a: 'No. A scan has no words in it, only a picture of them. Write over it with [Add text](/tools/add-text/).' },
@@ -624,7 +624,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     notes: [
       'The answers go into the form’s own fields, so they sit exactly where the form’s maker put the boxes and print neatly. Some fields have a set length, and the box says how many characters it takes. Answers saved from a different form fill nothing, and the tool says so rather than pretend.',
       'Seal the answers when you send a final copy, so nobody can change them after you. Leave it off while a form is still being completed, or when the office asks for an editable form. The answers file is small and holds only what you typed; keep it private if the form is.',
-      'Answers are written with the form’s own font, and most forms are set up for English letters only. If an answer has letters the font cannot draw, such as Malayalam, the tool says so instead of leaving empty boxes; write those words on with [Add text](/tools/add-text/).',
+      'Answers are written with the form’s own font where it can draw them. An answer in Malayalam, Hindi or another script the font cannot draw is kept as real words in the field and shown with a picture of the words drawn inside the box, so it reads correctly in any reader and when sealed. For words outside the boxes, use [Add text](/tools/add-text/).',
     ],
     faq: [
       { q: 'It says the PDF has no fields. What now?', a: 'The form is just a printed page. Write on it with [Add text](/tools/add-text/).' },
@@ -675,7 +675,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   'header-footer': {
-    about: 'Adds a line along the top, the bottom, or both, of every page: a title, CONFIDENTIAL, a date or a reference. {page}, {total}, {date} and {name} are filled in for you. English letters and numbers for now.',
+    about: 'Adds a line along the top, the bottom, or both, of every page: a title, CONFIDENTIAL, a date or a reference. {page}, {total}, {date} and {name} are filled in for you. Any language works.',
     steps: [
       'Add one or more PDFs.',
       'Type a header, a footer, or both, using {page}, {total}, {date} or {name} where you want them filled in.',
@@ -685,7 +685,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     notes: [
       '{page} becomes each page’s number, {total} the number of pages, {date} today’s date written like 12 Oct 2026, and {name} the file’s name without .pdf. So a footer of {name}, page {page} of {total} gives every page its own line, which helps when printed pages get shuffled or a single page is photocopied on its own.',
       'The line is small and plain, set a short way in from the edge of every page. If a page already has something printed there, such as a letterhead, try the other edge, or line it up on the other side. Every file you add gets the same header and footer, each filled in with its own name and page count.',
-      'Headers and footers take English letters, numbers and common punctuation for now, and that includes the file name when you use {name}: a file named in another script needs renaming first. For page numbers alone, with more styles and Bates numbering, use [Page numbers](/tools/page-numbers/).',
+      'Words in English letters go on as real text; Malayalam, Hindi and other scripts, including a file name in them used through {name}, go on as a picture of the words in the same place. For page numbers alone, with more styles and Bates numbering, use [Page numbers](/tools/page-numbers/).',
     ],
     faq: [
       { q: 'What does {name} put in?', a: 'The file’s name, without .pdf.' },
@@ -722,7 +722,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
       'Add the PDF you want to sign.',
       'Tap Choose your certificate and pick your .pfx or .p12 file.',
       'Type the certificate’s password.',
-      'Leave Show the signature on the last page ticked for a visible box, and type a reason if you like.',
+      'Leave Show the signature on the page ticked for a visible box, choose the first or last page, and add a reason and a place if you like.',
       'Press Sign it digitally and save the signed PDF.',
     ],
     notes: [

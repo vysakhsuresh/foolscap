@@ -1226,7 +1226,7 @@ export const GUIDES: readonly Guide[] = [
       'Open Digital signature and add the PDF.',
       'Choose your certificate file, a .pfx or .p12.',
       'Type the certificate’s password.',
-      'Leave Show the signature on the last page ticked for a visible box, and add a reason if you like.',
+      'Leave Show the signature on the page ticked for a visible box, choose the first or last page, and add a reason and a place if you like.',
       'Press Sign it digitally and save the signed PDF.',
     ],
     sections: [
@@ -1367,7 +1367,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Text along the edge instead',
         paragraphs: [
-          'For a quieter mark, such as CONFIDENTIAL along the top of every page, use [Header and footer](/tools/header-footer/). The watermark text takes English letters and numbers for now. Repeated all over is harder to crop out than a single mark across the middle.',
+          'For a quieter mark, such as CONFIDENTIAL along the top of every page, use [Header and footer](/tools/header-footer/). The watermark can be in any language. Repeated all over is harder to crop out than a single mark across the middle.',
         ],
       },
       {
@@ -1395,7 +1395,7 @@ export const GUIDES: readonly Guide[] = [
       { q: 'Can I watermark many files at once?', a: 'Yes. Add them all and each gets the same watermark.' },
       { q: 'Will the watermark hide my text?', a: 'Light and Medium let the page show through clearly. Strong is for when the mark matters more than easy reading.' },
       { q: 'Are my files uploaded?', a: 'No. The watermark is added in your browser.' },
-      { q: 'Can I watermark in Malayalam or Hindi?', a: 'Not yet. The watermark takes English letters, numbers and common punctuation, and the tool says so if you type something its font cannot draw.' },
+      { q: 'Can I watermark in Malayalam or Hindi?', a: 'Yes. Words in those scripts are drawn by your browser and go on as a picture of the words, in the same place a typed watermark would sit, so they cannot be selected.' },
       { q: 'Can I use a watermark and a password together?', a: 'Yes. Add the watermark first, then lock the result with [Add a password](/tools/add-password/).' },
     ],
   },
@@ -1457,7 +1457,7 @@ export const GUIDES: readonly Guide[] = [
       { q: 'Will the new text match the old font?', a: 'It uses the nearest of the built-in fonts, so it is close but not always identical, especially with decorative fonts.' },
       { q: 'Does find and replace match parts of words?', a: 'No. It matches whole words and whole numbers, so 5,000.00 does not change 15,000.00.' },
       { q: 'Can I edit a scanned PDF?', a: 'Not with this tool; a scan has no text in it. Add new words over it with [Add text](/tools/add-text/).' },
-      { q: 'Can I change Malayalam or Hindi text?', a: 'Not yet. The new words are written with the PDF’s built-in fonts, which take English letters, numbers and common symbols.' },
+      { q: 'Can I change Malayalam or Hindi text?', a: 'Yes. The old words are covered and the new ones go in as a picture of the words, drawn by your browser, so they read correctly but cannot be selected. Words in English letters go in as real text.' },
       { q: 'Does it work on a locked PDF?', a: 'Yes. Type its password when asked; the edited copy keeps the same password.' },
       { q: 'Can I undo a change?', a: 'Before saving, change the words back. After saving, start again from your original, which is never changed.' },
     ],
@@ -1511,7 +1511,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Languages and fonts',
         paragraphs: [
-          'Answers are written with the form’s own font, which in most forms draws English letters only. If you type an answer in Malayalam or Hindi and the font cannot draw it, the tool tells you instead of leaving empty boxes. Write those answers onto the page with Add text, which places other scripts as a picture of the words.',
+          'Answers are written with the form’s own font where it can draw them. An answer in Malayalam or Hindi is kept as real words in the field and shown with a picture of the words drawn inside the box, so it reads correctly in any reader and stays put when you seal the form.',
           'Dates and numbers deserve a second look: type them in the format the form asks for, such as DD/MM/YYYY, because each answer goes into its field exactly as typed.',
         ],
       },
