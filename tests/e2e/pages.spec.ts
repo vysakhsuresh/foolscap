@@ -293,3 +293,26 @@ test('the family chips say when there are more to the side, and the arrow shows 
   await expect(page.locator('.family-jump[data-group="read"]')).toBeInViewport();
   await expect(more).toBeHidden();
 });
+
+test('the search box opens above a phone keyboard, not behind it', async ({ page }) => {
+  // A stand-in for the visual viewport, which a real keyboard shrinks.
+  await page.addInitScript(() => {
+    const fake = Object.assign(new EventTarget(), { height: window.innerHeight, offsetTop: 0, width: window.innerWidth, offsetLeft: 0, pageTop: 0, pageLeft: 0, scale: 1 });
+    Object.defineProperty(window, 'visualViewport', { value: fake, configurable: true });
+  });
+  await page.goto('/');
+  await page.getByTestId('tool-card-extract-text').scrollIntoViewIfNeeded();
+  await page.getByTestId('search-fab').click();
+  const keyboard = 300;
+  await page.evaluate((k) => {
+    const vv = window.visualViewport as unknown as EventTarget & { height: number };
+    vv.height = window.innerHeight - k;
+    vv.dispatchEvent(new Event('resize'));
+  }, keyboard);
+  await page.getByTestId('pill-input').fill('pdf');
+  const viewport = page.viewportSize()!;
+  const box = (await page.getByTestId('pill-input').boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height - keyboard);
+  const list = (await page.getByTestId('pill-results').boundingBox())!;
+  expect(list.y).toBeGreaterThanOrEqual(0);
+});

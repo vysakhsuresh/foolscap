@@ -321,7 +321,8 @@
   --pill: 56px;
   position: fixed;
   left: 20px;
-  bottom: max(20px, env(safe-area-inset-bottom));
+  /* --keyboard: how much of the screen a phone's keyboard covers (home.ts). */
+  bottom: calc(max(20px, env(safe-area-inset-bottom)) + var(--keyboard, 0px));
   z-index: 55;
   opacity: 0;
   visibility: hidden;
@@ -453,7 +454,8 @@
   left: 0;
   bottom: calc(100% + 10px);
   width: min(360px, calc(100vw - 40px - var(--pill) - 12px));
-  max-height: min(52vh, 380px);
+  /* --room: the height left above the keyboard (home.ts). */
+  max-height: min(52vh, 380px, calc(var(--room, 100vh) - var(--pill) - 48px));
   overflow-y: auto;
   margin: 0;
   padding: 6px;
@@ -501,7 +503,7 @@
   .search-pill {
     --pill: 60px;
     left: 30px;
-    bottom: 30px;
+    bottom: calc(30px + var(--keyboard, 0px));
   }
 
   .search-pill.is-open .search-pill__bar,

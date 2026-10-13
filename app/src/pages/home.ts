@@ -208,6 +208,21 @@ if (finder && pill && pillOpen && pillInput && pillClose && pillResults && 'Inte
     if (isOpen() && !pill.contains(event.target as Node) && pillInput.value.trim() === '') close();
   });
 
+  // A phone's keyboard covers the bottom of the screen without moving what
+  // is pinned there, so the box would open behind it. The visual viewport
+  // says how much is covered: the pill rides up by that much, and its list
+  // keeps to the room that is left.
+  const vv = window.visualViewport;
+  const fitAboveKeyboard = () => {
+    if (!vv) return;
+    const covered = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    pill.style.setProperty('--keyboard', `${Math.round(covered)}px`);
+    pill.style.setProperty('--room', `${Math.round(vv.height)}px`);
+  };
+  vv?.addEventListener('resize', fitAboveKeyboard);
+  vv?.addEventListener('scroll', fitAboveKeyboard);
+  fitAboveKeyboard();
+
   new IntersectionObserver(([entry]) => {
     if (!entry) return;
     // Only once the box has gone off the top: above it, there is nothing to replace.
