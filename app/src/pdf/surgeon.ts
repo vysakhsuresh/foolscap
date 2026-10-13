@@ -57,6 +57,7 @@ import {
   degrees,
   rgb,
   type PDFFont,
+  type PDFImage,
   drawPage as drawPageOperators,
 } from '@cantoo/pdf-lib';
 import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './common';
@@ -322,6 +323,8 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
   let replaced = false;
   /** Tiled watermarks already drawn as a form, by what they say and the page size they cover. */
   const tiles = new Map<string, PDFRef>();
+  /** Pictures of words already embedded, so one drawn for every page goes into the file once. */
+  const pictures = new WeakMap<Uint8Array, PDFImage>();
   /** One object copier per source document, so what its pages share is copied into this one once. */
   const copiers = new WeakMap<PDFDocument, PDFObjectCopier>();
   const copierFrom = (from: PDFDocument): PDFObjectCopier => {
@@ -439,12 +442,12 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const angle = stamp.angle ?? 0;
       let size = stamp.size;
       let margin = stamp.margin;
-      if (stamp.tiled !== true && angle === 0) {
+      if (stamp.tiled !== true) {
         // A small page (a till receipt, a card) gets a margin to match, and
-        // words that would still run off its edge are made smaller to fit.
+        // words that would still run off its edge, straight or turned, are
+        // made smaller to fit.
         margin = Math.min(stamp.margin ?? 36, Math.min(view.width, view.height) * 0.08);
-        const room = view.width - 2 * margin;
-        if (room > 0 && f.widthOfTextAtSize(text, size) > room) size = Math.max(1, (size * room) / f.widthOfTextAtSize(text, size));
+        size = fitted(view, angle, margin, size, (s) => [f.widthOfTextAtSize(text, s), f.heightAtSize(s, { descender: false })]);
       }
       const width = f.widthOfTextAtSize(text, size);
       const capHeight = f.heightAtSize(size, { descender: false });
@@ -496,6 +499,55 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
           rotate: degrees(angle + view.rotation),
         });
       }
+    },
+
+    canDraw(text) {
+      drawable ??= new Set(font(false).getCharacterSet());
+      return [...text].every((ch) => ch === '\n' || drawable?.has(ch.codePointAt(0) ?? 0));
+    },
+
+    async stampPicture(index, stamp) {
+      const page = pageAt(index);
+      const view = viewOf(page);
+      const angle = stamp.angle ?? 0;
+      let { width, height } = stamp;
+      if (!(width > 0 && height > 0)) return;
+      let margin = stamp.margin;
+      if (stamp.tiled !== true) {
+        margin = Math.min(stamp.margin ?? 36, Math.min(view.width, view.height) * 0.08);
+        const k = fitted(view, angle, margin, 1, (s) => [width * s, height * s]);
+        width *= k;
+        height *= k;
+      }
+      let image = pictures.get(stamp.png);
+      if (image === undefined) {
+        image = await live().embedPng(stamp.png);
+        pictures.set(stamp.png, image);
+      }
+      const rad = (angle * Math.PI) / 180;
+      const opacity = stamp.opacity ?? 1;
+      const placed = { ...stamp, ...(margin === undefined ? {} : { margin }) };
+      const centres = stamp.tiled === true ? tileCentres(view, width, height / 1.35) : [anchorCentre(view, { ...placed, text: '', size: 0 }, width, height)];
+      // The same as the words would be: the picture's own corner, turned about its centre, upright as the reader sees the page.
+      const operators = [pushGraphicsState(), setGraphicsState('GS0')];
+      for (const [cx, cy] of centres) {
+        const vx = cx - (Math.cos(rad) * width) / 2 + (Math.sin(rad) * height) / 2;
+        const vy = cy - (Math.sin(rad) * width) / 2 - (Math.cos(rad) * height) / 2;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        operators.push(pushGraphicsState(), concatTransformationMatrix(width * cos, width * sin, -height * sin, height * cos, vx, vy), drawObject('Im0'), popGraphicsState());
+      }
+      operators.push(popGraphicsState());
+      const context = live().context;
+      // Drawn once into a form the page then draws, as a tiled watermark is: a couple of hundred copies stay one picture.
+      const form = context.register(
+        context.formXObject(operators, {
+          BBox: [Math.min(0, -view.width), Math.min(0, -view.height), view.width * 2, view.height * 2],
+          Resources: { XObject: { Im0: image.ref }, ExtGState: { GS0: { Type: 'ExtGState', ca: opacity, CA: opacity } } },
+        }),
+      );
+      const name = page.node.newXObject('Wp', form);
+      page.pushOperators(pushGraphicsState(), concatTransformationMatrix(...view.matrix()), drawObject(name), popGraphicsState());
     },
 
     addBlankPage(width, height) {
@@ -1414,6 +1466,23 @@ function viewOf(page: PDFPage): PageView {
       }
     },
   };
+}
+
+/**
+ * The size at which something `measure(size)` = [width, height] across, turned
+ * `angle` degrees, fits on the page inside `margin`: `size` itself when it
+ * already does.
+ */
+function fitted(view: PageView, angle: number, margin: number, size: number, measure: (size: number) => [number, number]): number {
+  const rad = (angle * Math.PI) / 180;
+  const [w, h] = measure(size);
+  const across = Math.abs(Math.cos(rad)) * w + Math.abs(Math.sin(rad)) * h;
+  const down = Math.abs(Math.sin(rad)) * w + Math.abs(Math.cos(rad)) * h;
+  const roomX = view.width - 2 * margin;
+  const roomY = view.height - 2 * margin;
+  if (!(roomX > 0 && roomY > 0 && across > 0 && down > 0)) return size;
+  const k = Math.min(1, roomX / across, roomY / down);
+  return k < 1 ? Math.max(size * 0.01, size * k) : size;
 }
 
 function anchorCentre(view: PageView, stamp: TextStamp, width: number, capHeight: number): [number, number] {

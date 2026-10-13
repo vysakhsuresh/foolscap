@@ -259,7 +259,12 @@ export interface NUpParams {
 export interface WatermarkParams {
   readonly text: string;
   readonly strength: 'light' | 'medium' | 'strong';
-  readonly layout: 'once' | 'tiled';
+  /** Once across the middle (diagonally, or straight across), or repeated all over. */
+  readonly layout: 'once' | 'straight' | 'tiled';
+  /** Grey unless asked: red for VOID or COPY, blue for a company name. */
+  readonly color?: 'grey' | 'red' | 'blue';
+  /** "1-3, 7"; empty or absent means every page. */
+  readonly pages?: string;
 }
 
 export interface PageNumbersParams {
@@ -279,7 +284,11 @@ export interface HeaderFooterParams {
   /** Either may be empty, not both. {page}, {total}, {date} and {name} are filled in. */
   readonly header: string;
   readonly footer: string;
+  /** Where the header sits along the top, and the footer too unless `footerAlign` says otherwise. */
   readonly align: 'left' | 'center' | 'right';
+  readonly footerAlign?: 'left' | 'center' | 'right';
+  /** Leave the first page (a cover) plain. */
+  readonly skipFirst?: boolean;
 }
 
 export interface AddPasswordParams {

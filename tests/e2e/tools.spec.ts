@@ -115,12 +115,12 @@ test('watermark stamps every page', async ({ page }) => {
   await expect(page.getByTestId('result-detail')).toContainText('"DRAFT" across 2 pages');
 });
 
-test('watermark says plainly when the text has letters it cannot draw yet', async ({ page }) => {
+test('watermark takes words in any script, as a picture of them', async ({ page }) => {
   await openTool(page, 'watermark');
   await pick(page, [{ name: 'Draft.pdf', bytes: await pagesPdf(1) }]);
   await page.getByTestId('opt-text').fill('കരട്');
   await run(page);
-  await expect(page.getByTestId('failure-item')).toHaveAttribute('data-code', 'unsupported-text');
+  await expect(page.getByTestId('result-detail')).toContainText('"കരട്" across 1 page');
 });
 
 test('page numbers numbers the pages', async ({ page }) => {

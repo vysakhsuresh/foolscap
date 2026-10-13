@@ -254,6 +254,18 @@ export interface TextStamp {
   readonly tiled?: boolean;
 }
 
+/**
+ * Words drawn as a picture (shaped by the browser), for letters the built-in
+ * fonts cannot draw: placed exactly as `stampText` would place the words.
+ */
+export interface PictureStamp extends Omit<TextStamp, 'text' | 'size' | 'bold'> {
+  /** A PNG of the words on a see-through ground, tight round them. */
+  readonly png: Uint8Array;
+  /** Its size on the page, in points, before any shrinking to fit. */
+  readonly width: number;
+  readonly height: number;
+}
+
 export type DocInfoField = 'title' | 'author' | 'subject' | 'keywords' | 'creator' | 'producer';
 export type DocInfo = Partial<Record<DocInfoField, string>>;
 
@@ -482,6 +494,10 @@ export interface PdfDoc {
   setVisibleBox(index: number, box: Box): void;
   /** Throws PdfError 'unsupported-text' when the built-in fonts cannot draw a character. */
   stampText(index: number, stamp: TextStamp): void;
+  /** Whether the built-in fonts can draw every character of `text`; when not, draw it with `stampPicture`. */
+  canDraw(text: string): boolean;
+  /** A picture of words, placed as `stampText` places words: for Malayalam, Hindi, Arabic, emoji. */
+  stampPicture(index: number, stamp: PictureStamp): Promise<void>;
   /** Appends an empty page. */
   addBlankPage(width: number, height: number): void;
   /**
