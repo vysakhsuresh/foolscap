@@ -416,6 +416,16 @@ test.describe('organise: drag, keys and select', () => {
     await touch('touchEnd', 0, 0);
     await expect.poll(() => order(page)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     expect(await page.evaluate(() => window.scrollY)).not.toBe(before);
+    // A swipe flings: the page glides on for a moment. Measure only once it has stopped.
+    let last = -1;
+    await expect
+      .poll(async () => {
+        const y = await page.evaluate(() => window.scrollY);
+        const still = y === last;
+        last = y;
+        return still;
+      }, { intervals: [150] })
+      .toBe(true);
 
     // A hold, then a drag: page 2 goes after page 4.
     await tile(page, 1).locator('.page-tile__thumb').evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
