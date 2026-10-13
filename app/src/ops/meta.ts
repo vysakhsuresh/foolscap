@@ -23,7 +23,7 @@ export const OP_META: Partial<Record<ToolId, OpMeta>> = {
   'split-by-size': { arity: { kind: 'one' } },
   'n-up': { arity: { kind: 'each' } },
   'images-to-pdf': { arity: { kind: 'together', min: 1 } },
-  'extract-images': { arity: { kind: 'one' } },
+  'extract-images': { arity: { kind: 'one' }, engine: true },
   watermark: { arity: { kind: 'each' } },
   'page-numbers': { arity: { kind: 'each' } },
   'header-footer': { arity: { kind: 'each' } },

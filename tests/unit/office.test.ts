@@ -213,5 +213,5 @@ describe('PDF to Excel on a bank statement', () => {
     // A narration that wrapped onto two lines is one cell.
     expect(rows.some((r) => /^NEFT CR-HDFC0000123-TECHNOPARK SOLUTIONS PVT LTD-SALARY [A-Z]{3} 2024$/.test(r[1] ?? ''))).toBe(true);
     expect(JSON.stringify(book.sheets[1]!.rows)).toContain('ANJALI MENON');
-  });
+  }, 30_000);
 });

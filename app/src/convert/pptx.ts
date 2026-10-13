@@ -12,7 +12,7 @@
  * master with one blank layout, a theme for it, a notes master with its own
  * theme, presentation properties and an empty table-style list.
  */
-import type { Deck, Picture } from './model';
+import type { Deck, Picture, SlideText } from './model';
 import { contentTypes, CORE_TYPE, coreProperties, EMU_PER_POINT, REL, relationships, type Entry, type RelSpec, zip } from './package';
 import { escapeAttr, escapeText, XML_DECLARATION } from './xml';
 
@@ -55,7 +55,7 @@ export function toPptx(deck: Deck, options: { title?: string } = {}): Uint8Array
     const ext = slide.picture.format === 'png' ? 'png' : 'jpeg';
     const media = `image${n}.${ext}`;
     entries.push([`ppt/media/${media}`, slide.picture.bytes]);
-    entries.push([`ppt/slides/slide${n}.xml`, slideXml(slide.picture, size)]);
+    entries.push([`ppt/slides/slide${n}.xml`, slideXml(slide.picture, size, slide.texts ?? [])]);
     entries.push([
       `ppt/slides/_rels/slide${n}.xml.rels`,
       relationships([
@@ -142,7 +142,7 @@ function clampSide(n: number): number {
  * landscape page in a portrait deck) it is fitted inside and centred rather
  * than stretched.
  */
-function slideXml(picture: Picture, size: { cx: number; cy: number }): string {
+function slideXml(picture: Picture, size: { cx: number; cy: number }, texts: readonly SlideText[]): string {
   const aspect = picture.width > 0 && picture.height > 0 ? picture.width / picture.height : size.cx / size.cy;
   let cx = size.cx;
   let cy = size.cy;
@@ -157,7 +157,41 @@ function slideXml(picture: Picture, size: { cx: number; cy: number }): string {
     `<p:pic><p:nvPicPr><p:cNvPr id="2" name="Page"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>` +
     `<p:blipFill><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>` +
     `<p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>` +
+    texts.map((t, i) => textBox(t, i, { x, y, scale: picture.width > 0 ? cx / picture.width : EMU_PER_POINT })).join('') +
     `</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`
+  );
+}
+
+const SLIDE_FONT: Readonly<Record<NonNullable<SlideText['family']>, string>> = { sans: 'Arial', serif: 'Times New Roman', mono: 'Courier New' };
+
+/**
+ * One text box, where its words stood on the page: no wrapping and no
+ * insets, each line its own paragraph at the page's own line spacing, so it
+ * sits over the slide's background as the words sat on the page.
+ * `scale` is EMU per point of the page; the box is placed from the picture's corner.
+ */
+function textBox(t: SlideText, i: number, at: { x: number; y: number; scale: number }): string {
+  const emu = (points: number) => Math.round(points * at.scale);
+  const points = at.scale / EMU_PER_POINT;
+  // Hundredths of a point, within what PowerPoint accepts.
+  const size = Math.min(400_000, Math.max(100, Math.round(t.size * points * 100)));
+  const spacing = Math.min(158_400, Math.max(0, Math.round(t.leading * points * 100)));
+  // With exact spacing PowerPoint sets the first baseline about four fifths of a line below the top.
+  const top = t.baseline - 0.8 * t.leading;
+  const face = escapeAttr(SLIDE_FONT[t.family ?? 'sans']);
+  const color = /^#[0-9a-f]{6}$/i.test(t.color ?? '') ? (t.color ?? '').slice(1).toUpperCase() : '000000';
+  const run = (line: string) =>
+    `<a:r><a:rPr lang="en-US" sz="${size}"${t.bold ? ' b="1"' : ''}${t.italic ? ' i="1"' : ''} dirty="0"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill>` +
+    `<a:latin typeface="${face}"/><a:cs typeface="${face}"/></a:rPr><a:t>${escapeText(line)}</a:t></a:r>`;
+  const paragraphs = t.lines
+    .map((line) => `<a:p><a:pPr><a:lnSpc><a:spcPts val="${spacing}"/></a:lnSpc></a:pPr>${line === '' ? '' : run(line)}<a:endParaRPr lang="en-US" sz="${size}"/></a:p>`)
+    .join('');
+  // Room to the right: the slide's font may set the line a little wider than the page's did.
+  return (
+    `<p:sp><p:nvSpPr><p:cNvPr id="${i + 3}" name="Text ${i + 1}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>` +
+    `<p:spPr><a:xfrm><a:off x="${at.x + emu(t.x)}" y="${at.y + emu(top)}"/><a:ext cx="${Math.max(1, emu(t.width * 1.08))}" cy="${Math.max(1, emu(t.leading * t.lines.length))}"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr>` +
+    `<p:txBody><a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" rtlCol="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paragraphs}</p:txBody></p:sp>`
   );
 }
 

@@ -9,11 +9,13 @@
  * so the page looks like the PDF it came from.
  *
  * The reader takes what the model can hold and skips everything else without
- * complaint: tracked deletions, comments, footnotes, fields' instructions,
- * shapes it does not know. A Word file that came from anywhere should open.
+ * complaint: tracked deletions, comments, fields' instructions, shapes it
+ * does not know. A Word file that came from anywhere should open. Footnotes
+ * and endnotes are numbered where they are referred to and gathered under
+ * "Notes" at the end; headers and footers go with the pages.
  */
 import { familyOf, normaliseColor, WORD_FONT, type Family } from './fonts';
-import type { Block, FlowDocument, Paragraph, Picture, Run, Table, TableCell } from './model';
+import { PAGE_COUNT, PAGE_NUMBER, type Block, type FlowDocument, type PageFurniture, type Paragraph, type Picture, type Run, type Table, type TableCell } from './model';
 import {
   contentTypes,
   CORE_TYPE,
@@ -414,12 +416,75 @@ export function fromDocx(bytes: Uint8Array): FlowDocument {
   const blocks: Block[] = [];
   reader.container(body, blocks);
   while (blocks[blocks.length - 1]?.kind === 'page-break') blocks.pop();
+  // Footnotes and endnotes, in the order they were referred to, under one heading at the end.
+  if (reader.notes.length > 0) {
+    const parts = { footnote: partOf('/footnotes', 'word/footnotes.xml'), endnote: partOf('/endnotes', 'word/endnotes.xml') };
+    const notes: Block[] = [];
+    for (const note of reader.notes) {
+      const path = parts[note.kind];
+      const root = pkg.xml(path);
+      const el = elements(root, note.kind).find((n) => attr(n, 'id') === note.id);
+      if (!el) continue;
+      const inner: Block[] = [];
+      new DocxReader(pkg, pkg.rels(path), pkg.xml(partOf('/styles', 'word/styles.xml')), pkg.xml(partOf('/numbering', 'word/numbering.xml'))).container(el, inner);
+      let numbered = false;
+      for (const b of inner) {
+        if (b.kind !== 'paragraph') continue;
+        const runs = b.runs.filter((r) => r.text !== '');
+        // Word puts a space after the note's own number; the number here brings its own.
+        if (!numbered && runs[0]) runs[0] = { ...runs[0], text: runs[0].text.trimStart() };
+        if (runs.length === 0 || runs.every((r) => r.text === '')) continue;
+        const size = Math.min(...runs.map((r) => r.size));
+        notes.push({ kind: 'paragraph', runs: numbered ? runs : [{ text: `[${note.n}] `, size }, ...runs.map((r) => ({ ...r, size }))] });
+        numbered = true;
+      }
+    }
+    if (notes.length > 0) blocks.push({ kind: 'paragraph', heading: 2, spaceBefore: 18, runs: [{ text: 'Notes', size: 13, bold: true }] }, ...notes);
+  }
 
   const sections = descendants(body, 'sectPr');
   const sect = elements(body, 'sectPr').pop() ?? sections[sections.length - 1];
   const page = pageOf(sect);
   const title = textOf(firstDescendant(pkg.xml('docProps/core.xml'), 'title')).trim();
-  return { ...(title ? { title } : {}), ...(page ? { page } : {}), blocks };
+  const furniture = furnitureOf(pkg, rels, sect, pkg.xml(partOf('/styles', 'word/styles.xml')), pkg.xml(partOf('/numbering', 'word/numbering.xml')));
+  return { ...(title ? { title } : {}), ...(page ? { page } : {}), blocks, ...(furniture ? { furniture } : {}) };
+}
+
+/**
+ * The section's headers and footers: the default ones, and the first page's
+ * own when the section asks for a different first page (often none at all,
+ * under a letterhead). Each part is read with its own relationships, so a
+ * logo in a header is found.
+ */
+function furnitureOf(
+  pkg: Package,
+  rels: ReturnType<Package['rels']>,
+  sect: XmlElement | undefined,
+  styles: XmlElement | undefined,
+  numbering: XmlElement | undefined,
+): FlowDocument['furniture'] {
+  const part = (kind: 'header' | 'footer', type: 'default' | 'first'): Block[] | undefined => {
+    const ref = elements(sect, `${kind}Reference`).find((r) => (attr(r, 'type') ?? 'default') === type);
+    const id = attr(ref, 'id', 'relationships');
+    const rel = id !== undefined ? rels.get(id) : undefined;
+    if (!rel || rel.external) return undefined;
+    const root = pkg.xml(rel.target);
+    if (!root) return undefined;
+    const blocks: Block[] = [];
+    new DocxReader(pkg, pkg.rels(rel.target), styles, numbering).container(root, blocks);
+    const kept = blocks.filter((b) => b.kind !== 'page-break');
+    return kept.length > 0 ? kept : undefined;
+  };
+  const furniture = (type: 'default' | 'first'): PageFurniture => {
+    const header = part('header', type);
+    const footer = part('footer', type);
+    return { ...(header ? { header } : {}), ...(footer ? { footer } : {}) };
+  };
+  const every = furniture('default');
+  const firstDiffers = child(sect, 'titlePg') !== undefined && isOn(attr(child(sect, 'titlePg'), 'val') ?? 'true');
+  const first = firstDiffers ? furniture('first') : undefined;
+  if (!every.header && !every.footer && !first?.header && !first?.footer) return undefined;
+  return { every, ...(first ? { first } : {}) };
 }
 
 function firstDescendant(el: XmlElement | undefined, local: string): XmlElement | undefined {
@@ -441,6 +506,15 @@ function pageOf(sect: XmlElement | undefined): FlowDocument['page'] {
 interface Field {
   instr: string;
   showing: boolean;
+  /** For a page-number field: whether its stand-in has gone out yet. */
+  placed?: boolean;
+}
+
+/** The stand-in a field's result becomes when it is a page number or a page count, which only the laid-out page knows. */
+function pageField(instr: string): string | undefined {
+  if (/^\s*PAGE\b/i.test(instr)) return PAGE_NUMBER;
+  if (/^\s*(NUMPAGES|SECTIONPAGES)\b/i.test(instr)) return PAGE_COUNT;
+  return undefined;
 }
 
 class DocxReader {
@@ -452,6 +526,8 @@ class DocxReader {
   /** numId → level → is it a bullet list? */
   private readonly numbering = new Map<string, Map<number, boolean>>();
   private fields: Field[] = [];
+  /** Footnotes and endnotes referred to so far, numbered in the order they appear. */
+  readonly notes: Array<{ readonly kind: 'footnote' | 'endnote'; readonly id: string; readonly n: number }> = [];
 
   constructor(
     private readonly pkg: Package,
@@ -635,9 +711,16 @@ class DocxReader {
             walk(node, rel?.external ? rel.target : anchor !== undefined ? `#${anchor}` : href);
             break;
           }
-          case 'fldSimple':
-            walk(node, linkOf(attr(node, 'instr') ?? '') ?? href);
+          case 'fldSimple': {
+            const instr = attr(node, 'instr') ?? '';
+            const field: Field = { instr, showing: true };
+            this.fields.push(field);
+            walk(node, linkOf(instr) ?? href);
+            this.fields.pop();
+            const stand = pageField(instr);
+            if (stand !== undefined && !field.placed) appendRun(runs, makeRun(stand, base, undefined));
             break;
+          }
           case 'smartTag':
           case 'customXml':
           case 'ins':
@@ -677,6 +760,14 @@ class DocxReader {
     const style: RunStyle = { ...base, ...this.charStyle(attr(child(rPr, 'rStyle'), 'val')), ...runProps(rPr) };
     const add = (text: string) => {
       if (text === '' || this.hidingInstruction()) return;
+      // A page number's last-known result is replaced by the number itself, once.
+      const field = this.fields[this.fields.length - 1];
+      const stand = field ? pageField(field.instr) : undefined;
+      if (field && stand !== undefined) {
+        if (!field.placed) appendRun(runs, makeRun(stand, style, undefined));
+        field.placed = true;
+        return;
+      }
       appendRun(runs, makeRun(text, style, this.fieldLink() ?? href));
     };
     for (const node of elements(r)) {
@@ -695,6 +786,16 @@ class DocxReader {
         case 'cr':
           add('\n');
           break;
+        case 'footnoteReference':
+        case 'endnoteReference': {
+          const id = attr(node, 'id');
+          if (id === undefined || this.hidingInstruction()) break;
+          const kind = node.local === 'footnoteReference' ? 'footnote' : 'endnote';
+          const n = this.notes.length + 1;
+          this.notes.push({ kind, id, n });
+          appendRun(runs, makeRun(`[${n}]`, { ...style, size: Math.max(6, (style.size ?? 11) * 0.8) }, undefined));
+          break;
+        }
         case 'noBreakHyphen':
           add('‑');
           break;
@@ -704,7 +805,11 @@ class DocxReader {
           else if (type === 'separate') {
             const top = this.fields[this.fields.length - 1];
             if (top) top.showing = true;
-          } else if (type === 'end') this.fields.pop();
+          } else if (type === 'end') {
+            const done = this.fields.pop();
+            const stand = done ? pageField(done.instr) : undefined;
+            if (done && stand !== undefined && !done.placed && !this.hidingInstruction()) appendRun(runs, makeRun(stand, style, undefined));
+          }
           break;
         }
         case 'instrText': {

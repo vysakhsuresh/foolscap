@@ -73,7 +73,7 @@ import { readIdentity } from '../sign/identity';
 import { hasSignatures, signPdf } from './sign-pdf';
 import { layoutFlow } from './surgeon-flow';
 import { srgbProfile } from './icc';
-import { drawCalls, invert, multiply, paperFills, unitBox, type Matrix } from './content-stream';
+import { drawCalls, invert, multiply, paperFills, unitBox, withoutText, type Matrix } from './content-stream';
 import { appendCopies, carryLabels, carryOutline, finishCopies, fitToPaper, formDefaults, rewriteOutline, type PendingLink } from './surgeon-pages';
 import {
   PdfError,
@@ -89,6 +89,7 @@ import {
   markPage,
   measureLabel,
   type ExtractedImage,
+  type OddImage,
   type ImageEdit,
   type PageInfo,
   type PdfDoc,
@@ -866,8 +867,8 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
     },
 
     images() {
-      const { images, skipped } = extractImages(live());
-      return { images, skipped };
+      const { images, skipped, odd } = extractImages(live());
+      return { images, skipped, odd };
     },
 
     setBackground(index, color) {
@@ -1408,6 +1409,68 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       return done;
     },
 
+    removeText() {
+      const d = live();
+      const { context } = d;
+      const decode = (item: unknown): Uint8Array | null => {
+        const stream = item instanceof PDFRef ? context.lookup(item) : item;
+        if (stream instanceof PDFRawStream) return decodePDFRawStream(stream).decode();
+        if (stream instanceof PDFContentStream) return stream.getUnencodedContents();
+        return null;
+      };
+      const done = new Set<string>();
+      // Drawings a page uses (forms) carry text of their own; each is cleaned once, wherever it is used.
+      const forms = (resources: PDFDict | undefined, depth: number): void => {
+        const xobjects = resources?.lookup(PDFName.of('XObject'));
+        if (!(xobjects instanceof PDFDict) || depth > 8) return;
+        for (const [, value] of xobjects.entries()) {
+          if (!(value instanceof PDFRef) || done.has(value.toString())) continue;
+          done.add(value.toString());
+          const stream = context.lookup(value);
+          if (!(stream instanceof PDFRawStream) || stream.dict.lookup(PDFName.of('Subtype'))?.toString() !== '/Form') continue;
+          const inner = stream.dict.lookup(PDFName.of('Resources'));
+          forms(inner instanceof PDFDict ? inner : undefined, depth + 1);
+          let bytes: Uint8Array | null;
+          try {
+            bytes = decode(stream);
+          } catch {
+            bytes = null;
+          }
+          if (bytes === null) continue;
+          const stripped = withoutText(bytes);
+          if (stripped === bytes) continue;
+          const next = context.flateStream(stripped);
+          for (const [key, entry] of stream.dict.entries()) {
+            const k = key.decodeText();
+            if (k !== 'Filter' && k !== 'DecodeParms' && k !== 'Length') next.dict.set(key, entry);
+          }
+          context.assign(value, next);
+        }
+      };
+      for (const page of d.getPages()) {
+        const contents = page.node.Contents();
+        const streams = contents instanceof PDFArray ? contents.asArray() : contents === undefined ? [] : [contents];
+        const parts: Uint8Array[] = [];
+        for (const item of streams) {
+          try {
+            const bytes = decode(item);
+            if (bytes) parts.push(bytes);
+          } catch {
+            // A stream that cannot be read draws nothing in a reader either.
+          }
+        }
+        const joined = new Uint8Array(parts.reduce((n, p) => n + p.length + 1, 0));
+        let at = 0;
+        for (const p of parts) {
+          joined.set(p, at);
+          joined[at + p.length] = 0x0a;
+          at += p.length + 1;
+        }
+        page.node.set(PDFName.of('Contents'), context.register(context.flateStream(withoutText(joined))));
+        forms(page.node.Resources(), 0);
+      }
+    },
+
     makeArchival() {
       const d = live();
       const removed = cleanDocument(d, { scripts: true, attachments: true, comments: false, metadata: false });
@@ -1885,12 +1948,14 @@ interface FoundImage {
   readonly channels: 1 | 3 | undefined;
 }
 
-function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage[]; skipped: number; found: FoundImage[] } {
+function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage[]; skipped: number; odd: OddImage[]; found: FoundImage[] } {
   const { context } = doc;
   const seen = new Set<string>();
   const images: ExtractedImage[] = [];
   const found: FoundImage[] = [];
   let skipped = 0;
+  // Pictures that are there but stored in a form that cannot be cut out as a file: a reader can still decode them.
+  const odd: OddImage[] = [];
   const push = (
     image: Omit<ExtractedImage, 'bytes'>,
     make: () => Uint8Array | null,
@@ -1902,6 +1967,7 @@ function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage
       const bytes = make();
       if (bytes === null) {
         skipped++;
+        odd.push({ page: image.page, width: image.width, height: image.height });
         return;
       }
       images.push({ ...image, bytes });
@@ -1940,6 +2006,10 @@ function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage
           ? []
           : [name(filterObj)];
     const only = filters.length === 1 ? filters[0] : undefined;
+    const skipOdd = () => {
+      skipped++;
+      if (width > 0 && height > 0) odd.push({ page, width, height });
+    };
     if (dict.lookup(PDFName.of('ImageMask'))?.toString() === 'true') {
       skipped++;
       return;
@@ -1955,7 +2025,7 @@ function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage
     const channels = channelsOf(dict);
     const bits = num(dict, 'BitsPerComponent');
     if (channels === undefined || bits !== 8 || width <= 0 || height <= 0) {
-      skipped++;
+      skipOdd();
       return;
     }
     if (only === 'FlateDecode') {
@@ -1965,18 +2035,18 @@ function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage
         const colors = parms instanceof PDFDict ? num(parms, 'Colors') ?? 1 : 1;
         const columns = parms instanceof PDFDict ? num(parms, 'Columns') ?? 1 : 1;
         if (colors !== channels || columns !== width) {
-          skipped++;
+          skipOdd();
           return;
         }
         push({ page, ext: 'png', width, height }, () => pngFromIdat({ width, height, channels }, stream.getContents()), stream, ref, channels);
         return;
       }
       if (predictor !== 1) {
-        skipped++;
+        skipOdd();
         return;
       }
     } else if (filters.length > 0) {
-      skipped++;
+      skipOdd();
       return;
     }
     const raw = filters.length === 0;
@@ -2016,7 +2086,7 @@ function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage
   };
 
   doc.getPages().forEach((page, index) => walk(page.node.Resources(), index, 0));
-  return { images, skipped, found };
+  return { images, skipped, odd, found };
 }
 
 /**

@@ -50,6 +50,8 @@ export interface Table {
   readonly rows: ReadonlyArray<readonly TableCell[]>;
   /** Column widths in points, when known. */
   readonly columns?: readonly number[];
+  /** How many rows at the top are its headings, repeated on each page the table runs on to. */
+  readonly headerRows?: number;
 }
 
 export interface Picture {
@@ -68,12 +70,24 @@ export interface PageBreak {
 
 export type Block = Paragraph | Table | Picture | PageBreak;
 
+/** In header and footer text, these stand for the page's own number and for how many pages there are. */
+export const PAGE_NUMBER = '\uE000';
+export const PAGE_COUNT = '\uE001';
+
+/** What repeats on each page: a letterhead above, a footer with the page number below. */
+export interface PageFurniture {
+  readonly header?: readonly Block[];
+  readonly footer?: readonly Block[];
+}
+
 /** A flowing document: what Word holds. */
 export interface FlowDocument {
   readonly title?: string;
   /** Page size and margins for the whole document, in points. A4 when absent. */
   readonly page?: { readonly width: number; readonly height: number; readonly margin: number };
   readonly blocks: readonly Block[];
+  /** Headers and footers: on every page, and (when the first page has its own, or none) on the first. */
+  readonly furniture?: { readonly every: PageFurniture; readonly first?: PageFurniture };
 }
 
 /** A workbook: sheets of rows of cell text, as Excel holds them. Numbers stay as text that looks like a number. */
@@ -81,9 +95,36 @@ export interface Workbook {
   readonly sheets: ReadonlyArray<{ readonly name: string; readonly rows: ReadonlyArray<readonly string[]> }>;
 }
 
-/** A deck: one picture per slide, at the slide's size, with the slide's text kept as notes so it can be searched. */
+/**
+ * Text set on a slide where it stood on the page: a box of one or more
+ * lines in one style. Points from the page's top-left corner.
+ */
+export interface SlideText {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  /** The first baseline, from the top of the page. */
+  readonly baseline: number;
+  /** One entry per line, top to bottom. */
+  readonly lines: readonly string[];
+  readonly size: number;
+  /** Distance between baselines, in points. */
+  readonly leading: number;
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  /** "#rrggbb". */
+  readonly color?: string;
+  readonly family?: 'sans' | 'serif' | 'mono';
+}
+
+/**
+ * A deck: one picture per slide, at the slide's size, with the slide's text
+ * kept as notes so it can be searched. With `texts`, the picture is the page
+ * without its words and the words are text boxes over it, to edit.
+ */
 export interface Deck {
   readonly width: number;
   readonly height: number;
-  readonly slides: ReadonlyArray<{ readonly picture: Picture; readonly text?: string }>;
+  readonly slides: ReadonlyArray<{ readonly picture: Picture; readonly text?: string; readonly texts?: readonly SlideText[] }>;
 }

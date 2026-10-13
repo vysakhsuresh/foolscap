@@ -358,7 +358,11 @@ export function formatNumber(n: number, format: string, date1904 = false): strin
   const section = firstSection(format);
   const bare = section.replace(/"[^"]*"/g, '').replace(/\\./g, '').replace(/\[[^\]]*\]/g, (m) => (/^\[h+\]$|^\[m+\]$|^\[s+\]$/i.test(m) ? m : ''));
   if (/^(general)?$/i.test(bare.trim()) || bare.trim() === '@') return general(n);
-  if (/[dmyhs]/i.test(bare.replace(/E[+-]/gi, ''))) return formatDate(n, bare, date1904);
+  if (/[dmyhs]/i.test(bare.replace(/E[+-]/gi, ''))) {
+    // Quoted text and escaped characters are what the date is written with ("dd/mm/yyyy", "d\-mmm\-yy").
+    const pattern = section.replace(/"([^"]*)"/g, (_, text: string) => text.replace(/[a-z]/gi, '\\$&')).replace(/\[(?!h+\]|m+\]|s+\])[^\]]*\]/gi, '');
+    return formatDate(n, pattern, date1904);
+  }
   const percent = bare.includes('%');
   const value = percent ? n * 100 : n;
   const dot = bare.indexOf('.');
@@ -391,18 +395,55 @@ function general(n: number): string {
   return String(Number.parseFloat(n.toPrecision(15)));
 }
 
-/** A serial date as yyyy-mm-dd, with the time when the format shows one. */
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/**
+ * A serial date as its format writes it: "dd/mm/yyyy" gives 09/04/2026,
+ * "d-mmm-yy" gives 9-Apr-26, the built-in short date gives 2026-04-09.
+ * An "m" next to hours or seconds is minutes, as in Excel.
+ */
 function formatDate(serial: number, format: string, date1904: boolean): string {
-  const hasDate = /[dy]/i.test(format) || (/m/i.test(format) && !/h/i.test(format) && !/s/i.test(format));
-  const hasTime = /h/i.test(format) || /s/i.test(format);
   // Serial 60 is 29 February 1900, a day that never was; Excel keeps it for Lotus's sake.
   const days = date1904 ? serial + 1462 : serial < 60 ? serial + 1 : serial;
   const date = new Date(Math.round((days - 25569) * 86_400_000));
   if (Number.isNaN(date.getTime())) return general(serial);
+  const tokens = format.match(/\\.|yyyy|yy|y|mmmmm|mmmm|mmm|mm|m|dddd|ddd|dd|d|hh|h|ss|s|am\/pm|a\/p|\[h+\]|\[m+\]|\[s+\]|\.0+|./gi) ?? [];
+  const twelve = tokens.some((t) => /^(am\/pm|a\/p)$/i.test(t));
+  const kind = (t: string | undefined) => (t === undefined ? '' : /^(h+|\[h+\])$/i.test(t) ? 'h' : /^(s+|\[s+\])$/i.test(t) ? 's' : /^m{1,2}$/i.test(t) ? 'm' : /^[dy]+$/i.test(t) ? 'date' : '');
   const pad = (v: number) => String(v).padStart(2, '0');
-  const day = `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
-  const time = `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}${/s/i.test(format) ? `:${pad(date.getUTCSeconds())}` : ''}`;
-  if (hasDate && hasTime) return `${day} ${time}`;
-  if (hasTime) return time;
-  return day;
+  const hours = date.getUTCHours();
+  let out = '';
+  tokens.forEach((token, i) => {
+    const t = token.toLowerCase();
+    // Minutes when the nearest field before is hours, or the nearest after is seconds.
+    const before = tokens.slice(0, i).reverse().map(kind).find((k) => k !== '');
+    const after = tokens.slice(i + 1).map(kind).find((k) => k !== '');
+    if (t.startsWith('\\')) out += token.slice(1);
+    else if (t === 'yyyy') out += String(date.getUTCFullYear());
+    else if (t === 'yy' || t === 'y') out += pad(date.getUTCFullYear() % 100);
+    else if ((t === 'm' || t === 'mm') && (before === 'h' || after === 's')) out += t === 'mm' ? pad(date.getUTCMinutes()) : String(date.getUTCMinutes());
+    else if (t === 'mmmmm') out += (MONTH_NAMES[date.getUTCMonth()] ?? '').charAt(0);
+    else if (t === 'mmmm') out += MONTH_NAMES[date.getUTCMonth()] ?? '';
+    else if (t === 'mmm') out += (MONTH_NAMES[date.getUTCMonth()] ?? '').slice(0, 3);
+    else if (t === 'mm') out += pad(date.getUTCMonth() + 1);
+    else if (t === 'm') out += String(date.getUTCMonth() + 1);
+    else if (t === 'dddd') out += DAY_NAMES[date.getUTCDay()] ?? '';
+    else if (t === 'ddd') out += (DAY_NAMES[date.getUTCDay()] ?? '').slice(0, 3);
+    else if (t === 'dd') out += pad(date.getUTCDate());
+    else if (t === 'd') out += String(date.getUTCDate());
+    else if (/^\[h+\]$/.test(t)) out += String(Math.floor(serial * 24));
+    else if (/^\[m+\]$/.test(t)) out += String(Math.floor(serial * 1440));
+    else if (/^\[s+\]$/.test(t)) out += String(Math.floor(serial * 86400));
+    else if (t === 'hh' || t === 'h') {
+      const h = twelve ? hours % 12 || 12 : hours;
+      out += t === 'hh' ? pad(h) : String(h);
+    } else if (t === 'ss') out += pad(date.getUTCSeconds());
+    else if (t === 's') out += String(date.getUTCSeconds());
+    else if (t === 'am/pm') out += hours < 12 ? 'AM' : 'PM';
+    else if (t === 'a/p') out += hours < 12 ? 'A' : 'P';
+    else if (t.startsWith('.0')) out += (date.getUTCMilliseconds() / 1000).toFixed(t.length - 1).slice(1);
+    else out += token;
+  });
+  return out.trim();
 }

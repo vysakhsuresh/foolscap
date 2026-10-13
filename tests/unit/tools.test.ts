@@ -210,7 +210,7 @@ describe('pages per sheet', () => {
     const h = harness();
     const input = await h.add('Notes.pdf', await pagesPdf(5));
     const two = only(await run('n-up', [input], { perSheet: 2, paper: 'a4' }, h.ctx));
-    expect(two.detail).toBe('5 pages on 3 sheets of A4');
+    expect(two.detail).toBe('5 pages on 3 sheets of A4 turned sideways');
     expect((await pdfInfo(await h.bytesOf(two.file))).sizes[0]).toEqual([841.89, 595.28]);
     const four = only(await run('n-up', [input], { perSheet: 4, paper: 'letter' }, h.ctx));
     expect(four.detail).toBe('5 pages on 2 sheets of Letter');
@@ -266,7 +266,7 @@ describe('images to PDF', () => {
     const outcomes = await run('images-to-pdf', [a, b], { paper: 'a4', margin: 'small' }, h.ctx);
     const out = only(outcomes);
     expect(out.file.name).toBe('Receipt and 1 more.pdf');
-    expect(out.detail).toBe('2 images, on A4');
+    expect(out.detail).toBe('2 images, one to a page, on A4');
     const info = await pdfInfo(await h.bytesOf(out.file));
     expect(info.pageCount).toBe(2);
     expect(info.sizes[0]).toEqual([595.28, 841.89]);

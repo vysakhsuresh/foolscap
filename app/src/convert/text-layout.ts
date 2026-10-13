@@ -19,7 +19,7 @@
  * y growing downward (the caller flips pdf.js's bottom-up y once).
  */
 import { familyOf, type Family } from './fonts';
-import type { Block, FlowDocument, Paragraph, Run, Table, TableCell, Workbook } from './model';
+import type { Block, FlowDocument, Paragraph, Run, SlideText, Table, TableCell, Workbook } from './model';
 
 /** One piece of text as the PDF reader reports it. */
 export interface TextItem {
@@ -150,13 +150,23 @@ interface ChunkInfo {
 
 /** Rebuilds a flowing document from the text on each page. */
 export function toFlow(pages: readonly PageText[], opts: { title?: string } = {}): FlowDocument {
+  pages = withoutRunningLines(pages);
   const bounds = documentBounds(pages);
   const laid = pages.map((page) => layoutPage(page, bounds));
   const body = bodySize(laid.flat());
   const drafts: Draft[] = [];
   laid.forEach((items, i) => {
-    if (i > 0) drafts.push({ kind: 'page-break' });
-    drafts.push(...draftsOf(items));
+    const own = draftsOf(items);
+    if (i > 0) {
+      // A sentence the page break cut in two is one paragraph again, with no break in it.
+      const last = drafts[drafts.length - 1];
+      const next = own[0];
+      if (last?.kind === 'paragraph' && next?.kind === 'paragraph' && runsOn(last.lines, next.lines)) {
+        last.lines.push(...next.lines);
+        own.shift();
+      } else drafts.push({ kind: 'page-break' });
+    }
+    drafts.push(...own);
   });
   const blocks = finish(drafts, body);
   const page = pageSize(pages);
@@ -254,6 +264,69 @@ export function toWorkbook(pages: readonly PageText[]): Workbook {
       return { name: `Page ${p.index + 1}`, rows };
     }),
   };
+}
+
+/**
+ * A page's words as text boxes for a slide: each run of words on one
+ * baseline with no wide gap is a line, and lines set one under another at
+ * the same left edge, in the same style and at an even spacing, share a box.
+ * Colour is left to the caller, which can see the page.
+ */
+export function slideBoxes(page: PageText): SlideText[] {
+  const segments = segmentsOf(page.items).sort((a, b) => a.y - b.y || a.x0 - b.x0);
+  const styleOf = (seg: Segment) => {
+    const letters = seg.pieces.filter((p) => p.text.trim() !== '');
+    return {
+      bold: letters.length > 0 && letters.every((p) => p.bold),
+      italic: letters.length > 0 && letters.every((p) => p.italic),
+      family: letters.find((p) => p.family !== undefined)?.family,
+    };
+  };
+  type Open = { segs: Segment[]; style: ReturnType<typeof styleOf> };
+  const boxes: Open[] = [];
+  for (const seg of segments) {
+    const style = styleOf(seg);
+    const box = boxes.find((b) => {
+      const last = b.segs[b.segs.length - 1];
+      const first = b.segs[0];
+      if (!last || !first) return false;
+      const gap = seg.y - last.y;
+      const even = b.segs.length < 2 || Math.abs(gap - (last.y - (b.segs[b.segs.length - 2]?.y ?? 0))) <= 0.25 * seg.size;
+      return (
+        Math.abs(seg.x0 - first.x0) <= 0.5 * seg.size &&
+        Math.abs(seg.size - first.size) <= 0.1 * first.size &&
+        style.bold === b.style.bold &&
+        style.italic === b.style.italic &&
+        gap > 0.9 * seg.size &&
+        gap < 1.8 * seg.size &&
+        even
+      );
+    });
+    if (box) box.segs.push(seg);
+    else boxes.push({ segs: [seg], style });
+  }
+  return boxes.map(({ segs, style }) => {
+    const first = segs[0]!;
+    const size = dominantSize(segs.flatMap((s) => s.pieces));
+    const leading = segs.length > 1 ? (segs[segs.length - 1]!.y - first.y) / (segs.length - 1) : 1.2 * size;
+    const x0 = Math.min(...segs.map((s) => s.x0));
+    const x1 = Math.max(...segs.map((s) => s.x1));
+    const top = first.y - 0.95 * size;
+    const bottom = segs[segs.length - 1]!.y + 0.3 * size;
+    return {
+      x: x0,
+      y: top,
+      width: Math.max(1, x1 - x0),
+      height: Math.max(1, bottom - top),
+      baseline: first.y,
+      lines: segs.map((s) => s.text.replace(/\s+/g, ' ').trim()),
+      size,
+      leading,
+      ...(style.bold ? { bold: true } : {}),
+      ...(style.italic ? { italic: true } : {}),
+      ...(style.family ? { family: style.family } : {}),
+    };
+  });
 }
 
 // =====================================================================
@@ -600,12 +673,28 @@ function tableAt(els: readonly Element[], start: number, chunk: ChunkInfo, floor
   // again, keeping only lines that are short or part cleanly into those columns.
   const collect = (accepts: (line: Line) => boolean): Line[] => {
     const run: Line[] = [first.line];
+    const gaps: number[] = [];
+    let most = first.line.segs.length;
     for (let j = start + 1; j < els.length; j++) {
       const el = els[j];
       const prev = run[run.length - 1];
       if (el?.kind !== 'line' || !prev) break;
       const gap = el.line.y - prev.y;
       if (gap <= 0 || gap > Math.max(3 * chunk.spacing, 3 * el.line.size) || !accepts(el.line)) break;
+      // A blank line's worth of space after rows set evenly ends the table: what follows is
+      // another block (a payslip's details, then its earnings), even if its columns line up.
+      // So does a wider gap before a row with more cells than any so far (a statement's
+      // account details, then the header of its transactions).
+      // A heading row with nothing under it but, after a gap, a block of half as many cells (a
+      // statement's last page: its column headings, then the summary box) is not that block's table.
+      if (gaps.length === 0 && gap > 2.5 * Math.max(prev.size, el.line.size) && el.line.segs.length * 2 <= first.line.segs.length) break;
+      if (gaps.length >= 2) {
+        const usual = [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)] ?? gap;
+        if (gap > 2.2 * usual && gap > 2 * el.line.size) break;
+        if (gap > 1.6 * usual && el.line.segs.length >= most + 2) break;
+      }
+      most = Math.max(most, el.line.segs.length);
+      gaps.push(gap);
       run.push(el.line);
     }
     return run;
@@ -613,9 +702,21 @@ function tableAt(els: readonly Element[], start: number, chunk: ChunkInfo, floor
   const plain = collect(() => true);
   const plainMulti = plain.filter((l) => l.segs.length >= 2);
   if (plainMulti.length < 2) return undefined;
-  const guess = clusterColumns(plainMulti);
+  // The guess comes from the fuller rows: a two-cell summary under a seven-column
+  // statement ("Opening balance  84,250.75") would bridge its columns.
+  const widest = Math.max(...plainMulti.map((l) => l.segs.length));
+  const fuller = plainMulti.filter((l) => l.segs.length >= Math.max(2, Math.ceil(widest / 2)));
+  const guess = clusterColumns(fuller.length >= 2 ? fuller : plainMulti);
   if (guess.length < 2) return undefined;
-  const run = collect((line) => line.segs.length >= 2 || line.x1 - line.x0 < 0.6 * width || cellsOf(line, guess) !== undefined);
+  // A line joins only if it sits in the columns. A sentence under the table that runs across
+  // them (a payslip's "Net pay" line), or a label that bridges two of them, is what comes after
+  // the table, and must not vote on its columns.
+  const bridges = (p: { x0: number; x1: number }) => guess.filter((c) => overlap(p, c) > 1).length > 1;
+  const run = collect((line) =>
+    line.segs.length >= 2
+      ? !line.segs.some((seg) => seg.pieces.some(bridges))
+      : cellsOf(line, guess) !== undefined || (line.x1 - line.x0 < 0.6 * width && !bridges(line)),
+  );
   // Every line votes on the columns, so a date that only ever sits on a line of its own still gets one.
   const columns = clusterColumns(run);
   if (columns.length < 2) return undefined;
@@ -1041,6 +1142,81 @@ function breaksBefore(lines: readonly LineInfo[], next: LineInfo, chunk: ChunkIn
   return false;
 }
 
+/**
+ * Whether the paragraph that opens a page carries on the one that closed the
+ * page before: the last line ran to the margin without ending a sentence,
+ * and the next starts as ordinary text in the same size, not a heading or a
+ * list item.
+ */
+function runsOn(before: readonly LineInfo[], after: readonly LineInfo[]): boolean {
+  const end = before[before.length - 1];
+  const start = after[0];
+  const head0 = before[0];
+  if (!end || !start || !head0 || start.marker) return false;
+  // A list item carries on in lines set in from its bullet, as on its own page.
+  if (head0.marker && start.L < head0.L + 2) return false;
+  if (Math.abs(end.size - start.size) > 0.12 * Math.max(end.size, start.size) || end.bold !== start.bold) return false;
+  // The last line stopped short although the next word would have fitted: the paragraph ended there.
+  if ((end.short > 2 * end.size && firstWordWidth(start) + 0.3 * start.size < end.short) || centred(end) || centred(start)) return false;
+  const tail = end.text.trim();
+  const head = start.text.trim();
+  if (tail === '' || head === '' || /[.!?:;]["'”’)\]]*$/.test(tail)) return false;
+  // A lower-case start is plainly the rest of a sentence; so is anything after a comma, a hyphen or a joining word.
+  return /^\p{Ll}/u.test(head) || /[,\-–—]$|\b(and|or|the|of|to|in|a|an|by|for|with|on|at|from|that|which)$/i.test(tail);
+}
+
+/** A line of a running header or footer: text alone, or with a page number, set the same way on several pages. */
+const PAGE_NUMBER = /^(page\s*)?[-–—(\s]*\d+[-–—)\s]*(\s*(of|\/)\s*\d+)?$/i;
+
+/**
+ * The same document with its running headers and footers taken out: the
+ * page numbers ("Page 2 of 9", "- 3 -") wherever they are, and any other line
+ * set in the top or bottom margin of at least two pages and half of them
+ * (a letterhead, "Confidential"), kept only on the first page. In a
+ * Word file they would otherwise land in the middle of the text, page after page.
+ */
+function withoutRunningLines(pages: readonly PageText[]): PageText[] {
+  if (pages.length < 2) return [...pages];
+  type Band = { readonly items: TextItem[]; readonly key: string; readonly number: boolean };
+  const bandsOf = (page: PageText): Band[] => {
+    const zone = 0.09 * page.height;
+    const edge = page.items.filter((i) => i.str.trim() !== '' && (i.y < zone || i.y > page.height - zone));
+    const lines: TextItem[][] = [];
+    for (const item of [...edge].sort((a, b) => a.y - b.y || a.x - b.x)) {
+      const line = lines.find((l) => Math.abs((l[0]?.y ?? 0) - item.y) <= SAME_BASELINE * Math.max(1, item.height));
+      if (line) line.push(item);
+      else lines.push([item]);
+    }
+    return lines.map((items) => {
+      const text = items
+        .sort((a, b) => a.x - b.x)
+        .map((i) => i.str.trim())
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const where = (items[0]?.y ?? 0) < zone ? 'top' : 'bottom';
+      return { items, key: `${where}|${text.toLowerCase().replace(/\d+/g, '#')}`, number: PAGE_NUMBER.test(text) };
+    });
+  };
+  const bands = pages.map(bandsOf);
+  const seen = new Map<string, number>();
+  for (const list of bands) for (const key of new Set(list.map((b) => b.key))) seen.set(key, (seen.get(key) ?? 0) + 1);
+  const enough = Math.max(2, Math.ceil(pages.length / 2));
+  const kept = new Set<string>();
+  return pages.map((page, i) => {
+    const drop = new Set<TextItem>();
+    for (const band of bands[i] ?? []) {
+      if (band.number) band.items.forEach((item) => drop.add(item));
+      else if ((seen.get(band.key) ?? 0) >= enough) {
+        // On the first page it is usually the letterhead, and stays; anywhere else it repeats what is already there.
+        if (i > 0 || kept.has(band.key)) band.items.forEach((item) => drop.add(item));
+        else kept.add(band.key);
+      }
+    }
+    return drop.size === 0 ? page : { ...page, items: page.items.filter((item) => !drop.has(item)) };
+  });
+}
+
 function centred(l: LineInfo): boolean {
   return l.L > 1.5 * l.size && l.R > 1.5 * l.size && Math.abs(l.L - l.R) <= Math.max(6, 0.1 * (l.L + l.R) + l.size);
 }
@@ -1115,8 +1291,11 @@ function finish(drafts: readonly Draft[], body: number): Block[] {
     const runs = joinLines(d.lines);
     if (runs.length === 0) continue;
 
+    // "1. Summary" set larger than the text on a line of its own is a numbered heading,
+    // not the first item of a list: it stays a heading and keeps its number.
+    const numberedHeading = head.marker?.ordered === true && isSizeHeading(d.lines, size, body);
     let list: Paragraph['list'];
-    if (head.marker) {
+    if (head.marker && !numberedHeading) {
       // Nesting from how far in the bullet sits, compared with the other items around it.
       const x = head.line.x0;
       if (!listMarkers.some((m) => Math.abs(m - x) < 4)) listMarkers.push(x);
@@ -1153,7 +1332,8 @@ function paragraphSize(lines: readonly LineInfo[]): number {
 }
 
 function isSizeHeading(lines: readonly LineInfo[], size: number, body: number): boolean {
-  if (lines.length > 3 || lines[0]?.marker) return false;
+  // A bullet is never a heading; a number can be ("2. Figures by district").
+  if (lines.length > 3 || (lines[0]?.marker && !lines[0].marker.ordered)) return false;
   const chars = lines.reduce((n, l) => n + l.text.trim().length, 0);
   return size >= body * HEADING_RATIO && size - body >= 1 && chars <= 200 && chars > 0;
 }
