@@ -1530,3 +1530,119 @@ test.describe('create a form', () => {
     expect(names[0]).toBe('Phone');
   });
 });
+
+test.describe('on a phone, and starting over', () => {
+  const SAMPLE: Record<string, () => Promise<Uint8Array>> = {
+    watermark: () => pagesPdf(2),
+    'page-numbers': () => pagesPdf(2),
+    'header-footer': () => pagesPdf(2),
+    background: () => pagesPdf(2),
+    sign: () => leasePdf(),
+    'mark-up': () => leasePdf(),
+    'edit-text': () => salarySlipPdf(),
+    'add-text': () => applicationBlank(),
+    'edit-images': () => brochurePdf(),
+    'add-image': () => applicationBlank(),
+    'fill-form': () => applicationFormPdf(),
+    'create-form': () => leasePdf(),
+  };
+  for (const [tool, sample] of Object.entries(SAMPLE)) {
+    test(`${tool}: nothing runs off a 360px screen, and the main button stays under the thumb`, async ({ page }, testInfo) => {
+      test.skip(testInfo.project.name !== 'phone', 'phone layout');
+      await openTool(page, tool as Parameters<typeof openTool>[1]);
+      await pick(page, [{ name: 'Sample.pdf', bytes: await sample() }]);
+      const editor = page.getByTestId('page-editor');
+      if (await editor.count()) await expect(page.getByTestId('editor-where')).toHaveText(/^Page 1 of/);
+      const view = page.viewportSize()!;
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+      // Every control the tool shows is on screen, side to side, and big enough for a thumb.
+      const controls = page.locator('[data-slot="body"] :is(input:not(.visually-hidden), select, textarea, button):visible');
+      for (const box of await controls.evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return { x: r.x, right: r.right, w: r.width, h: r.height, id: (e as HTMLElement).dataset['testid'] ?? e.tagName }; }))) {
+        expect(box.x, box.id).toBeGreaterThanOrEqual(0);
+        expect(box.right, box.id).toBeLessThanOrEqual(view.width + 0.5);
+      }
+      if (await editor.count()) {
+        const sheet = (await page.getByTestId('editor-page').boundingBox())!;
+        expect(sheet.x).toBeGreaterThanOrEqual(0);
+        expect(sheet.x + sheet.width).toBeLessThanOrEqual(view.width);
+        // Scrolled to the page, the page is in view and the button is still at the bottom of the screen.
+        await page.getByTestId('editor-page').evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+      } else {
+        await page.locator('[data-slot="body"] .options-stack, [data-slot="body"] .form-panel').first().evaluate((el) => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+      }
+      // On screen without scrolling to it: pinned at the bottom, or simply there when the settings are short.
+      const button = (await page.getByTestId('run-button').boundingBox())!;
+      expect(button.y).toBeGreaterThanOrEqual(0);
+      expect(button.y + button.height).toBeLessThanOrEqual(view.height);
+      expect(button.height).toBeGreaterThanOrEqual(44);
+      await expect(page.getByTestId('run-button')).toBeInViewport();
+    });
+  }
+
+  test('on a phone, a signature is placed with a finger tap and the file comes out signed', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'phone', 'touch');
+    const input = await leasePdf();
+    await openTool(page, 'sign');
+    await pick(page, [{ name: 'Lease.pdf', bytes: input }]);
+    await page.getByTestId('signature-typed').fill('Anjali Menon');
+    const [x, y] = await onPage(page, 0.5, 0.6);
+    await page.touchscreen.tap(x, y);
+    await expect(page.getByTestId('editor-item')).toHaveCount(1);
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('Signed on page 1');
+    const [cx, cy] = centre(extent(await added(input, out.bytes, 0, 1), notWhite)!);
+    expect(Math.abs(cx - 0.5)).toBeLessThan(0.04);
+    expect(Math.abs(cy - 0.6)).toBeLessThan(0.04);
+  });
+
+  test('start over clears the files, the result and the page, ready for the next file', async ({ page }) => {
+    await openTool(page, 'watermark');
+    await pick(page, [{ name: 'One.pdf', bytes: await pagesPdf(1) }]);
+    await page.getByTestId('opt-text').fill('COPY');
+    await run(page);
+    await page.getByTestId('start-over').click();
+    await expect(page.getByTestId('result')).toHaveCount(0);
+    await expect(page.getByTestId('file-item')).toHaveCount(0);
+    await expect(page.getByTestId('run-button')).toBeDisabled();
+    // The settings chosen stay chosen for the next file.
+    await expect(page.getByTestId('opt-text')).toHaveValue('COPY');
+    await pick(page, [{ name: 'Two.pdf', bytes: await pagesPdf(2) }]);
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('"COPY" across 2 pages');
+
+    await openTool(page, 'sign');
+    await pick(page, [{ name: 'Lease.pdf', bytes: await leasePdf() }]);
+    await page.getByTestId('signature-typed').fill('Ravi');
+    await tapPage(page, 0.5, 0.5);
+    await run(page);
+    await page.getByTestId('start-over').click();
+    await expect(page.getByTestId('page-editor')).toBeHidden();
+    await expect(page.getByTestId('file-item')).toHaveCount(0);
+    await pick(page, [{ name: 'Report.pdf', bytes: (await annualReportPdf()).bytes }]);
+    await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 3');
+    // The signature drawn is still there to place; the marks on the old file are not.
+    await expect(page.getByTestId('editor-item')).toHaveCount(0);
+    await tapPage(page, 0.5, 0.5);
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('Signed on page 1');
+  });
+
+  test('a stamped file can go straight on to the next tool', async ({ page }) => {
+    await openTool(page, 'page-numbers');
+    await pick(page, [{ name: 'Deck.pdf', bytes: await pagesPdf(3) }]);
+    await run(page);
+    await page.getByTestId('then-menu').click();
+    await page.getByTestId('then-watermark').click();
+    await page.waitForURL(/\/tools\/watermark\/$/);
+    await expect(page.getByTestId('file-item')).toHaveCount(1);
+    await expect(page.getByTestId('file-item')).toContainText('Deck numbered.pdf');
+    const out = await runAndSave(page);
+    const pdf = await openPdf(out.bytes);
+    for (let i = 0; i < 3; i++) {
+      const text = await pdf.text(i);
+      expect(text).toContain('DRAFT');
+      expect(text).toContain(String(i + 1));
+    }
+    await pdf.close();
+  });
+});
