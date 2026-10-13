@@ -176,6 +176,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   const lineHints = el('div', { class: 'editor__line-hints', attrs: { 'aria-hidden': 'true' } });
   // Edit pictures: each page's pictures, found once.
   const pagePics = new Set<number>();
+  /** Pages found to have nothing this mode can change (no pictures, or no text): the hint says so. */
+  const bare = new Set<number>();
   // Create form.
   let fieldKind: ReturnType<typeof choices<FieldKind>> | null = null;
   let fieldName: ReturnType<typeof field> | null = null;
@@ -503,10 +505,12 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       case 'add-image':
         return chosen === null ? 'Choose a picture above, then tap the page where it goes.' : 'Tap the page to put the picture there. Drag it to move it; drag its corner to resize.';
       case 'edit-text':
+        if (bare.has(current)) return 'This page has no text to change: it may be a scanned picture. Make it searchable first, or use Add text.';
         return 'Tap any words on the page to change them. Everything you can change is outlined, cell by cell in a table.';
       case 'create-form':
         return fieldKind?.value() === 'check' ? 'Tap the page where a tick box goes.' : 'Drag across the space where the answer goes.';
       case 'edit-images':
+        if (bare.has(current)) return 'This page has no pictures to change. Go to another page, or add one with Add image.';
         return 'Tap a picture to select it. Drag to move, drag its corner to resize, × to take it out.';
       case 'remove-areas':
         return 'Drag across each part that should go.';
@@ -580,9 +584,9 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       wireItem(item);
       paintPic(item);
     }
+    if (found.length === 0) bare.add(index);
     if (token === renderToken) {
       placeAll();
-      if (found.length === 0) hint.textContent = 'This page has no pictures to change. Go to another page, or add one with Add image.';
       sync();
     }
   }
@@ -644,7 +648,10 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         return hintBox;
       }),
     );
-    if (lines.length === 0) hint.textContent = 'This page has no text to change: it may be a scanned picture. Make it searchable first, or use Add text.';
+    if (lines.length === 0) {
+      bare.add(index);
+      sync();
+    }
     if (!sheet.contains(lineHints)) sheet.insertBefore(lineHints, layer);
   }
 
@@ -1531,6 +1538,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       items = [];
       pageLines.clear();
       pagePics.clear();
+      bare.clear();
       lineHints.replaceChildren();
       selected = null;
       root.hidden = false;

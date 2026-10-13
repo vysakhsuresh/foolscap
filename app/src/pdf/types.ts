@@ -482,6 +482,14 @@ export type FormField =
 /** What to put in a form: by field name, text for text and choices, true or false for checkboxes. */
 export type FormValues = Readonly<Record<string, string | boolean>>;
 
+/** One line of a form answer as a picture: `width` × `height` pixels, for words `size` pixels tall. */
+export interface AnswerPicture {
+  readonly png: Uint8Array;
+  readonly width: number;
+  readonly height: number;
+  readonly size: number;
+}
+
 /** A photo Compress made: always JPEG, three channels. */
 export interface RecompressedImage {
   readonly bytes: Uint8Array;
@@ -581,11 +589,13 @@ export interface PdfDoc {
   replaceWithImage(index: number, jpeg: Uint8Array): Promise<void>;
   /**
    * Puts values into the form. `seal` flattens every field into the page so
-   * the answers can no longer be changed. Throws PdfError 'unsupported-text'
-   * for letters the form's font cannot draw.
+   * the answers can no longer be changed. An answer with letters the form's
+   * font cannot draw (Malayalam, Hindi…) is shown with `pictures` of it, one
+   * per line, drawn by the browser; the field still holds the words
+   * themselves. Without a picture such an answer throws PdfError
+   * 'unsupported-text'. Returns how many of `values` named a field this form has.
    */
-  /** Returns how many of `values` named a field this form has. */
-  fillForm(values: FormValues, seal: boolean): number;
+  fillForm(values: FormValues, seal: boolean, pictures?: ReadonlyMap<string, readonly AnswerPicture[]>): Promise<number>;
   /** Adds new fillable fields; names already taken get a number. Returns the names given. */
   addFields(fields: readonly NewField[]): string[];
   /**

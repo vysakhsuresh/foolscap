@@ -287,8 +287,8 @@ export async function applicationFormPdf(): Promise<Bytes> {
   news.addToPage(one, { x: 220, y: 460, width: 14, height: 14 });
   label(one, 'I agree to the rules', 430);
   const agree = form.createCheckBox('agree');
-  agree.check();
   agree.addToPage(one, { x: 220, y: 430, width: 14, height: 14 });
+  agree.check();
   const two = doc.addPage(A4);
   two.drawText('Page 2: more about you', { x: 56, y: 780, size: 14, font: bold });
   label(two, 'Date of birth', 720);

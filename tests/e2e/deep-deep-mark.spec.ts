@@ -6,7 +6,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { encryptedPdf, pagesPdf, pdfInfo } from '../fixtures/pdfs';
-import { annualReportPdf, leasePdf, salarySlipPdf, logoPng, photoJpeg, sidewaysPhotoJpeg, turnedPagesPdf } from '../fixtures/mark-samples';
+import { annualReportPdf, applicationFormPdf, brochurePdf, leasePdf, orangePng, salarySlipPdf, logoPng, photoJpeg, sidewaysPhotoJpeg, turnedPagesPdf } from '../fixtures/mark-samples';
 import { added, extent, isBlue, isGreen, isInk, isRed, isWhite, look, mean, notWhite, openPdf, share, type Box, type Word } from '../fixtures/mark-inspect';
 import { downloadFrom, openTool, run, useDownloads } from './helpers';
 
@@ -1103,5 +1103,239 @@ test.describe('edit text', () => {
     expect(share(picture, { x: pan.x / width, y: (pan.y - pan.size * 0.8) / height, w: pan.width / width, h: (pan.size * 0.9) / height }, isInk)).toBe(0);
     const diff = await added(input, out.bytes, 0, 2);
     expect(share(diff, { x: name.x / width, y: (name.y - name.size) / height, w: (name.width * 1.5) / width, h: (name.size * 1.4) / height }, isInk)).toBeGreaterThan(0.02);
+  });
+});
+
+const isOrange = (r: number, g: number, b: number) => r > 220 && g > 110 && g < 170 && b < 60;
+const A4H = 841.89;
+const A4W = 595.28;
+/** Where brochurePdf draws its photo and its logo, in fractions of the page from the top-left. */
+const PHOTO = { x: 56 / A4W, y: (A4H - 680) / A4H, w: 300 / A4W, h: 200 / A4H };
+const LOGO = { x: 400 / A4W, y: (A4H - 660) / A4H, w: 140 / A4W, h: 140 / A4H };
+const inside = (b: Box, by = 0.15): Box => ({ x: b.x + b.w * by, y: b.y + b.h * by, w: b.w * (1 - 2 * by), h: b.h * (1 - 2 * by) });
+
+test.describe('edit pictures', () => {
+  test('outlines each picture; one taken out, one moved and made smaller, nothing else touched', async ({ page }) => {
+    const input = await brochurePdf();
+    await openTool(page, 'edit-images');
+    await pick(page, [{ name: 'Brochure.pdf', bytes: input }]);
+    await expect(page.locator('.editor__item--pic')).toHaveCount(2);
+    await expect(page.getByTestId('run-button')).toBeDisabled();
+    await expect(page.locator('.run__note')).toHaveText('Move, take out or replace a picture first.');
+    // The logo: tap it, then its ×.
+    await tapPage(page, LOGO.x + LOGO.w / 2, LOGO.y + LOGO.h / 2);
+    await page.locator('.editor__item--pic.is-selected [data-testid="editor-remove"]').click();
+    await expect(page.locator('.editor__item--pic.is-deleted .editor__pic-state')).toHaveText('Taken out');
+    // The photo: dragged down by a quarter of the page, then its corner pulled in.
+    await dragPage(page, [PHOTO.x + PHOTO.w / 2, PHOTO.y + PHOTO.h / 2], [PHOTO.x + PHOTO.w / 2, PHOTO.y + PHOTO.h / 2 + 0.25]);
+    const handle = page.locator('.editor__item.is-selected .editor__resize');
+    const hb = (await handle.boundingBox())!;
+    const layer = (await page.getByTestId('editor-layer').boundingBox())!;
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hb.x + hb.width / 2 - layer.width * PHOTO.w * 0.5, hb.y + hb.height / 2, { steps: 6 });
+    await page.mouse.up();
+    const out = await runAndSave(page);
+    expect(out.name).toBe('Brochure (pictures edited).pdf');
+    await expect(page.getByTestId('result-detail')).toHaveText('1 picture taken out, 1 picture moved');
+    const pdf = await openPdf(out.bytes);
+    const picture = await pdf.render(0, 1);
+    expect(await pdf.text(0)).toContain('Onam Sale at Lulu');
+    await pdf.close();
+    // The logo's place is clean paper; the photo's old place too.
+    expect(share(picture, LOGO, isWhite)).toBeGreaterThan(0.99);
+    expect(share(picture, { x: PHOTO.x, y: PHOTO.y, w: PHOTO.w, h: PHOTO.h * 0.9 }, isWhite)).toBeGreaterThan(0.99);
+    // The photo is a quarter of the page lower, half as wide, its shape kept.
+    const now = extent(await added(input, out.bytes, 0, 1), (r, g, b) => !isWhite(r, g, b) && !(r > 200 && g > 200 && b > 200))!;
+    const moved = extent(picture, (r, g, b) => b > 150 && r < 150 && g > 100)!;
+    expect(Math.abs(moved.x - PHOTO.x)).toBeLessThan(0.02);
+    expect(Math.abs(moved.y - (PHOTO.y + 0.25))).toBeLessThan(0.02);
+    expect(moved.w).toBeCloseTo(PHOTO.w * 0.5, 1);
+    expect((moved.h * A4H) / (moved.w * A4W)).toBeCloseTo(200 / 300, 1);
+    expect(now).not.toBeNull();
+    // Still one photo in the file, not a copy.
+    expect((await imagesIn(out.bytes)).filter((i) => i.filter === '/DCTDecode')).toHaveLength(1);
+  });
+
+  test('a picture swapped for another keeps the old one’s box, the new one’s shape', async ({ page }) => {
+    const input = await brochurePdf();
+    await openTool(page, 'edit-images');
+    await pick(page, [{ name: 'Brochure.pdf', bytes: input }]);
+    await expect(page.locator('.editor__item--pic')).toHaveCount(2);
+    // Choosing before tapping a picture says what to do first.
+    await page.getByTestId('opt-replace-picture').setInputFiles({ name: 'Offer.png', mimeType: 'image/png', buffer: Buffer.from(await orangePng(300, 200)) });
+    await expect(page.getByTestId('editor-hint')).toHaveText('Tap a picture on the page first, then choose the new one.');
+    await tapPage(page, LOGO.x + LOGO.w / 2, LOGO.y + LOGO.h / 2);
+    await page.getByTestId('opt-replace-picture').setInputFiles({ name: 'Offer.png', mimeType: 'image/png', buffer: Buffer.from(await orangePng(300, 200)) });
+    await expect(page.locator('.editor__item--pic .editor__pic-state').filter({ hasText: 'Replaced' })).toHaveCount(1);
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('1 picture replaced');
+    const pdf = await openPdf(out.bytes);
+    const picture = await pdf.render(0, 1);
+    await pdf.close();
+    const orange = extent(picture, isOrange)!;
+    // As wide as the logo's box, two-thirds as tall, centred in it.
+    expect(orange.w).toBeCloseTo(LOGO.w, 1);
+    expect((orange.h * A4H) / (orange.w * A4W)).toBeCloseTo(200 / 300, 1);
+    expect(Math.abs(orange.y + orange.h / 2 - (LOGO.y + LOGO.h / 2))).toBeLessThan(0.01);
+    // The photo beside it is untouched.
+    expect(share(await added(input, out.bytes, 0, 1), inside(PHOTO), notWhite)).toBe(0);
+  });
+
+  test('× again keeps a picture after all, and a page with no pictures says so', async ({ page }) => {
+    await openTool(page, 'edit-images');
+    await pick(page, [{ name: 'Brochure.pdf', bytes: await brochurePdf() }]);
+    await expect(page.locator('.editor__item--pic')).toHaveCount(2);
+    await tapPage(page, LOGO.x + LOGO.w / 2, LOGO.y + LOGO.h / 2);
+    const remove = page.locator('.editor__item--pic.is-selected [data-testid="editor-remove"]');
+    await remove.click();
+    await expect(page.getByTestId('run-button')).toBeEnabled();
+    await remove.click();
+    await expect(page.locator('.editor__item--pic.is-deleted')).toHaveCount(0);
+    await expect(page.getByTestId('run-button')).toBeDisabled();
+    await openTool(page, 'edit-images');
+    await pick(page, [{ name: 'Letter.pdf', bytes: await applicationBlank() }]);
+    await expect(page.getByTestId('editor-hint')).toHaveText('This page has no pictures to change. Go to another page, or add one with Add image.');
+  });
+});
+
+/** What each field holds in a filled form, by name, as pdf.js reads it. */
+async function fieldValues(bytes: Uint8Array): Promise<Record<string, unknown>> {
+  const pdf = await openPdf(bytes);
+  try {
+    const fields = await pdf.fields();
+    const out: Record<string, unknown> = {};
+    for (const [name, widgets] of Object.entries(fields)) {
+      const typed = widgets.filter((w) => typeof w['type'] === 'string' && w['type'] !== '');
+      const first = typed[0];
+      if (!first) continue;
+      out[name] = first['type'] === 'radiobutton' ? (typed.find((w) => w['value'] === w['exportValues'])?.['exportValues'] ?? (first['value'] as string)) : first['value'];
+    }
+    return out;
+  } finally {
+    await pdf.close();
+  }
+}
+
+test.describe('fill in a form', () => {
+  test('lists every field in page order, as a person would read it, with what it already holds', async ({ page }) => {
+    await openTool(page, 'fill-form');
+    await pick(page, [{ name: 'Library card.pdf', bytes: await applicationFormPdf() }]);
+    const labels = page.locator('[data-testid="form-fields"] .field__label, [data-testid="form-fields"] .check__label');
+    await expect(labels).toHaveText(['Applicant full name', 'Pin', 'Address', 'Nationality', 'Student', 'Newsletter', 'Agree', 'Dob']);
+    await expect(page.getByTestId('form-field-applicant.full_name')).toHaveValue('Ravi Kumar');
+    await expect(page.getByTestId('form-field-pin')).toHaveAttribute('maxlength', '6');
+    await expect(page.getByTestId('form-field-agree')).toBeChecked();
+    await expect(page.getByTestId('form-field-newsletter')).not.toBeChecked();
+    await expect(page.getByTestId('run-button')).toBeDisabled();
+    await expect(page.locator('.run__note')).toHaveText('Type your answers first.');
+  });
+
+  test('every kind of field takes its answer and the form stays fillable', async ({ page }) => {
+    const input = await applicationFormPdf();
+    await openTool(page, 'fill-form');
+    await pick(page, [{ name: 'Library card.pdf', bytes: input }]);
+    await page.getByTestId('form-field-applicant.full_name').fill('Anjali Menon');
+    await page.getByTestId('form-field-pin').fill('6820301234');
+    await expect(page.getByTestId('form-field-pin')).toHaveValue('682030');
+    await page.getByTestId('form-field-address').fill('Flat 4B, Rose Gardens\nKakkanad, Kochi');
+    await page.getByTestId('form-field-nationality').selectOption('Overseas Citizen of India');
+    await page.getByTestId('form-field-student').selectOption('Yes');
+    await page.getByTestId('form-field-newsletter').check();
+    await page.getByTestId('form-field-agree').uncheck();
+    await page.getByTestId('form-field-dob').fill('14/02/1994');
+    const out = await runAndSave(page);
+    expect(out.name).toBe('Library card (filled).pdf');
+    await expect(page.getByTestId('result-detail')).toHaveText('7 answers, still editable');
+    const values = await fieldValues(out.bytes);
+    expect(values['applicant.full_name']).toBe('Anjali Menon');
+    expect(values['pin']).toBe('682030');
+    expect(values['address']).toBe('Flat 4B, Rose Gardens\nKakkanad, Kochi');
+    expect(values['nationality']).toBe('Overseas Citizen of India');
+    expect(values['student']).toBe('Yes');
+    expect(values['newsletter']).not.toBe('Off');
+    expect(values['agree']).toBe('Off');
+    expect(values['dob']).toBe('14/02/1994');
+    // And it looks filled in: the name is drawn in its box.
+    const pdf = await openPdf(out.bytes);
+    expect(share(await pdf.render(0, 1), { x: 180 / A4W, y: (A4H - 736) / A4H, w: 300 / A4W, h: 22 / A4H }, isInk)).toBeGreaterThan(0.01);
+    await pdf.close();
+  });
+
+  test('sealed, the answers become part of the page and the fields are gone', async ({ page }) => {
+    await openTool(page, 'fill-form');
+    await pick(page, [{ name: 'Library card.pdf', bytes: await applicationFormPdf() }]);
+    await page.getByTestId('form-field-dob').fill('14/02/1994');
+    await page.getByTestId('opt-seal').check();
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('1 answer, sealed so the answers can no longer be changed');
+    expect(Object.keys(await fieldValues(out.bytes))).toEqual([]);
+    const pdf = await openPdf(out.bytes);
+    expect(await pdf.text(1)).toContain('14/02/1994');
+    expect(await pdf.text(0)).toContain('Ravi Kumar');
+    await pdf.close();
+  });
+
+  test('answers saved as a file fill the same form in one go next time; Acrobat’s .xfdf too', async ({ page }) => {
+    const input = await applicationFormPdf();
+    await openTool(page, 'fill-form');
+    await pick(page, [{ name: 'Library card.pdf', bytes: input }]);
+    await page.getByTestId('form-field-applicant.full_name').fill('Anjali Menon');
+    await page.getByTestId('form-field-nationality').selectOption('Indian');
+    await page.getByTestId('form-field-newsletter').check();
+    await page.getByTestId('opt-save-answers').check();
+    await run(page);
+    await expect(page.getByTestId('result-item')).toHaveCount(2);
+    await expect(page.getByTestId('result-item').nth(1)).toHaveAttribute('data-name', 'Library card answers.json');
+    // Name (changed), PIN, address, nationality, newsletter and the ticked agree box; the rest are blank.
+    await expect(page.getByTestId('result-detail').nth(1)).toHaveText('4 answers saved: open the form here again and choose this file to fill it in one go');
+    const saved = await downloadFrom(page, page.getByTestId('save-button').nth(1));
+    const json = JSON.parse(new TextDecoder().decode(saved.bytes)) as { kind: string; fields: Record<string, unknown> };
+    expect(json.kind).toBe('Form answers');
+    expect(json.fields['applicant.full_name']).toBe('Anjali Menon');
+
+    await openTool(page, 'fill-form');
+    await pick(page, [{ name: 'Library card.pdf', bytes: input }]);
+    await page.getByTestId('form-load').setInputFiles({ name: 'answers.json', mimeType: 'application/json', buffer: Buffer.from(saved.bytes) });
+    await expect(page.getByTestId('form-load-said')).toHaveText('Filled 4 answers from the file. Check them, then tap Fill it in.');
+    await expect(page.getByTestId('form-field-applicant.full_name')).toHaveValue('Anjali Menon');
+    await expect(page.getByTestId('form-field-newsletter')).toBeChecked();
+
+    const xfdf = `<?xml version="1.0" encoding="UTF-8"?><xfdf xmlns="http://ns.adobe.com/xfdf/"><fields><field name="applicant"><field name="full_name"><value>Meera Nair</value></field></field><field name="pin"><value>695001</value></field></fields></xfdf>`;
+    await page.getByTestId('form-load').setInputFiles({ name: 'answers.xfdf', mimeType: 'application/vnd.adobe.xfdf', buffer: Buffer.from(xfdf) });
+    await expect(page.getByTestId('form-load-said')).toHaveText('Filled 2 answers from the file. Check them, then tap Fill it in.');
+    await expect(page.getByTestId('form-field-applicant.full_name')).toHaveValue('Meera Nair');
+    const out = await runAndSave(page);
+    const values = await fieldValues(out.bytes);
+    expect(values['applicant.full_name']).toBe('Meera Nair');
+    expect(values['pin']).toBe('695001');
+
+    await page.getByTestId('form-load').setInputFiles({ name: 'other.json', mimeType: 'application/json', buffer: Buffer.from('{"fields":{"vehicle":"KL-07"}}') });
+    await expect(page.getByTestId('form-load-said')).toHaveText('None of those answers belong to this form.');
+    await page.getByTestId('form-load').setInputFiles({ name: 'notes.json', mimeType: 'application/json', buffer: Buffer.from('hello') });
+    await expect(page.getByTestId('form-load-said')).toHaveText("That file isn't a set of saved answers.");
+  });
+
+  test('answers in Malayalam, and a PDF with no fields points to Add text', async ({ page }) => {
+    const input = await applicationFormPdf();
+    await openTool(page, 'fill-form');
+    await pick(page, [{ name: 'Library card.pdf', bytes: input }]);
+    await page.getByTestId('form-field-applicant.full_name').fill('അഞ്ജലി മേനോൻ');
+    await page.getByTestId('form-field-address').fill('കാക്കനാട്, കൊച്ചി');
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('2 answers, still editable');
+    await look(out.bytes, 0, 'fill-form-malayalam');
+    const values = await fieldValues(out.bytes);
+    expect(values['applicant.full_name']).toBe('അഞ്ജലി മേനോൻ');
+    expect(values['address']).toBe('കാക്കനാട്, കൊച്ചി');
+    const pdf = await openPdf(out.bytes);
+    expect(share(await pdf.render(0, 1), { x: 180 / A4W, y: (A4H - 736) / A4H, w: 300 / A4W, h: 22 / A4H }, isInk)).toBeGreaterThan(0.01);
+    await pdf.close();
+
+    await openTool(page, 'fill-form');
+    await pick(page, [{ name: 'Letter.pdf', bytes: await applicationBlank() }]);
+    await expect(page.getByTestId('form-none')).toContainText('This PDF has no fields to fill in. To write on it anyway, use Add text.');
+    await expect(page.getByTestId('form-none').getByRole('link', { name: 'Add text' })).toHaveAttribute('href', '/tools/add-text/');
+    await expect(page.getByTestId('run-button')).toBeDisabled();
   });
 });

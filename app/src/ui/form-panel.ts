@@ -41,9 +41,22 @@ export function createFormPanel(onChange: () => void): FormPanel {
 
   let pending: ReturnType<typeof parseAnswers> = null;
   const fillFrom = (answers: NonNullable<ReturnType<typeof parseAnswers>>) => {
+    // Counted as a person would: a blank in the file clears its box, but is not "an answer filled".
+    let fitted = 0;
     let filled = 0;
-    for (const entry of read) if (entry.name in answers && entry.set(answers[entry.name]!)) filled++;
-    loadSaid.textContent = filled === 0 ? 'None of those answers belong to this form.' : `Filled ${filled} ${filled === 1 ? 'answer' : 'answers'} from the file. Check them, then tap Fill it in.`;
+    for (const entry of read) {
+      if (!(entry.name in answers)) continue;
+      const value = answers[entry.name]!;
+      if (!entry.set(value)) continue;
+      fitted++;
+      if (value !== '' && value !== false) filled++;
+    }
+    loadSaid.textContent =
+      fitted === 0
+        ? 'None of those answers belong to this form.'
+        : filled === 0
+          ? 'Every answer in that file is blank, so the boxes were emptied.'
+          : `Filled ${filled} ${filled === 1 ? 'answer' : 'answers'} from the file. Check them, then tap Fill it in.`;
     onChange();
   };
 

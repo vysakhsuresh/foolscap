@@ -13,6 +13,7 @@ import { createNodeEngine, installNodeCanvas } from '../fixtures/node-canvas';
 import { segmentsOf } from '../../app/src/pdf/find-text';
 import { openPdf } from '../fixtures/mark-inspect';
 import { pagesPdf, stampsIn } from '../fixtures/pdfs';
+import { applicationFormPdf } from '../fixtures/mark-samples';
 
 beforeAll(() => {
   installNodeCanvas();
@@ -203,5 +204,36 @@ describe('edit text keeps the look of the words it changes', () => {
     expect(fonts.find((f) => f.text === 'Bold one')?.font).toMatch(/Helvetica-Bold$/);
     expect(fonts.find((f) => f.text === 'Serif italic')?.font).toMatch(/Times-Italic$/);
     expect(fonts.find((f) => f.text === 'Typewriter')?.font).toMatch(/Courier$/);
+  });
+});
+
+describe('fill in a form, in any script', () => {
+  it('keeps a Malayalam answer as words in the field, shown by a picture of them', async () => {
+    const h = harness();
+    const input = await h.workspace.put('Card.pdf', await applicationFormPdf(), 'pdf', { kind: 'picked' });
+    const { bytes, detail } = await only(await getOp('fill-form').run([input], { values: { 'applicant.full_name': 'അഞ്ജലി മേനോൻ', address: 'കാക്കനാട്\nകൊച്ചി', pin: '682030' }, seal: false }, h.ctx), h.workspace);
+    expect(detail).toBe('3 answers, still editable');
+    const pdf = await openPdf(bytes);
+    const fields = await pdf.fields();
+    expect(fields['applicant.full_name']?.find((w) => w['type'] === 'text')?.['value']).toBe('അഞ്ജലി മേനോൻ');
+    expect(fields['address']?.find((w) => w['type'] === 'text')?.['value']).toBe('കാക്കനാട്\nകൊച്ചി');
+    await pdf.close();
+  });
+
+  it('seals a Malayalam answer into the page', async () => {
+    const h = harness();
+    const input = await h.workspace.put('Card.pdf', await applicationFormPdf(), 'pdf', { kind: 'picked' });
+    const { bytes } = await only(await getOp('fill-form').run([input], { values: { 'applicant.full_name': 'അഞ്ജലി' }, seal: true }, h.ctx), h.workspace);
+    const pdf = await openPdf(bytes);
+    expect(Object.keys(await pdf.fields())).toEqual([]);
+    await pdf.close();
+    expect(new TextDecoder('latin1').decode(bytes)).toMatch(/\/Subtype\s*\/Image/);
+  });
+
+  it('a Malayalam answer longer than its box allows is refused in words, counting letters as a person does', async () => {
+    const h = harness();
+    const input = await h.workspace.put('Card.pdf', await applicationFormPdf(), 'pdf', { kind: 'picked' });
+    const outcomes = await getOp('fill-form').run([input], { values: { pin: '൬൮൨൦൩൦൧' }, seal: false }, h.ctx);
+    expect(outcomes[0]).toMatchObject({ kind: 'failed', reason: 'One answer is longer than its box allows (6 characters). Shorten it and try again.' });
   });
 });

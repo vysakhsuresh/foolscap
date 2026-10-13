@@ -4,7 +4,8 @@
  * marks and areas; these check them and hand them to the surgeon.
  */
 import type { FoolscapFile } from '../files/types';
-import { markPage, type Area, type Mark, type PdfDoc } from '../pdf';
+import { markPage, type AnswerPicture, type Area, type Mark, type PdfDoc } from '../pdf';
+import { paintLine } from './office-ops';
 import { baseName, failed, noteMissing, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import { checkCancelled, type CreateFormParams, type EditImagesParams, type FillFormParams, type MarksParams, type Op, type OpContext, type Outcome, type RemoveAreasParams } from './op';
 import type { ToolId } from './tools';
@@ -272,11 +273,28 @@ export const fillFormOp: Op<FillFormParams> = {
   },
 };
 
+/** Pictures of the answers the form's font cannot draw (Malayalam, Hindi…), one per line, drawn by the browser. */
+async function answerPictures(doc: PdfDoc, values: FillFormParams['values']): Promise<Map<string, AnswerPicture[]>> {
+  const out = new Map<string, AnswerPicture[]>();
+  const px = 64;
+  for (const [name, value] of Object.entries(values)) {
+    if (typeof value !== 'string' || value === '' || doc.canDraw(value)) continue;
+    const lines: AnswerPicture[] = [];
+    for (const line of value.replace(/\r\n?/g, '\n').split('\n')) {
+      const made = await paintLine(line.length > 0 ? line : ' ', { size: px, bold: false, italic: false, family: 'sans', color: [0, 0, 0] }, 1).catch(() => null);
+      if (made === null) break;
+      lines.push({ ...made, size: px });
+    }
+    if (lines.length > 0) out.set(name, lines);
+  }
+  return out;
+}
+
 function fillForm(inputs: readonly FoolscapFile[], params: FillFormParams, ctx: OpContext): Promise<Outcome[]> {
   return withOne(inputs, ctx, async (doc, input) => {
       if (Object.keys(params.values).length === 0 && !params.seal) return refused([input], 'Nothing was changed. Type your answers first.');
       const filled = Object.values(params.values).filter((v) => v !== '' && v !== false).length;
-      const matched = doc.fillForm(params.values, params.seal);
+      const matched = await doc.fillForm(params.values, params.seal, await answerPictures(doc, params.values));
       // Answers saved from another form fit nothing here; saying "5 answers" would be untrue.
       if (matched === 0 && !params.seal) return refused([input], 'None of these answers fit a box in this PDF. They may be from a different form.');
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);

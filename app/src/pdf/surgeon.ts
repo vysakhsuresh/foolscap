@@ -89,6 +89,7 @@ import {
   type PdfSurgeon,
   type RecompressedImage,
   type Rotation,
+  type AnswerPicture,
   type TextFace,
   type TextStamp,
 } from './types';
@@ -1193,22 +1194,26 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       return { scripts: removed.scripts, attachments: removed.attachments, fontsMissing: countUnembeddedFonts(d) };
     },
 
-    fillForm(values, seal) {
+    async fillForm(values, seal, pictures) {
       const d = live();
       const form = d.getForm();
       const f = font(false);
       let matched = 0;
+      /** Fields shown with a picture of their answer: their appearance is ours, not pdf-lib's. */
+      const pictured: Array<{ field: PDFTextField | PDFDropdown; lines: readonly AnswerPicture[] }> = [];
       for (const [name, value] of Object.entries(values)) {
         const field = form.getFieldMaybe(name);
         if (field === undefined) continue;
         matched++;
         if (field instanceof PDFTextField) {
           const text = typeof value === 'string' ? value : '';
-          assertDrawable(f, text.replace(/\n/g, ''));
           const max = field.getMaxLength();
-          if (max !== undefined && text.length > max) {
+          if (max !== undefined && [...text].length > max) {
             throw new PdfError(`One answer is longer than its box allows (${max} characters). Shorten it and try again.`, 'unknown');
           }
+          const lines = pictures?.get(name);
+          if (!self.canDraw(text) && lines !== undefined && lines.length > 0) pictured.push({ field, lines });
+          else assertDrawable(f, text.replace(/\n/g, ''));
           field.setText(text.length > 0 ? text : undefined);
         } else if (field instanceof PDFCheckBox) {
           if (value === true) field.check();
@@ -1219,11 +1224,19 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         } else if (field instanceof PDFDropdown || field instanceof PDFOptionList) {
           if (typeof value === 'string' && value.length > 0) {
             const options = field.getOptions();
-            if (options.includes(value)) field.select(value);
+            if (options.includes(value)) {
+              field.select(value);
+              const lines = pictures?.get(name);
+              if (field instanceof PDFDropdown && !self.canDraw(value) && lines !== undefined && lines.length > 0) pictured.push({ field, lines });
+            }
           } else if (value === '') {
             field.clear();
           }
         }
+      }
+      for (const { field, lines } of pictured) {
+        await pictureAppearance(d, field, lines);
+        form.markFieldAsClean(field.ref);
       }
       try {
         form.updateFieldAppearances(f);
@@ -1402,6 +1415,54 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
 
   documents.set(self, initial);
   return self;
+}
+
+/**
+ * A field's look made from pictures of its answer, one per line, for letters
+ * the PDF fonts cannot draw: left-aligned with a little air, a single line
+ * centred in its box and shrunk to fit it, several lines from the top. Every
+ * reader shows it, and sealing draws it into the page.
+ */
+async function pictureAppearance(doc: PDFDocument, field: PDFTextField | PDFDropdown, lines: readonly AnswerPicture[]): Promise<void> {
+  const images: PDFImage[] = [];
+  for (const line of lines) images.push(await doc.embedPng(line.png));
+  const multiline = field instanceof PDFTextField && field.isMultiline();
+  for (const widget of field.acroField.getWidgets()) {
+    const { width: w, height: h } = widget.getRectangle();
+    const pad = 2;
+    // Points per pixel: words about as tall as pdf-lib would size them, never wider than the box.
+    let size = multiline ? Math.min(12, (h - 2 * pad) / (lines.length * 1.25)) : Math.min(12, (h - 2 * pad) * 0.62);
+    const widest = Math.max(...lines.map((l) => l.width / l.size));
+    if (widest * size > w - 2 * pad) size = (w - 2 * pad) / widest;
+    // The field's own background and border, as its other fields show them.
+    const look = widget.getAppearanceCharacteristics();
+    const colour = (c: number[] | undefined, fill: boolean): string | null => {
+      if (c === undefined || c.length === 0) return null;
+      const n = (v: number | undefined) => (v ?? 0).toFixed(3);
+      if (c.length === 1) return `${n(c[0])} ${fill ? 'g' : 'G'}`;
+      if (c.length === 4) return `${n(c[0])} ${n(c[1])} ${n(c[2])} ${n(c[3])} ${fill ? 'k' : 'K'}`;
+      return `${n(c[0])} ${n(c[1])} ${n(c[2])} ${fill ? 'rg' : 'RG'}`;
+    };
+    const operators: string[] = [];
+    const background = colour(look?.getBackgroundColor(), true);
+    if (background) operators.push(`q ${background} 0 0 ${w.toFixed(3)} ${h.toFixed(3)} re f Q`);
+    const border = colour(look?.getBorderColor(), false);
+    const bw = widget.getBorderStyle()?.getWidth() ?? 1;
+    if (border && bw > 0) operators.push(`q ${border} ${bw} w ${bw / 2} ${bw / 2} ${(w - bw).toFixed(3)} ${(h - bw).toFixed(3)} re S Q`);
+    operators.push('/Tx BMC', 'q');
+    const xobjects: Record<string, PDFRef> = {};
+    lines.forEach((line, i) => {
+      const k = size / line.size;
+      const lw = line.width * k;
+      const lh = line.height * k;
+      const y = multiline ? h - pad - (i + 1) * lh : (h - lh) / 2;
+      xobjects[`Ln${i}`] = images[i]!.ref;
+      operators.push(`q ${lw.toFixed(3)} 0 0 ${lh.toFixed(3)} ${pad} ${y.toFixed(3)} cm /Ln${i} Do Q`);
+    });
+    operators.push('Q', 'EMC');
+    const stream = doc.context.stream(operators.join('\n'), { Type: 'XObject', Subtype: 'Form', BBox: [0, 0, w, h], Resources: { XObject: xobjects } });
+    widget.setNormalAppearance(doc.context.register(stream));
+  }
 }
 
 function assertPermutation(order: readonly number[], pageCount: number): void {
