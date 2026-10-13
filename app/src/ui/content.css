@@ -313,40 +313,31 @@
   }
 }
 
-/* ---- Home: search, once the box at the top has scrolled away ---- */
+/* ---- Home: search, once the box at the top has scrolled away ----
+   Layerbit's pill: a circle the size of Get help that opens into a search
+   box where it is, with the matching tools just above it. */
 
-.search-fab {
+.search-pill {
+  --pill: 56px;
   position: fixed;
   left: 20px;
   bottom: max(20px, env(safe-area-inset-bottom));
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  padding: 0;
-  border-radius: 50%;
-  background: rgb(20 22 30 / 0.94);
-  border: 1px solid var(--line-strong);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  box-shadow: 0 8px 25px rgb(0 0 0 / 0.5);
-  color: var(--cyan);
-  cursor: pointer;
+  z-index: 55;
   opacity: 0;
   visibility: hidden;
   transform: translateY(12px) scale(0.9);
+  transform-origin: left bottom;
   transition:
     opacity var(--motion-fast),
     transform var(--motion-fast),
     visibility 0s linear var(--motion-fast);
 }
 
-.search-fab[hidden] {
+.search-pill[hidden] {
   display: none;
 }
 
-.search-fab.is-shown {
+.search-pill.is-shown {
   opacity: 1;
   visibility: visible;
   transform: none;
@@ -356,24 +347,172 @@
     visibility 0s;
 }
 
-.search-fab svg {
+.search-pill__bar {
+  display: flex;
+  align-items: center;
+  width: var(--pill);
+  height: var(--pill);
+  border-radius: 999px;
+  /* Solid: nothing behind it may show through the words typed. */
+  background: rgb(17 19 26);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 8px 25px rgb(0 0 0 / 0.5);
+  overflow: hidden;
+  transition:
+    width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+    border-color var(--motion);
+}
+
+.search-pill.is-open .search-pill__bar {
+  /* Room for Get help on the right, on any screen. */
+  width: min(360px, calc(100vw - 40px - var(--pill) - 12px));
+  border-color: var(--cyan);
+}
+
+.search-pill__open,
+.search-pill__close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: calc(var(--pill) - 2px);
+  height: calc(var(--pill) - 2px);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--cyan);
+  cursor: pointer;
+}
+
+.search-pill__open svg {
   width: 24px;
   height: 24px;
 }
 
-.search-fab:hover,
-.search-fab:focus-visible {
-  border-color: var(--cyan);
+.search-pill__close {
+  width: var(--target);
+  height: var(--target);
+  margin-inline-end: 6px;
+  color: var(--muted);
+  visibility: hidden;
+}
+
+.search-pill__close svg {
+  width: 20px;
+  height: 20px;
+  transition: transform var(--motion);
+}
+
+.search-pill__close:hover {
+  color: var(--danger);
+}
+
+.search-pill__close:hover svg {
+  transform: rotate(90deg);
+}
+
+.search-pill.is-open .search-pill__close {
+  visibility: visible;
+}
+
+.search-pill__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
   color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  opacity: 0;
+  transition: opacity var(--motion);
+}
+
+.search-pill__input::placeholder {
+  color: var(--muted);
+}
+
+.search-pill__input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.search-pill.is-open .search-pill__input {
+  opacity: 1;
+}
+
+.search-pill__open:focus-visible,
+.search-pill__close:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: -4px;
+}
+
+.search-pill__results {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  width: min(360px, calc(100vw - 40px - var(--pill) - 12px));
+  max-height: min(52vh, 380px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: var(--radius-l);
+  background: rgb(17 19 26);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.55);
+}
+
+.search-pill__results[hidden] {
+  display: none;
+}
+
+.search-pill__result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-m);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.search-pill__result svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--tool-b);
+}
+
+.search-pill__result:hover,
+.search-pill__result:focus-visible {
+  background: var(--glass-hover);
+}
+
+.search-pill__none {
+  padding: var(--space-3);
+  color: var(--muted);
 }
 
 @media (min-width: 820px) {
   /* The same circle as Get help on a laptop. */
-  .search-fab {
+  .search-pill {
+    --pill: 60px;
     left: 30px;
     bottom: 30px;
-    width: 60px;
-    height: 60px;
+  }
+
+  .search-pill.is-open .search-pill__bar,
+  .search-pill__results {
+    width: 380px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-pill__bar {
+    transition: none;
   }
 }
 

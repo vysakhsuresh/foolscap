@@ -242,16 +242,36 @@ test('the drop box is one control: the keyboard reaches the file picker itself',
   expect(await page.getByTestId('drop-zone').getAttribute('role')).toBeNull();
 });
 
-test('once the finder scrolls away, a search button takes its place, and brings it back', async ({ page }) => {
+test('once the finder scrolls away, a search button opens into a search box right where it is', async ({ page }) => {
   await page.goto('/');
   const fab = page.getByTestId('search-fab');
   await expect(fab).toBeHidden();
   await page.getByTestId('tool-card-extract-text').scrollIntoViewIfNeeded();
   await expect(fab).toBeVisible();
+  const before = await page.evaluate(() => window.scrollY);
+
   await fab.click();
-  await expect(page.getByTestId('tool-search')).toBeFocused();
-  await expect(page.getByTestId('tool-search')).toBeInViewport();
-  await expect(fab).toBeHidden();
+  const box = page.getByTestId('pill-input');
+  await expect(box).toBeFocused();
+  await expect(fab).toHaveAttribute('aria-expanded', 'true');
+  // The page does not move.
+  expect(await page.evaluate(() => window.scrollY)).toBe(before);
+
+  await box.fill('lock');
+  const results = page.getByTestId('pill-results');
+  await expect(results).toBeVisible();
+  await expect(results.getByRole('link', { name: 'Add a password' })).toBeVisible();
+  await box.fill('zzzz');
+  await expect(results).toContainText('No tool matches');
+
+  // Escape closes it; Enter opens the first match.
+  await box.press('Escape');
+  await expect(fab).toHaveAttribute('aria-expanded', 'false');
+  await expect(results).toBeHidden();
+  await fab.click();
+  await box.fill('merge');
+  await box.press('Enter');
+  await expect(page).toHaveURL(/\/tools\/merge\/$/);
 });
 
 test('the family chips say when there are more to the side, and the arrow shows them', async ({ page }, testInfo) => {

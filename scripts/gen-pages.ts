@@ -312,6 +312,7 @@ function toolPage(tool: ToolMeta): string {
 }
 
 const SEARCH_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const CLOSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 const MORE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 /** A row of family chips that scrolls sideways on a phone, with an arrow while more are off to the right (ui/jumps.ts). */
@@ -361,7 +362,14 @@ function homeTools(): string {
         <p class="finder__empty" data-finder-empty hidden>Nothing matches that yet. <button class="linklike" type="button" popovertarget="help-panel">Tell us what you need</button></p>
       </div>
       ${jumpRow('Tool families', jumps)}
-      <button class="search-fab" type="button" data-search-fab data-testid="search-fab" aria-label="Find a tool" hidden>${SEARCH_ICON}</button>
+      <div class="search-pill" data-search-pill hidden>
+        <ul class="search-pill__results" id="pill-results" data-pill-results data-testid="pill-results" aria-label="Matching tools" hidden></ul>
+        <div class="search-pill__bar">
+          <button class="search-pill__open" type="button" data-testid="search-fab" aria-label="Find a tool" aria-expanded="false" aria-controls="pill-results">${SEARCH_ICON}</button>
+          <input class="search-pill__input" type="search" data-testid="pill-input" placeholder="Find a tool…" aria-label="Find a tool" autocomplete="off" enterkeyhint="go" tabindex="-1">
+          <button class="search-pill__close" type="button" data-testid="pill-close" aria-label="Close search" tabindex="-1">${CLOSE_ICON}</button>
+        </div>
+      </div>
       ${families}
     </section>
     <!-- tools:end -->`;
