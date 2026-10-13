@@ -193,3 +193,36 @@ describe('set new details', () => {
     expect(titles).toEqual(['April', 'May']);
   });
 });
+
+describe('camera details come out of a JPEG byte for byte', () => {
+  const seg = (marker: number, body: string) => {
+    const bytes = new TextEncoder().encode(body);
+    return [0xff, marker, (bytes.length + 2) >> 8, (bytes.length + 2) & 0xff, ...bytes];
+  };
+  const picture = [0xff, 0xdb, 0x00, 0x04, 1, 2, 0xff, 0xc0, 0x00, 0x05, 8, 0, 1, 0xff, 0xda, 0x00, 0x03, 9, 0x12, 0x34, 0xff, 0x00, 0x56, 0xff, 0xd9];
+
+  it('drops Exif, XMP, IPTC and comments; keeps JFIF, the colour profile, Adobe and the picture itself', async () => {
+    const { jpegWithoutCameraDetails } = await import('../../app/src/pdf/surgeon');
+    const jfif = seg(0xe0, 'JFIF\0');
+    const icc = seg(0xe2, 'ICC_PROFILE\0sRGB');
+    const adobe = seg(0xee, 'Adobe\0');
+    const input = new Uint8Array([
+      0xff, 0xd8, ...jfif,
+      ...seg(0xe1, 'Exif\0\0MM GPS 9.93N 76.26E Pixel 7'),
+      ...seg(0xe1, 'http://ns.adobe.com/xap/1.0/\0<x:xmpmeta/>'),
+      ...icc,
+      ...seg(0xed, 'Photoshop 3.0\0IPTC'),
+      ...adobe,
+      ...seg(0xfe, 'Taken by Anjali'),
+      ...picture,
+    ]);
+    const out = jpegWithoutCameraDetails(input);
+    expect(out).not.toBeNull();
+    expect([...out!]).toEqual([0xff, 0xd8, ...jfif, ...icc, ...adobe, ...picture]);
+    // Nothing to take: null, and the photo is left as it is.
+    expect(jpegWithoutCameraDetails(out!)).toBeNull();
+    // Not a JPEG, or a segment that runs past the end: left alone.
+    expect(jpegWithoutCameraDetails(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBeNull();
+    expect(jpegWithoutCameraDetails(new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0x40, 0x00, 1, 2]))).toBeNull();
+  });
+});

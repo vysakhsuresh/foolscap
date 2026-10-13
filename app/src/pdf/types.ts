@@ -318,6 +318,8 @@ export interface StripReport {
   readonly photos: number;
   /** Places an editing program left private data (/PieceInfo). */
   readonly privateData: number;
+  /** Stored page thumbnails, pictures of how a page once looked. */
+  readonly thumbnails: number;
 }
 
 /** An image embedded in a document, as a file a person can open. */
@@ -493,6 +495,12 @@ export interface PdfDoc {
    * document says how many, because the person did not ask for fewer pages.
    */
   readonly missingPages: number;
+  /**
+   * Whether the file this was opened from carried a digital signature. Any
+   * change saved here rewrites the file, so that signature no longer checks
+   * out in the copy; a tool says so rather than let it be found out later.
+   */
+  readonly signed: boolean;
   pages(): readonly PageInfo[];
   /** The visible area of a page: its CropBox, or its MediaBox when it has none. */
   visibleBox(index: number): Box;
@@ -595,7 +603,7 @@ export interface PdfDoc {
   /**
    * Removes every Info field and every XMP packet (the document's, and any a
    * page, picture or font carries), the private data editing programs leave
-   * (/PieceInfo), and the camera details inside JPEG photos (Exif, with the
+   * (/PieceInfo), stored page thumbnails, and the camera details inside JPEG photos (Exif, with the
    * place and time a phone records; XMP; IPTC; comments), byte for byte
    * without re-encoding the picture.
    */

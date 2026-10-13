@@ -155,7 +155,8 @@ function* fields(doc: PDFDocument): Generator<{ dict: PDFDict; type: string | un
   yield* walk(top, undefined);
 }
 
-function hasSignatures(doc: PDFDocument): boolean {
+/** Whether any signature field in the form holds a signature. */
+export function hasSignatures(doc: PDFDocument): boolean {
   for (const { dict, type } of fields(doc)) {
     if (type === 'Sig' && dict.lookup(PDFName.of('V')) instanceof PDFDict) return true;
   }

@@ -8,7 +8,7 @@
  * the fixtures, so nothing binary is committed.
  */
 import { createCanvas, loadImage } from '@napi-rs/canvas';
-import { PDFDocument, PDFHexString, PDFName, PDFString, StandardFonts, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
+import { PDFDocument, PDFHexString, PDFName, PDFString, StandardFonts, degrees, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
 import { zlibSync } from 'fflate';
 import { pagePng } from './protect-inspect';
 
@@ -196,6 +196,8 @@ export async function salarySlipPdf(opts: SlipOptions = {}): Promise<Bytes> {
     // A phone photo of the employee, Exif and all.
     const jpeg = await doc.embedJpg(await phoneJpeg());
     page.drawImage(jpeg, { x: 470, y: 520, width: 64, height: 80 });
+    // A stored thumbnail of the page, as some scanners and editors keep.
+    page.node.set(PDFName.of('Thumb'), doc.context.register(doc.context.stream(zlibSync(new Uint8Array(30 * 42 * 3).fill(200)), { Width: 30, Height: 42, ColorSpace: 'DeviceRGB', BitsPerComponent: 8, Filter: 'FlateDecode' } as never)));
     // Private data an editing program leaves on a page.
     page.node.set(PDFName.of('PieceInfo'), doc.context.obj({ Illustrator: { Private: PDFString.of(`Edited by ${SLIP.author}`) } }));
 
@@ -365,6 +367,35 @@ export async function scannedSlipPdf(dpi = 200, pages = 1): Promise<Bytes> {
   return fresh(await doc.save());
 }
 
+/**
+ * The payslip scanned with the sheet fed in sideways, the way a flatbed or a
+ * copier often stores it: a landscape page holding the picture turned a
+ * quarter, and /Rotate 90 so a reader shows it upright.
+ */
+export async function sidewaysScanPdf(dpi = 200): Promise<Bytes> {
+  const png = await pagePng(await salarySlipPdf(), 0, dpi / 72);
+  const image = await loadImage(Buffer.from(png));
+  const canvas = createCanvas(image.height, image.width);
+  const c = canvas.getContext('2d');
+  // Turned a quarter anticlockwise; /Rotate 90 turns it back clockwise on screen.
+  c.translate(0, canvas.height);
+  c.rotate(-Math.PI / 2);
+  c.drawImage(image, 0, 0);
+  const doc = await PDFDocument.create({ updateMetadata: false });
+  const jpg = await doc.embedJpg(new Uint8Array(await canvas.encode('jpeg', 88)));
+  const page = doc.addPage([A4[1], A4[0]]);
+  page.drawImage(jpg, { x: 0, y: 0, width: A4[1], height: A4[0] });
+  page.setRotation(degrees(90));
+  return fresh(await doc.save());
+}
+
+/** The typed payslip on a page turned a quarter (/Rotate 90): the reader sees it on its side. */
+export async function turnedSlipPdf(): Promise<Bytes> {
+  const doc = await PDFDocument.load(await salarySlipPdf(), { updateMetadata: false });
+  doc.getPage(0).setRotation(degrees(90));
+  return fresh(await doc.save());
+}
+
 /** A scanned page followed by a typed one: Make searchable should read the first and leave the second. */
 export async function mixedScanPdf(): Promise<Bytes> {
   const doc = await PDFDocument.load(await scannedSlipPdf(200), { updateMetadata: false });
@@ -401,6 +432,30 @@ export async function slipPhotoJpeg(width: number, height: number, sideways = fa
   c.drawImage(sheet, -w / 2, -h / 2, w, h);
   c.restore();
   return new Uint8Array(await canvas.encode('jpeg', 90));
+}
+
+/**
+ * The upright photo of `slipPhotoJpeg(width, height)`, stored the way a phone
+ * held upright stores it: the pixels on their side (`height` × `width`) and
+ * an Exif Orientation of 6, "turn a quarter clockwise to show".
+ */
+export async function exifTurnedPhotoJpeg(width: number, height: number): Promise<Bytes> {
+  const upright = await loadImage(Buffer.from(await slipPhotoJpeg(width, height)));
+  const canvas = createCanvas(height, width);
+  const c = canvas.getContext('2d');
+  c.translate(0, width);
+  c.rotate(-Math.PI / 2);
+  c.drawImage(upright, 0, 0);
+  const plain = new Uint8Array(await canvas.encode('jpeg', 90));
+  // Exif: big-endian TIFF, one IFD entry, 0x0112 Orientation, SHORT, 1, value 6.
+  const tiff = [0x4d, 0x4d, 0x00, 0x2a, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0];
+  const body = [...new TextEncoder().encode('Exif\0\0'), ...tiff];
+  const app1 = [0xff, 0xe1, (body.length + 2) >> 8, (body.length + 2) & 0xff, ...body];
+  const out = new Uint8Array(plain.length + app1.length);
+  out.set(plain.subarray(0, 2), 0);
+  out.set(app1, 2);
+  out.set(plain.subarray(2), 2 + app1.length);
+  return out;
 }
 
 /** A small PNG logo, for attaching. */

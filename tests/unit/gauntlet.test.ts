@@ -90,8 +90,12 @@ interface Case {
   readonly files: readonly Input[];
 }
 
-/** Tools whose result is meant to open without the input's password. */
-const UNLOCKS = new Set<ToolId>(['remove-password', 'pdf-a', 'add-password', 'merge']);
+/**
+ * Tools whose result is meant to open without the input's password. A digital
+ * signature cannot be sealed into a locked file here, so it signs the unlocked
+ * copy and says so.
+ */
+const UNLOCKS = new Set<ToolId>(['remove-password', 'pdf-a', 'add-password', 'merge', 'digital-sign']);
 
 /** Tools whose inputs are not PDFs. */
 const IMAGE_TOOLS = new Set<ToolId>(['images-to-pdf', 'scan']);

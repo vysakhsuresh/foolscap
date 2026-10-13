@@ -69,7 +69,7 @@ import { zlibSync } from 'fflate';
 import { pngFromIdat, pngFromPixels } from './png';
 import { signDetached } from '../sign/cms';
 import { readIdentity } from '../sign/identity';
-import { signPdf } from './sign-pdf';
+import { hasSignatures, signPdf } from './sign-pdf';
 import { layoutFlow } from './surgeon-flow';
 import { srgbProfile } from './icc';
 import { drawCalls, invert, multiply, unitBox, type Matrix } from './content-stream';
@@ -415,6 +415,7 @@ function stripHiddenMetadata(doc: PDFDocument): StripReport {
   let xmp = 0;
   let privateData = 0;
   let photos = 0;
+  let thumbnails = 0;
   const strip = (dict: PDFDict): void => {
     const metadata = dict.get(PDFName.of('Metadata'));
     if (metadata !== undefined) {
@@ -429,6 +430,13 @@ function stripHiddenMetadata(doc: PDFDocument): StripReport {
       dict.delete(PDFName.of('PieceInfo'));
       privateData++;
     }
+    // A page's stored thumbnail is a picture of how it once looked, which may be before an edit.
+    if (dict.has(PDFName.of('Thumb')) && dict.lookup(PDFName.of('Type')) === PDFName.of('Page')) {
+      const thumb = dict.get(PDFName.of('Thumb'));
+      if (thumb instanceof PDFRef) context.delete(thumb);
+      dict.delete(PDFName.of('Thumb'));
+      thumbnails++;
+    }
   };
   for (const [ref, object] of context.enumerateIndirectObjects()) {
     if (object instanceof PDFDict) strip(object);
@@ -441,7 +449,7 @@ function stripHiddenMetadata(doc: PDFDocument): StripReport {
       }
     } else if (object instanceof PDFStream) strip(object.dict);
   }
-  return { xmp, photos, privateData };
+  return { xmp, photos, privateData, thumbnails };
 }
 
 /**
@@ -512,6 +520,12 @@ async function embedPicture(doc: PDFDocument, bytes: Uint8Array, kind: 'jpeg' | 
 
 function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted: boolean, missingPages = 0): PdfDoc {
   let doc: PDFDocument | null = initial;
+  let signed = false;
+  try {
+    signed = hasSignatures(initial);
+  } catch {
+    signed = false;
+  }
   const fonts = new Map<'regular' | 'bold', PDFFont>();
   let drawable: Set<number> | null = null;
   /** Annotations on pages Remove areas turned into pictures; non-empty means save() finishes the job. */
@@ -615,6 +629,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
 
     wasEncrypted,
     missingPages,
+    signed,
 
     visibleBox(index) {
       const { x, y, width, height } = pageAt(index).getCropBox();

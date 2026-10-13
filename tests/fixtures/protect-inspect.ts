@@ -170,6 +170,8 @@ export interface Hidden {
   /** Private data editing programs leave: /PieceInfo. */
   readonly pieceInfo: number;
   readonly embeddedFiles: number;
+  /** Pages carrying a stored thumbnail picture. */
+  readonly thumbnails: number;
   /** The document's Info dictionary, as pdf-lib reads it. */
   readonly info: Record<string, string>;
 }
@@ -182,11 +184,13 @@ export async function hiddenIn(bytes: Uint8Array): Promise<Hidden> {
   let scripts = 0;
   let pieceInfo = 0;
   let embeddedFiles = 0;
+  let thumbnails = 0;
   const visit = (dict: import('@cantoo/pdf-lib').PDFDict): void => {
     const s = dict.get(PDFName.of('S'));
     if (s instanceof PDFName && ['/JavaScript', '/Launch', '/SubmitForm', '/ImportData'].includes(s.toString())) scripts++;
     if (dict.has(PDFName.of('AA'))) scripts++;
     if (dict.has(PDFName.of('PieceInfo'))) pieceInfo++;
+    if (dict.has(PDFName.of('Thumb'))) thumbnails++;
     for (const [, value] of dict.entries()) if (value instanceof PDFDict) visit(value);
   };
   for (const [, object] of doc.context.enumerateIndirectObjects()) {
@@ -212,7 +216,7 @@ export async function hiddenIn(bytes: Uint8Array): Promise<Hidden> {
     const value = get();
     if (value !== undefined) info[key] = value;
   }
-  return { xmp, scripts, pieceInfo, embeddedFiles, info };
+  return { xmp, scripts, pieceInfo, embeddedFiles, thumbnails, info };
 }
 
 function permissionList(raw: unknown): number[] | null {

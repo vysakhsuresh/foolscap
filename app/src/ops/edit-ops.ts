@@ -5,7 +5,7 @@
  */
 import type { FoolscapFile } from '../files/types';
 import { markPage, type Area, type Mark, type PdfDoc } from '../pdf';
-import { baseName, failed, noteMissing, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
+import { baseName, failed, noteMissing, passwordFor, plural, readInput, refused, saveKeepingLock, signedNote, store } from './common';
 import { checkCancelled, type CreateFormParams, type EditImagesParams, type FillFormParams, type MarksParams, type Op, type OpContext, type Outcome, type RemoveAreasParams } from './op';
 import type { ToolId } from './tools';
 
@@ -247,7 +247,7 @@ export const removeAreasOp: Op<RemoveAreasParams> = {
         [input],
         `${baseName(input.name)} (redacted).pdf`,
         bytes,
-        `${plural(areas.length, 'area')} removed. ${pages}, so nothing under the black can be copied back${relocked ? LOCKED : ''}`,
+        `${plural(areas.length, 'area')} removed. ${pages}, so nothing under the black can be copied back${relocked ? LOCKED : ''}${signedNote(doc)}`,
       );
     });
   },

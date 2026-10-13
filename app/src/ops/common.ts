@@ -181,6 +181,14 @@ export async function forEachPdf(
   return outcomes;
 }
 
+/**
+ * What a detail says after the rest when the input carried a digital
+ * signature (an e-Aadhaar, a signed statement): any change rewrites the
+ * file, and the copy's signature no longer checks out.
+ */
+export const signedNote = (doc: PdfDoc): string =>
+  doc.signed ? '. It carried a digital signature, which no longer checks out in this copy: where the signature is verified, send the original' : '';
+
 /** What a detail says after the rest when the result kept its input's password. */
 export const lockNote = (relocked: boolean): string => (relocked ? ', still locked with the same password' : '');
 

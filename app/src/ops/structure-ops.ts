@@ -6,7 +6,7 @@ import type { FileKind, FoolscapFile } from '../files/types';
 import { looksLikeImage, looksLikePdf } from '../files/document-store';
 import type { OutlineItem, PageLabelRange, PdfDoc, Rgb } from '../pdf';
 import { PageSelection } from '../pdf/page-selection';
-import { baseName, failed, forEachPdf, lockNote, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
+import { baseName, failed, forEachPdf, lockNote, passwordFor, plural, readInput, refused, saveKeepingLock, signedNote, store } from './common';
 import { checkCancelled, type AttachmentsParams, type BackgroundParams, type BookmarksParams, type Op, type OpContext, type Outcome, type PageLabelsParams } from './op';
 
 /** "#ffeecc" → [1, 0.93, 0.8], or null for anything else. */
@@ -136,7 +136,7 @@ export const attachmentsOp: Op<AttachmentsParams> = {
       ctx.progress({ done: 0, total: 0, label: 'Saving…' });
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, target);
       const names = renamed.length === 0 ? '' : `; a file of the same name was already there, so ${renamed.length === 1 ? 'one is' : 'some are'} called ${renamed.map((n) => `"${n}"`).join(', ')}`;
-      return [await store(ctx, 'attachments', inputs, `${baseName(target.name)} with attachments.pdf`, bytes, `${plural(rest.length, 'file')} attached inside; open the PDF's attachments panel to see them${names}${lockNote(relocked)}`)];
+      return [await store(ctx, 'attachments', inputs, `${baseName(target.name)} with attachments.pdf`, bytes, `${plural(rest.length, 'file')} attached inside; open the PDF's attachments panel to see them${names}${lockNote(relocked)}${signedNote(doc)}`)];
     } catch (error) {
       return [failed(error, inputs)];
     } finally {

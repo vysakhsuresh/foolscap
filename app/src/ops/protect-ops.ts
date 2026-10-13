@@ -1,6 +1,6 @@
 /** The Protect family: add and remove a password, and a document's details. */
 import type { DocInfo, DocInfoField, StripReport } from '../pdf';
-import { baseName, forEachPdf, lockNote, plural, refused, saveKeepingLock, store } from './common';
+import { baseName, forEachPdf, lockNote, plural, refused, saveKeepingLock, signedNote, store } from './common';
 import type { AddPasswordParams, DocumentDetailsParams, NoParams, Op } from './op';
 
 export const addPasswordOp: Op<AddPasswordParams> = {
@@ -29,8 +29,8 @@ export const addPasswordOp: Op<AddPasswordParams> = {
         params.allowCopying ? 'copying allowed' : 'copying blocked',
         editing ? 'editing allowed' : 'editing blocked',
       ];
-      if (restrict) return store(ctx, 'add-password', [input], `${baseName(input.name)} restricted.pdf`, bytes, `Opens without a password; ${allowed.join(', ')}`);
-      return store(ctx, 'add-password', [input], `${baseName(input.name)} locked.pdf`, bytes, `Locked with AES-256; ${allowed.join(', ')}`);
+      if (restrict) return store(ctx, 'add-password', [input], `${baseName(input.name)} restricted.pdf`, bytes, `Opens without a password; ${allowed.join(', ')}${signedNote(doc)}`);
+      return store(ctx, 'add-password', [input], `${baseName(input.name)} locked.pdf`, bytes, `Locked with AES-256; ${allowed.join(', ')}${signedNote(doc)}`);
     });
   },
 };
@@ -46,7 +46,7 @@ export const removePasswordOp: Op<NoParams> = {
       const bytes = await doc.save();
       const typed = ctx.passwords.has(input.id);
       const detail = typed ? 'Password removed: it opens without one now' : 'Printing and copying restrictions removed';
-      return store(ctx, 'remove-password', [input], `${baseName(input.name)} unlocked.pdf`, bytes, detail);
+      return store(ctx, 'remove-password', [input], `${baseName(input.name)} unlocked.pdf`, bytes, `${detail}${signedNote(doc)}`);
     });
   },
 };
@@ -73,6 +73,7 @@ function strippedParts(before: DocInfo, stripped: StripReport): string[] {
   if (stripped.xmp > 0) parts.push(stripped.xmp === 1 ? 'the hidden XMP metadata' : `${stripped.xmp} hidden XMP metadata packets`);
   if (stripped.photos > 0) parts.push(`the camera details (device, time, place) inside ${plural(stripped.photos, 'photo')}`);
   if (stripped.privateData > 0) parts.push('private data an editing program left');
+  if (stripped.thumbnails > 0) parts.push(`${plural(stripped.thumbnails, 'stored page thumbnail')} (a picture of a page as it once was)`);
   return parts;
 }
 
@@ -88,7 +89,7 @@ export const documentDetailsOp: Op<DocumentDetailsParams> = {
         const parts = strippedParts(before, doc.stripMetadata());
         if (parts.length === 0) return { kind: 'skipped', inputIds: [input.id], reason: 'This file has no title, author or other hidden details, so there is nothing to remove.' };
         const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
-        return store(ctx, 'document-details', [input], `${base} cleaned.pdf`, bytes, `Removed ${list(parts)}${lockNote(relocked)}`);
+        return store(ctx, 'document-details', [input], `${base} cleaned.pdf`, bytes, `Removed ${list(parts)}${lockNote(relocked)}${signedNote(doc)}`);
       }
       if (params.mode === 'clean') {
         const report = doc.clean({ scripts: true, attachments: params.attachments, comments: params.comments, metadata: true });
@@ -99,7 +100,7 @@ export const documentDetailsOp: Op<DocumentDetailsParams> = {
         const looked = ['details', 'metadata', 'scripts', ...(params.attachments ? ['attached files'] : []), ...(params.comments ? ['comments'] : [])];
         const detail = parts.length > 0 ? `Removed ${list(parts)}` : `Nothing hidden was found: no ${list(looked, 'or')}`;
         const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
-        return store(ctx, 'document-details', [input], `${base} cleaned.pdf`, bytes, `${detail}${lockNote(relocked)}`);
+        return store(ctx, 'document-details', [input], `${base} cleaned.pdf`, bytes, `${detail}${lockNote(relocked)}${signedNote(doc)}`);
       }
       // One file: an empty box removes that detail. Several: an empty box
       // leaves each file's own, so setting one author on ten files does not
@@ -115,7 +116,7 @@ export const documentDetailsOp: Op<DocumentDetailsParams> = {
       const parts = [set.length > 0 ? `Set the ${list(set.map((k) => LABEL[k]))}` : '', removed.length > 0 ? `${set.length > 0 ? 'removed' : 'Removed'} the ${list(removed.map((k) => LABEL[k]))}` : ''].filter(Boolean);
       const xmp = hadXmp ? '; the hidden XMP copy that still held the old details was removed' : '';
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
-      return store(ctx, 'document-details', [input], `${base} details.pdf`, bytes, `${parts.join('; ')}${xmp}${lockNote(relocked)}`);
+      return store(ctx, 'document-details', [input], `${base} details.pdf`, bytes, `${parts.join('; ')}${xmp}${lockNote(relocked)}${signedNote(doc)}`);
     });
   },
 };

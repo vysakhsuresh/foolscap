@@ -16,7 +16,7 @@ import { AES_EC384, EMPTY_PASSWORD_EC256 } from '../fixtures/certificates';
 import { encryptedPdf, pagesPdf, pdfInfo, stampsIn } from '../fixtures/pdfs';
 import { oldLockPdf, restrictedPdf } from '../fixtures/awkward';
 import { darkShare, findWord, hiddenIn, meanColour, opens, pdfDetails, pdfText, renderPage } from '../fixtures/protect-inspect';
-import { CAMERA, SLIP, leasePdf, logoPng, mixedScanPdf, reportPdf, salarySlipPdf, scannedSlipPdf, slipPhotoJpeg, REPORT_ROWS } from '../fixtures/protect-samples';
+import { CAMERA, SLIP, exifTurnedPhotoJpeg, leasePdf, sidewaysScanPdf, turnedSlipPdf, logoPng, mixedScanPdf, reportPdf, salarySlipPdf, scannedSlipPdf, slipPhotoJpeg, REPORT_ROWS } from '../fixtures/protect-samples';
 import { ORIGIN, downloadFrom, openTool, run, useDownloads } from './helpers';
 
 test.beforeEach(async ({ context }) => {
@@ -272,6 +272,24 @@ test.describe('remove a password', () => {
     await expect(page.getByTestId('result-item')).toHaveCount(0);
   });
 
+  test('an e-Aadhaar-style signed and locked file is unlocked, and the result says its signature no longer checks out', async ({ page }, info) => {
+    laptopOnly(info);
+    const { createSurgeon } = await import('../../app/src/pdf/surgeon');
+    const surgeon = createSurgeon();
+    const signed = await surgeon.signWithCertificate(await salarySlipPdf(), new Uint8Array(Buffer.from(AES_EC384, 'base64')), 'pässword', { visible: true });
+    if (!signed.ok) throw new Error('the test certificate ran out');
+    const locked = await lock(signed.bytes, 'ANJA1990');
+    await openTool(page, 'remove-password');
+    await pick(page, [{ name: 'eAadhaar_1234.pdf', bytes: locked }]);
+    await page.getByTestId('file-password').fill('ANJA1990');
+    await page.getByTestId('file-unlock').click();
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText(
+      'Password removed: it opens without one now. It carried a digital signature, which no longer checks out in this copy: where the signature is verified, send the original',
+    );
+    expect(await opens((await save(page)).bytes)).toBe('opens');
+  });
+
   test('keeps the title and details of the file it unlocks', async ({ page }, info) => {
     laptopOnly(info);
     const locked = await lock(await salarySlipPdf({ hidden: true }), 'ANJA1990');
@@ -302,12 +320,12 @@ test.describe('clean hidden data', () => {
     await pick(page, [{ name: 'Payslip.pdf', bytes: slip }]);
     await run(page);
     await expect(page.getByTestId('result-detail')).toHaveText(
-      'Removed the title, author, subject, keywords, creator and producer, 2 hidden XMP metadata packets, the camera details (device, time, place) inside 1 photo, private data an editing program left, 2 scripts and actions, 1 attached file and 1 comment',
+      'Removed the title, author, subject, keywords, creator and producer, 2 hidden XMP metadata packets, the camera details (device, time, place) inside 1 photo, private data an editing program left, 1 stored page thumbnail (a picture of a page as it once was), 2 scripts and actions, 1 attached file and 1 comment',
     );
     const { name, bytes } = await save(page);
     expect(name).toBe('Payslip cleaned.pdf');
     const after = await hiddenIn(bytes);
-    expect(after).toEqual({ xmp: [], scripts: 0, pieceInfo: 0, embeddedFiles: 0, info: {} });
+    expect(after).toEqual({ xmp: [], scripts: 0, pieceInfo: 0, embeddedFiles: 0, thumbnails: 0, info: {} });
     const raw = latin1(bytes);
     for (const secret of [SLIP.author, SLIP.xmpAuthor, CAMERA.gps, CAMERA.device, CAMERA.comment, 'Tally', 'app.alert', SLIP.attachment, SLIP.comment]) expect(raw, secret).not.toContain(secret);
     const details = await pdfDetails(bytes);
@@ -331,7 +349,7 @@ test.describe('clean hidden data', () => {
     await expect(page.getByTestId('opt-mode-clean')).toBeChecked();
     await run(page);
     await expect(page.getByTestId('result-detail')).toHaveText(
-      'Removed the title, author, subject, keywords, creator and producer, 2 hidden XMP metadata packets, the camera details (device, time, place) inside 1 photo, private data an editing program left and 2 scripts and actions',
+      'Removed the title, author, subject, keywords, creator and producer, 2 hidden XMP metadata packets, the camera details (device, time, place) inside 1 photo, private data an editing program left, 1 stored page thumbnail (a picture of a page as it once was) and 2 scripts and actions',
     );
     const { bytes } = await save(page);
     const details = await pdfDetails(bytes);
@@ -360,7 +378,7 @@ test.describe('clean hidden data', () => {
     await page.getByTestId('opt-mode-strip').check();
     await run(page);
     await expect(page.getByTestId('result-detail')).toHaveText(
-      'Removed the title, author, subject, keywords, creator and producer, 2 hidden XMP metadata packets, the camera details (device, time, place) inside 1 photo and private data an editing program left',
+      'Removed the title, author, subject, keywords, creator and producer, 2 hidden XMP metadata packets, the camera details (device, time, place) inside 1 photo, private data an editing program left and 1 stored page thumbnail (a picture of a page as it once was)',
     );
     const { bytes } = await save(page);
     const after = await hiddenIn(bytes);
@@ -721,6 +739,24 @@ test.describe('remove areas', () => {
     const px = await renderPage(bytes, 0, 1, 'tea');
     expect(darkShare(px, { x: 0.12, y: 0.11, w: 0.36, h: 0.03 }, 60)).toBeGreaterThan(0.97);
     expect(darkShare(px, { x: 0.12, y: 0.31, w: 0.36, h: 0.03 }, 60)).toBeLessThan(0.3);
+  });
+
+  test('on a page turned by /Rotate, the black lands where it was drawn as the reader sees the page', async ({ page }, info) => {
+    laptopOnly(info);
+    const turned = await turnedSlipPdf();
+    await openTool(page, 'remove-areas');
+    await pick(page, [{ name: 'Turned.pdf', bytes: turned }]);
+    await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+    const box = await layerBox(page);
+    expect(box.width).toBeGreaterThan(box.height);
+    await dragAcross(page, [0.1, 0.6], [0.3, 0.8]);
+    await run(page);
+    const { bytes } = await save(page);
+    const px = await renderPage(bytes, 0, 1);
+    expect(px.width).toBeGreaterThan(px.height);
+    expect(darkShare(px, { x: 0.11, y: 0.61, w: 0.18, h: 0.18 }, 60)).toBeGreaterThan(0.97);
+    expect(darkShare(px, { x: 0.6, y: 0.1, w: 0.3, h: 0.2 }, 60)).toBeLessThan(0.3);
+    expect(darkShare(px, { x: 0.11, y: 0.1, w: 0.18, h: 0.18 }, 60)).toBeLessThan(0.5);
   });
 
   test('a comment and a form answer on a marked page go with it', async ({ page }, info) => {
@@ -1134,6 +1170,31 @@ test.describe('make searchable', () => {
     expect(differ / before.data.length).toBeLessThan(0.001);
   });
 
+  test('a scan stored sideways (turned by /Rotate) is read upright, and its words land where the reader shows them', async ({ page }, info) => {
+    laptopOnly(info);
+    test.setTimeout(240_000);
+    const scan = await sidewaysScanPdf(200);
+    // The fixture is fair: a reader shows it upright, the company name at the top left.
+    const shown = await renderPage(scan, 0, 0.5);
+    expect(shown.height).toBeGreaterThan(shown.width);
+    expect(darkShare(shown, { x: 0.08, y: 0.05, w: 0.4, h: 0.04 }, 110)).toBeGreaterThan(0.02);
+    await openTool(page, 'ocr');
+    await pick(page, [{ name: 'Sideways scan.pdf', bytes: scan }]);
+    await page.getByTestId('run-button').click();
+    await expect(page.getByTestId('result')).toBeVisible({ timeout: 200_000 });
+    await expect(page.getByTestId('result-detail')).toContainText('read on 1 page');
+    const { bytes } = await save(page);
+    const text = await pdfText(bytes);
+    const typed = await pdfText(await salarySlipPdf());
+    for (const word of ['Anjali', SLIP.pan, 'Kayal']) {
+      const read = text.words[0]!.find((w) => w.text.includes(word));
+      const real = typed.words[0]!.find((w) => w.text.includes(word));
+      expect(read, word).toBeDefined();
+      expect(Math.abs(read!.y - real!.y), `${word} down the page`).toBeLessThan(0.02);
+      expect(Math.abs(read!.x - real!.x), `${word} across`).toBeLessThan(0.03);
+    }
+  });
+
   test('reads only the scanned page of a mixed file, says which language reader it needs, and passes the result on', async ({ page }, info) => {
     laptopOnly(info);
     test.setTimeout(240_000);
@@ -1201,6 +1262,20 @@ test.describe('scan', () => {
       const bottom = darkShare(px, { x: 0.52, y: 0.91, w: 0.4, h: 0.06 }, 110);
       expect(top, `page ${index + 1} upright`).toBeGreaterThan(bottom + 0.01);
     }
+  });
+
+  test('a phone photo stored on its side with an Exif turn comes out upright without touching Turn', async ({ page }, info) => {
+    laptopOnly(info);
+    await openTool(page, 'scan');
+    await page.getByTestId('file-input').setInputFiles([{ name: 'IMG_2043.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(await exifTurnedPhotoJpeg(900, 1200)) }]);
+    await expect(page.locator('[data-testid="scan-card"][data-found="true"]')).toHaveCount(1);
+    const stage = (await page.locator('.scan-card__stage').boundingBox())!;
+    expect(stage.height, 'the card shows the photo as the phone took it').toBeGreaterThan(stage.width);
+    await run(page);
+    const { bytes } = await save(page);
+    const px = await renderPage(bytes, 0, 0.5);
+    expect(cornerLight(px)).toBeGreaterThan(170);
+    expect(darkShare(px, { x: 0.08, y: 0.03, w: 0.4, h: 0.06 }, 110)).toBeGreaterThan(darkShare(px, { x: 0.52, y: 0.91, w: 0.4, h: 0.06 }, 110) + 0.01);
   });
 
   test('each look and paper is what it says: colour and grey as JPEG, black and white as PNG; Letter, and the photo’s own shape', async ({ page }, info) => {
@@ -1291,6 +1366,27 @@ test.describe('read', () => {
     await expect(page.getByTestId('file-item')).toHaveAttribute('data-pages', '3');
     await expect(page.getByTestId('opt-title')).toHaveValue('Leave and licence, Flat 4B');
     await expect(page.getByTestId('opt-author')).toHaveValue('Joseph Mathew');
+  });
+});
+
+test.describe('read, then', () => {
+  test('a payslip read on screen goes on to Attachments, which takes out the file it carries', async ({ page }, info) => {
+    laptopOnly(info);
+    await openTool(page, 'read');
+    await pick(page, [{ name: 'Payslip.pdf', bytes: await salarySlipPdf({ hidden: true }) }]);
+    await expect(page.getByTestId('reader-page')).toHaveCount(1);
+    await page.getByTestId('reader-comments-toggle').click();
+    await expect(page.getByTestId('reader-comment')).toContainText(SLIP.comment);
+    await page.getByTestId('reader-then').click();
+    await page.getByTestId('then-attachments').click();
+    await expect(page).toHaveURL(/\/tools\/attachments\/$/);
+    await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+    await expect(page.getByTestId('file-item')).toHaveCount(1);
+    await page.getByTestId('opt-mode-extract').check();
+    await run(page);
+    const back = await save(page);
+    expect(back.name).toBe(SLIP.attachment);
+    expect(new TextDecoder().decode(back.bytes)).toBe(SLIP.attachmentText);
   });
 });
 
