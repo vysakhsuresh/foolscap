@@ -4,6 +4,7 @@
  * script; this only filters it as you type.
  */
 import { loadAds } from '../ui/ads';
+import { mountJumps } from '../ui/jumps';
 import { mountShell } from '../ui/shell';
 
 mountShell();
@@ -94,3 +95,25 @@ function cameBack(): void {
 }
 
 cameBack();
+
+// ---- The finder, once it has scrolled away ----
+// A round search button takes its place at the bottom-left, and goes again
+// as soon as the box at the top is back in view. Tapping it brings the box
+// back and puts the cursor in it, so the keyboard opens straight away.
+const searchFab = document.querySelector<HTMLButtonElement>('[data-search-fab]');
+if (finder && input && searchFab && 'IntersectionObserver' in window) {
+  searchFab.hidden = false;
+  const show = (on: boolean) => searchFab.classList.toggle('is-shown', on);
+  new IntersectionObserver(([entry]) => {
+    if (!entry) return;
+    // Only once it has gone off the top: above the box, there is nothing to replace.
+    show(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+  }).observe(finder);
+  searchFab.addEventListener('click', () => {
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    input.focus({ preventScroll: true });
+    finder.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'instant' });
+  });
+}
+
+mountJumps();

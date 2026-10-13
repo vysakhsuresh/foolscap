@@ -135,6 +135,8 @@
 
 .guides {
   display: grid;
+  /* minmax(0, …): the chip row scrolls inside the column instead of widening it. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
 }
 
@@ -249,4 +251,154 @@
 .tool-help__steps li::marker {
   color: var(--cyan);
   font-weight: 700;
+}
+
+/* ---- Home: the family chips, with a hint when they run past the edge ---- */
+
+.family-jumps__wrap {
+  position: relative;
+}
+
+.family-jumps__wrap.has-right .family-jumps {
+  mask-image: linear-gradient(to right, #000 calc(100% - 96px), transparent calc(100% - 24px));
+}
+
+.family-jumps__wrap.has-left .family-jumps {
+  mask-image: linear-gradient(to right, transparent var(--gutter), #000 64px);
+}
+
+.family-jumps__wrap.has-left.has-right .family-jumps {
+  mask-image: linear-gradient(to right, transparent var(--gutter), #000 64px, #000 calc(100% - 96px), transparent calc(100% - 24px));
+}
+
+.family-jumps__more {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: var(--target);
+  height: var(--target);
+  padding: 0;
+  border-radius: 50%;
+  background: var(--glass-strong);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.45);
+  animation: jumps-nudge 1.6s ease-in-out 0.6s 2;
+}
+
+.family-jumps__more[hidden] {
+  display: none;
+}
+
+.family-jumps__more svg {
+  width: 20px;
+  height: 20px;
+}
+
+.family-jumps__more:hover,
+.family-jumps__more:focus-visible {
+  border-color: var(--cyan);
+}
+
+@keyframes jumps-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+
+/* ---- Home: search, once the box at the top has scrolled away ---- */
+
+.search-fab {
+  position: fixed;
+  left: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgb(20 22 30 / 0.94);
+  border: 1px solid var(--line-strong);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  box-shadow: 0 8px 25px rgb(0 0 0 / 0.5);
+  color: var(--cyan);
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(12px) scale(0.9);
+  transition:
+    opacity var(--motion-fast),
+    transform var(--motion-fast),
+    visibility 0s linear var(--motion-fast);
+}
+
+.search-fab[hidden] {
+  display: none;
+}
+
+.search-fab.is-shown {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity var(--motion-fast),
+    transform var(--motion-fast),
+    visibility 0s;
+}
+
+.search-fab svg {
+  width: 24px;
+  height: 24px;
+}
+
+.search-fab:hover,
+.search-fab:focus-visible {
+  border-color: var(--cyan);
+  color: var(--text);
+}
+
+@media (min-width: 820px) {
+  .search-fab {
+    left: 30px;
+    bottom: 30px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .family-jumps__more {
+    animation: none;
+  }
+}
+
+/* A narrow phone: the name and the coffee need the room. Privacy is in every footer. */
+@media (max-width: 419px) {
+  .site-nav a[href$='/private/'] {
+    display: none;
+  }
+}
+
+/* On a phone the tool pages lift the way home and Get help above the pinned
+   button: the footer leaves room for them at that height too. */
+@media (max-width: 819px) {
+  body[data-page='tool'] .site-footer {
+    padding-bottom: calc(104px + 56px + var(--space-5));
+  }
+}
+
+.guide-group {
+  scroll-margin-top: var(--space-4);
+}
+
+.guides .family-jumps__wrap {
+  margin-top: var(--space-2);
 }

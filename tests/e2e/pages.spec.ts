@@ -233,3 +233,35 @@ test('the drop box is one control: the keyboard reaches the file picker itself',
   await expect(page.getByTestId('file-input')).toBeFocused();
   expect(await page.getByTestId('drop-zone').getAttribute('role')).toBeNull();
 });
+
+test('once the finder scrolls away, a search button takes its place, and brings it back', async ({ page }) => {
+  await page.goto('/');
+  const fab = page.getByTestId('search-fab');
+  await expect(fab).toBeHidden();
+  await page.getByTestId('tool-card-extract-text').scrollIntoViewIfNeeded();
+  await expect(fab).toBeVisible();
+  await fab.click();
+  await expect(page.getByTestId('tool-search')).toBeFocused();
+  await expect(page.getByTestId('tool-search')).toBeInViewport();
+  await expect(fab).toBeHidden();
+});
+
+test('the family chips say when there are more to the side, and the arrow shows them', async ({ page }, testInfo) => {
+  await page.goto('/');
+  const more = page.getByTestId('jumps-more');
+  const row = page.locator('.family-jumps');
+  const overflows = await row.evaluate((e) => e.scrollWidth > e.clientWidth + 4);
+  if (!overflows) {
+    // A wide screen shows all five: no arrow.
+    await expect(more).toBeHidden();
+    return;
+  }
+  expect(testInfo.project.name).toBe('phone');
+  await expect(more).toBeVisible();
+  for (let i = 0; i < 4 && (await more.isVisible()); i++) {
+    await more.click();
+    await page.waitForTimeout(400);
+  }
+  await expect(page.locator('.family-jump[data-group="read"]')).toBeInViewport();
+  await expect(more).toBeHidden();
+});

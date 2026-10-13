@@ -1758,7 +1758,7 @@ select.input option {
   height: 56px;
   padding: 0;
   border-radius: 50%;
-  background: rgb(20 22 30 / 0.78);
+  background: rgb(20 22 30 / 0.94);
   border: 1px solid rgb(56 189 248 / 0.5);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
@@ -2807,7 +2807,7 @@ select.input option {
   /* The mark sits dead centre in the circle: (48 - 28) / 2 on each side. */
   padding: 0 10px;
   border-radius: 999px;
-  background: rgb(20 22 30 / 0.78);
+  background: rgb(20 22 30 / 0.94);
   border: 1px solid rgb(255 255 255 / 0.12);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);

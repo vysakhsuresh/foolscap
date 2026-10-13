@@ -46,7 +46,11 @@
     <div class="guides" data-testid="guides-index">
       <h1 class="guides__title">Guides</h1>
       <p class="lead">Short, straight answers to the PDF jobs people ask about most, each with the free tool that does it. Nothing you open is ever uploaded.</p>
-      <section class="guide-group" aria-labelledby="guides-pages">
+      <div class="family-jumps__wrap" data-jumps>
+        <nav class="family-jumps" aria-label="Guide families"><a class="family-jump" href="#g-pages" data-group="pages"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2h-4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/><path d="M16.706 2.706A2.4 2.4 0 0 0 15 2v5a1 1 0 0 0 1 1h5a2.4 2.4 0 0 0-.706-1.706z"/><path d="M5 7a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h8a2 2 0 0 0 1.732-1"/></g></svg><span>Pages</span></a><a class="family-jump" href="#g-convert" data-group="convert"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></g></svg><span>Convert and print</span></a><a class="family-jump" href="#g-mark" data-group="mark"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 21h8"/><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></g></svg><span>Mark up</span></a><a class="family-jump" href="#g-protect" data-group="protect"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></g></svg><span>Protect</span></a><a class="family-jump" href="#g-read" data-group="read"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v16"/><path d="M16 13h2"/><path d="M16 9h2"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/><path d="M6 13h2"/><path d="M6 9h2"/></g></svg><span>Read and capture</span></a></nav>
+        <button class="family-jumps__more" type="button" data-jumps-more data-testid="jumps-more" aria-label="Show more" hidden><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <section class="guide-group" id="g-pages" aria-labelledby="guides-pages">
         <h2 id="guides-pages">Pages</h2>
         <div class="guide-grid">
           <a class="guide-card" href="/guides/merge-pdf-files/" data-group="pages"><span class="guide-card__title">How to merge PDF files into one</span><span class="guide-card__summary">Join several PDFs into one file in the order you choose. Free, no sign-up, no file limit, no watermark, and your files never leave your device.</span></a>
@@ -56,7 +60,7 @@
           <a class="guide-card" href="/guides/rotate-pdf-pages/" data-group="pages"><span class="guide-card__title">How to rotate pages in a PDF and save it</span><span class="guide-card__summary">Turn sideways or upside-down PDF pages the right way and save the file that way for good. Free, no sign-up, and the PDF is never uploaded.</span></a>
         </div>
       </section>
-      <section class="guide-group" aria-labelledby="guides-convert">
+      <section class="guide-group" id="g-convert" aria-labelledby="guides-convert">
         <h2 id="guides-convert">Convert and print</h2>
         <div class="guide-grid">
           <a class="guide-card" href="/guides/compress-pdf-to-100kb/" data-group="convert"><span class="guide-card__title">How to compress a PDF to under 100 KB</span><span class="guide-card__summary">Get a PDF under 100 KB for an exam, job or government portal. Free, no sign-up, and the file is made smaller on your own device, never uploaded.</span></a>
@@ -79,7 +83,7 @@
           <a class="guide-card" href="/guides/is-it-safe-to-upload-pdf-online/" data-group="convert"><span class="guide-card__title">Is it safe to upload your PDF to an online tool?</span><span class="guide-card__summary">What happens to a PDF when you upload it to an online tool, and how to use PDF tools that never upload it at all. Free, no sign-up, checkable.</span></a>
         </div>
       </section>
-      <section class="guide-group" aria-labelledby="guides-mark">
+      <section class="guide-group" id="g-mark" aria-labelledby="guides-mark">
         <h2 id="guides-mark">Mark up</h2>
         <div class="guide-grid">
           <a class="guide-card" href="/guides/sign-pdf-online-free/" data-group="mark"><span class="guide-card__title">How to sign a PDF online for free</span><span class="guide-card__summary">Draw or type your signature and place it anywhere on a PDF, on a phone or computer. Free, no sign-up, no watermark, and nothing is uploaded.</span></a>
@@ -90,7 +94,7 @@
           <a class="guide-card" href="/guides/make-pdf-fillable/" data-group="mark"><span class="guide-card__title">How to make a PDF form fillable</span><span class="guide-card__summary">Turn a printed form into a PDF people can type into, with text boxes, tick boxes and lists. Free, no sign-up, and nothing is uploaded.</span></a>
         </div>
       </section>
-      <section class="guide-group" aria-labelledby="guides-protect">
+      <section class="guide-group" id="g-protect" aria-labelledby="guides-protect">
         <h2 id="guides-protect">Protect</h2>
         <div class="guide-grid">
           <a class="guide-card" href="/guides/aadhaar-pdf-password/" data-group="protect"><span class="guide-card__title">What is the password for the e-Aadhaar PDF?</span><span class="guide-card__summary">The e-Aadhaar password is the first four letters of your name in capitals plus your year of birth. Then unlock it for good, free, with no upload.</span></a>
@@ -102,7 +106,7 @@
           <a class="guide-card" href="/guides/remove-pdf-metadata/" data-group="protect"><span class="guide-card__title">How to remove hidden metadata from a PDF</span><span class="guide-card__summary">Strip the author, the program that made it, dates and hidden XMP details from a PDF before you send it. Free, no sign-up, and nothing is uploaded.</span></a>
         </div>
       </section>
-      <section class="guide-group" aria-labelledby="guides-read">
+      <section class="guide-group" id="g-read" aria-labelledby="guides-read">
         <h2 id="guides-read">Read and capture</h2>
         <div class="guide-grid">
           <a class="guide-card" href="/guides/scan-document-to-pdf-with-phone/" data-group="read"><span class="guide-card__title">How to scan a document to PDF with your phone</span><span class="guide-card__summary">Photograph paper with your phone and get a straight, clean PDF scan in your browser. Free, no app, no sign-up, and the photos are never uploaded.</span></a>
