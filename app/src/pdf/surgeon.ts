@@ -68,7 +68,7 @@ import { signPdf } from './sign-pdf';
 import { layoutFlow } from './surgeon-flow';
 import { srgbProfile } from './icc';
 import { drawCalls, invert, multiply, unitBox, type Matrix } from './content-stream';
-import { appendCopies, carryLabels, carryOutline, finishCopies, fitToPaper, formDefaults, rewriteOutline } from './surgeon-pages';
+import { appendCopies, carryLabels, carryOutline, finishCopies, fitToPaper, formDefaults, rewriteOutline, type PendingLink } from './surgeon-pages';
 import {
   PdfError,
   type Box,
@@ -338,6 +338,8 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
   /** Whether pages were copied in, so save() finishes the links and forms they brought. */
   let appended = false;
   let fieldDefaults: PDFDict | null = null;
+  /** Links on copied pages, pointed at their pages' copies (or taken out) on save. */
+  const pendingLinks: PendingLink[] = [];
   const copierFrom = (from: PDFDocument): PDFObjectCopier => {
     let copier = copiers.get(from);
     if (copier === undefined) {
@@ -1260,7 +1262,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         const copier = copierFrom(from);
         appended = true;
         fieldDefaults ??= formDefaults(from, copier);
-        appendCopies(target, from, copier, indices, placedOf(from));
+        appendCopies(target, from, copier, indices, placedOf(from), pendingLinks);
       } catch (error) {
         if (isMemoryFailure(error)) throw tooLarge(byteLength, error);
         throw error;
@@ -1329,7 +1331,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const d = live();
       if (replaced) finishRedaction(d, removedWidgets);
       if (appended) {
-        finishCopies(d, fieldDefaults);
+        finishCopies(d, fieldDefaults, pendingLinks);
         dropUnreachable(d.context);
       }
       const encrypt = opts?.encrypt;

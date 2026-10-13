@@ -115,12 +115,13 @@ export const pageLabelsOp: Op<PageLabelsParams> = {
       const first = `${params.prefix.trim()}${labelFor(params.start, style)}`;
       const last = `${params.prefix.trim()}${labelFor(params.start + n - lead - 1, style)}`;
       const main = n - lead === 1 ? first : `${first} to ${last}`;
+      const pages = n === 1 ? 'Page labelled' : 'Pages labelled';
       const detail =
         lead === 0
-          ? `Pages labelled ${main}`
+          ? `${pages} ${main}`
           : lead === n
-            ? `Pages labelled ${labelFor(1, frontStyle)} to ${labelFor(n, frontStyle)}`
-            : `Pages labelled ${labelFor(1, frontStyle)}${lead > 1 ? ` to ${labelFor(lead, frontStyle)}` : ''}, then ${main}`;
+            ? `${pages} ${labelFor(1, frontStyle)}${n > 1 ? ` to ${labelFor(n, frontStyle)}` : ''}`
+            : `${pages} ${labelFor(1, frontStyle)}${lead > 1 ? ` to ${labelFor(lead, frontStyle)}` : ''}, then ${main}`;
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
       return store(ctx, 'page-labels', [input], `${base} labelled.pdf`, bytes, `${detail}${lockNote(relocked)}`);
     });

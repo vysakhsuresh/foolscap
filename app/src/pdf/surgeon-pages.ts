@@ -8,12 +8,11 @@
  * page and everything it reaches, so a link to page 40 used to bring a
  * second, unseen copy of page 40 along (a one-page extract of a contents
  * page weighed as much as the whole book) and still pointed at that copy
- * rather than at the page 40 in the new file. Here every source page is
- * copied once per document, so links between pages that both came across
- * still work; links to pages that did not are taken out on save, and the
- * copies they dragged in go with them.
+ * rather than at the page 40 in the new file. Here a page is copied with
+ * its links held back; on save each link is pointed at its page's copy in
+ * the new file, or taken out when that page did not come across.
  */
-import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFObjectCopier, PDFPage, PDFRef, PDFString, type PDFObject } from '@cantoo/pdf-lib';
+import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNull, PDFNumber, PDFObjectCopier, PDFPage, PDFRef, PDFString, type PDFObject } from '@cantoo/pdf-lib';
 import { normaliseRotation } from './common';
 import type { OutlineItem } from './types';
 
@@ -81,53 +80,89 @@ function annotsOf(context: Context, page: PDFDict): PDFArray | null {
   return annots instanceof PDFArray ? annots : null;
 }
 
+/** A link on a copied page, waiting to learn where its page went: set on save, or the link goes. */
+export interface PendingLink {
+  readonly annot: PDFDict;
+  /** The page it went to, by ref, in the source. */
+  readonly key: string;
+  /** The rest of the destination: /XYZ left top zoom, or /Fit. */
+  readonly rest: readonly PDFObject[];
+  readonly placed: ReadonlyMap<string, PDFRef>;
+}
+
 /**
  * Appends copies of `from`'s pages `indices` to `target`. `placed` maps a
  * source page (by ref) to its copy in `target`'s page tree, for this pair of
- * documents; `copier` is the one copier for the pair, so a page that a link
- * reached before it was appended is the same copy that goes into the tree.
- * A page asked for twice gets a second, separate copy.
+ * documents; `copier` is the one copier for the pair. A page asked for twice
+ * gets a second, separate copy.
+ *
+ * Links between pages are held back while a page is copied, so the copier
+ * does not follow them into the pages they go to (a contents page would
+ * otherwise bring a hidden copy of the whole book, every time); `pending`
+ * gets them, and `finishCopies` points each at its page's copy, or takes it
+ * out when its page did not come across.
  */
-export function appendCopies(target: PDFDocument, from: PDFDocument, copier: PDFObjectCopier, indices: readonly number[], placed: Map<string, PDFRef>): void {
+export function appendCopies(
+  target: PDFDocument,
+  from: PDFDocument,
+  copier: PDFObjectCopier,
+  indices: readonly number[],
+  placed: Map<string, PDFRef>,
+  pending: PendingLink[],
+): void {
   const pages = from.getPages();
   for (const index of indices) {
     const page = pages[index]!;
     const key = page.ref.toString();
-    if (from === target || placed.has(key)) {
-      const node = copier.copy(page.node);
-      target.addPage(PDFPage.of(node, target.context.register(node), target));
-      continue;
+    const fresh = from !== target && !placed.has(key);
+    const held = holdLinks(from, page.node);
+    let ref: PDFRef;
+    let node: PDFDict;
+    try {
+      if (fresh) {
+        ref = copier.copy(page.ref);
+        const looked = target.context.lookup(ref);
+        if (!(looked instanceof PDFDict)) throw new Error('A page could not be copied.');
+        node = looked;
+      } else {
+        node = copier.copy(page.node);
+        ref = target.context.register(node);
+      }
+    } finally {
+      for (const h of held) h.restore();
     }
-    const ref = copier.copy(page.ref);
-    const node = target.context.lookup(ref);
-    if (!(node instanceof PDFDict)) throw new Error('A page could not be copied.');
-    placed.set(key, ref);
-    namedLinksToExplicit(from, page.node, target, node, copier);
+    if (fresh) placed.set(key, ref);
+    const copied = annotsOf(target.context, node);
+    for (const h of held) {
+      const annot = deref(target.context, copied?.get(h.index));
+      if (!(annot instanceof PDFDict)) continue;
+      const first = h.explicit.get(0);
+      const to = first instanceof PDFRef ? first : first instanceof PDFNumber ? pages[first.asNumber()]?.ref : undefined;
+      if (to === undefined) continue;
+      const rest = h.explicit.asArray().slice(1).map((v) => (v instanceof PDFRef ? PDFNull : v.clone()));
+      pending.push({ annot, key: to.toString(), rest, placed });
+    }
     target.addPage(PDFPage.of(node as Parameters<typeof PDFPage.of>[0], ref, target));
   }
 }
 
-/**
- * A link that goes to a named place ("section.2", as LaTeX writes them)
- * means nothing in a document that does not carry the names; the copy goes
- * straight to the page instead.
- */
-function namedLinksToExplicit(from: PDFDocument, source: PDFDict, target: PDFDocument, copy: PDFDict, copier: PDFObjectCopier): void {
-  const sourceAnnots = annotsOf(from.context, source);
-  const copyAnnots = annotsOf(target.context, copy);
-  if (sourceAnnots === null || copyAnnots === null || sourceAnnots.size() !== copyAnnots.size()) return;
-  for (let i = 0; i < sourceAnnots.size(); i++) {
-    const original = deref(from.context, sourceAnnots.get(i));
-    const copied = deref(target.context, copyAnnots.get(i));
-    if (!(original instanceof PDFDict) || !(copied instanceof PDFDict)) continue;
-    const raw = deref(from.context, original.get(N('Dest')) ?? original.get(N('A')));
-    const direct = raw instanceof PDFArray || (raw instanceof PDFDict && deref(from.context, raw.get(N('D'))) instanceof PDFArray);
-    if (direct || raw === undefined) continue;
-    const explicit = explicitDest(from, raw);
+/** Takes the page destinations off a page's links for the moment, so a copy of the page does not follow them. */
+function holdLinks(from: PDFDocument, page: PDFDict): Array<{ readonly index: number; readonly explicit: PDFArray; restore(): void }> {
+  const annots = annotsOf(from.context, page);
+  if (annots === null) return [];
+  const held: Array<{ readonly index: number; readonly explicit: PDFArray; restore(): void }> = [];
+  for (let i = 0; i < annots.size(); i++) {
+    const annot = deref(from.context, annots.get(i));
+    if (!(annot instanceof PDFDict)) continue;
+    const key = annot.has(N('Dest')) ? N('Dest') : annot.has(N('A')) ? N('A') : null;
+    if (key === null) continue;
+    const value = annot.get(key);
+    const explicit = explicitDest(from, value);
     if (explicit === null) continue;
-    copied.delete(N('A'));
-    copied.set(N('Dest'), copier.copy(explicit));
+    annot.delete(key);
+    held.push({ index: i, explicit, restore: () => annot.set(key, value!) });
   }
+  return held;
 }
 
 /** The parts of a form that belong to the document: its default font and resources. Copied once, from the first form appended. */
@@ -148,9 +183,15 @@ export function formDefaults(from: PDFDocument, copier: PDFObjectCopier): PDFDic
  * stayed behind, and the fields left are listed in the document's form so
  * they can still be filled. Sweeping what is now unreachable is the caller's.
  */
-export function finishCopies(doc: PDFDocument, defaults: PDFDict | null): void {
+export function finishCopies(doc: PDFDocument, defaults: PDFDict | null, pending: readonly PendingLink[]): void {
   const { context } = doc;
   const pages = doc.getPages();
+  const dead = new Set<PDFDict>();
+  for (const link of pending) {
+    const to = link.placed.get(link.key);
+    if (to === undefined) dead.add(link.annot);
+    else link.annot.set(N('Dest'), context.obj([to, ...link.rest]));
+  }
   const inTree = new Set(pages.map((p) => p.ref.toString()));
   const dangling = (value: unknown): boolean => {
     const explicit = explicitDest(doc, value);
@@ -167,7 +208,7 @@ export function finishCopies(doc: PDFDocument, defaults: PDFDict | null): void {
       const annot = deref(context, entry);
       if (!(annot instanceof PDFDict)) continue;
       const action = annot.get(N('Dest')) ?? annot.get(N('A'));
-      if (action !== undefined && dangling(action)) {
+      if (dead.has(annot) || (action !== undefined && dangling(action))) {
         annots.remove(i);
         continue;
       }

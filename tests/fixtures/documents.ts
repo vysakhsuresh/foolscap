@@ -89,6 +89,8 @@ const LOREM = [
 export interface ReportOptions {
   /** Pixels on a side of each of the two photos; 0 leaves them out. Each weighs about side² × 3 bytes. */
   readonly photo?: number;
+  /** A "Back to contents" link at the foot of every chapter page, as long reports have. */
+  readonly backLinks?: boolean;
 }
 
 /**
@@ -138,6 +140,12 @@ export async function reportPdf(opts: ReportOptions = {}): Promise<Bytes> {
     links.push(doc.context.register(link));
   });
   contents.page.node.set(PDFName.of('Annots'), doc.context.obj(links));
+  if (opts.backLinks === true) {
+    for (const page of pages.slice(2)) {
+      const back = doc.context.obj({ Type: 'Annot', Subtype: 'Link', Rect: [40, 20, 140, 40], Border: [0, 0, 0], Dest: [pages[1]!.ref, 'Fit'] });
+      page.node.set(PDFName.of('Annots'), doc.context.obj([doc.context.register(back)]));
+    }
+  }
 
   text(overview, '1 Overview', 60, 760, 20, true);
   let y = 720;

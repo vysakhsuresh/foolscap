@@ -78,7 +78,7 @@ describe('merge', () => {
     expect(read.outline.find((o) => o.title === '2 Finances')?.open).toBe(false);
     // The contents page's links go to the chapters in the merged file.
     expect(read.pages[1]!.annotations.map((a) => a.dest)).toEqual([2, 4, 6, 7]);
-    expect(read.formFields.sort()).toEqual(['signed_on', 'witnessed']);
+    expect([...read.formFields].sort()).toEqual(['signed_on', 'witnessed']);
     expect(read.fields).toEqual({ signed_on: '20/09/2026', witnessed: 'Yes' });
     expect(stampsIn(bytes)).toEqual([]);
   });
@@ -108,6 +108,21 @@ describe('split', () => {
     const contents = await h.bytesOf(parts[1]!.file);
     expect(contents.length).toBeLessThan(10_000);
     expect((await readPdf(contents)).pages[0]!.annotations).toEqual([]);
+  });
+
+  it('one page per file from a report whose every page links back to the contents: each part holds its own page only', async () => {
+    const h = harness();
+    const source = await reportPdf({ photo: 300, backLinks: true });
+    const input = await h.add('Report.pdf', source);
+    const parts = produced(await run('split', [input], { mode: 'single' }, h.ctx));
+    const sizes = await Promise.all(parts.map(async (p) => (await h.bytesOf(p.file)).length));
+    // Pages 4 and 6 carry a 270 KB photo each; every other part is a page of text.
+    for (const [i, size] of sizes.entries()) expect(size, `part ${i + 1}`).toBeLessThan(i === 3 || i === 5 ? 290_000 : 10_000);
+    expect((await readPdf(await h.bytesOf(parts[4]!.file))).pages[0]!.annotations).toEqual([]);
+    const [pair] = produced(await run('extract-pages', [input], { pages: '2-3', mode: 'keep' }, h.ctx));
+    const read = await readPdf(await h.bytesOf(pair!.file));
+    expect(read.pages[0]!.annotations.map((a) => a.dest)).toEqual([1]);
+    expect(read.pages[1]!.annotations.map((a) => a.dest)).toEqual([0]);
   });
 
   it('links within a part still work', async () => {
@@ -172,7 +187,7 @@ describe('extract and organise', () => {
     expect(read.formFields).toEqual([]);
     const [kept] = produced(await run('extract-pages', [input], { pages: '4', mode: 'keep' }, h.ctx));
     const signature = await readPdf(await h.bytesOf(kept!.file));
-    expect(signature.formFields.sort()).toEqual(['signed_on', 'witnessed']);
+    expect([...signature.formFields].sort()).toEqual(['signed_on', 'witnessed']);
   });
 });
 
