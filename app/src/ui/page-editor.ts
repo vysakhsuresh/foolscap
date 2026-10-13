@@ -179,7 +179,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   if (mode === 'sign') {
     const pad = el('canvas', { class: 'pad__canvas', testid: 'signature-pad', attrs: { width: '900', height: '300', 'aria-label': 'Draw your signature here' } });
     const clear = el('button', { class: 'button button--ghost button--small', testid: 'signature-clear', text: 'Clear', attrs: { type: 'button' } });
-    inkChoice = choices<'black' | 'blue'>('ink', 'Ink', [{ value: 'black', title: 'Black' }, { value: 'blue', title: 'Blue' }], 'blue', () => undefined, 'pills');
+    // Changing the ink recolours the signature already drawn, and every copy already placed.
+    inkChoice = choices<'black' | 'blue'>('ink', 'Ink', [{ value: 'black', title: 'Black' }, { value: 'blue', title: 'Blue' }], 'blue', () => recolour(), 'pills');
     const padBox = el('div', { class: 'pad' }, [
       el('div', { class: 'pad__head' }, [el('span', { class: 'field__label', text: 'Draw your signature' }), clear]),
       el('div', { class: 'pad__area' }, [pad, el('span', { class: 'pad__line', attrs: { 'aria-hidden': 'true' } })]),
@@ -221,6 +222,28 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       c.fillText(name, pad.width / 2, pad.height * 0.55);
       take(trim(pad));
     });
+    const recolour = () => {
+      const c = pad.getContext('2d');
+      if (!c || signature === null) return;
+      const [r, g, b] = INKS[inkChoice?.value() ?? 'blue'].map((v) => Math.round(v * 255)) as [number, number, number];
+      const image = c.getImageData(0, 0, pad.width, pad.height);
+      for (let i = 0; i < image.data.length; i += 4) {
+        if ((image.data[i + 3] ?? 0) === 0) continue;
+        image.data[i] = r;
+        image.data[i + 1] = g;
+        image.data[i + 2] = b;
+      }
+      c.putImageData(image, 0, 0);
+      const made = trim(pad);
+      if (!made) return;
+      for (const item of items) {
+        if (item.kind !== 'image') continue;
+        item.png = made.png;
+        item.src = made.src;
+        item.el.querySelector<HTMLImageElement>('.editor__img')?.setAttribute('src', made.src);
+      }
+      take(made);
+    };
     clear.addEventListener('click', () => {
       const c = pad.getContext('2d');
       c?.clearRect(0, 0, pad.width, pad.height);

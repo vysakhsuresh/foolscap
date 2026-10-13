@@ -6,8 +6,8 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { encryptedPdf, pagesPdf, pdfInfo } from '../fixtures/pdfs';
-import { annualReportPdf, turnedPagesPdf } from '../fixtures/mark-samples';
-import { added, extent, look, mean, notWhite, openPdf, share, type Word } from '../fixtures/mark-inspect';
+import { annualReportPdf, leasePdf, logoPng, photoJpeg, sidewaysPhotoJpeg, turnedPagesPdf } from '../fixtures/mark-samples';
+import { added, extent, isBlue, isGreen, isInk, isRed, isWhite, look, mean, notWhite, openPdf, share, type Box, type Word } from '../fixtures/mark-inspect';
 import { downloadFrom, openTool, run, useDownloads } from './helpers';
 
 test.beforeEach(async ({ context }) => {
@@ -28,6 +28,66 @@ async function runAndSave(page: Page, n = 0): Promise<{ name: string; bytes: Uin
   await run(page);
   return downloadFrom(page, page.getByTestId('save-button').nth(n));
 }
+
+/** Draws a signature-like scribble across the pad. */
+async function scribble(page: Page): Promise<void> {
+  const pad = await page.getByTestId('signature-pad').boundingBox();
+  if (!pad) throw new Error('no pad');
+  await page.mouse.move(pad.x + pad.width * 0.15, pad.y + pad.height * 0.6);
+  await page.mouse.down();
+  for (let k = 1; k <= 24; k++) await page.mouse.move(pad.x + pad.width * (0.15 + k * 0.03), pad.y + pad.height * (0.6 + 0.25 * Math.sin(k * 0.9)), { steps: 2 });
+  await page.mouse.up();
+}
+
+/** Where on screen a point of the page in the editor is, from fractions of the page. */
+async function onPage(page: Page, fx: number, fy: number): Promise<[number, number]> {
+  // As a person would: scroll the page into the middle of the screen first.
+  const layer = page.getByTestId('editor-layer');
+  await layer.evaluate((el) => {
+    // The site scrolls smoothly; a test that reads where the page is cannot wait on an animation.
+    document.documentElement.style.setProperty('scroll-behavior', 'auto');
+    el.scrollIntoView({ block: 'center', behavior: 'instant' });
+  });
+  // Wait out any scrolling still under way (focusing a box scrolls smoothly).
+  let box = await layer.boundingBox();
+  for (let k = 0; k < 40; k++) {
+    await page.waitForTimeout(60);
+    const again = await layer.boundingBox();
+    if (again && box && again.y === box.y && again.x === box.x) break;
+    box = again;
+  }
+  if (!box) throw new Error('no page');
+  return [box.x + box.width * fx, box.y + box.height * fy];
+}
+
+async function tapPage(page: Page, fx: number, fy: number): Promise<void> {
+  const [x, y] = await onPage(page, fx, fy);
+  await page.mouse.click(x, y);
+}
+
+async function dragPage(page: Page, from: [number, number], to: [number, number]): Promise<void> {
+  const [x0, y0] = await onPage(page, from[0], from[1]);
+  const [x1, y1] = await onPage(page, to[0], to[1]);
+  await page.mouse.move(x0, y0);
+  await page.mouse.down();
+  await page.mouse.move(x1, y1, { steps: 8 });
+  await page.mouse.up();
+}
+
+/** Steps the editor to page `n` (one-based). */
+async function editorTo(page: Page, n: number): Promise<void> {
+  const where = page.getByTestId('editor-where');
+  await expect(where).toHaveText(/^Page \d+ of \d+$/);
+  let current = Number(/Page (\d+)/.exec((await where.textContent()) ?? '')?.[1] ?? '1');
+  while (current !== n) {
+    const forward = current < n;
+    await page.getByTestId(forward ? 'editor-next' : 'editor-prev').click();
+    current += forward ? 1 : -1;
+    await expect(where).toHaveText(new RegExp(`^Page ${current} of`));
+  }
+}
+
+const centre = (b: Box): [number, number] => [b.x + b.w / 2, b.y + b.h / 2];
 
 /** The words on page `index` of `output` that were not on it in `input`, with the page's size as seen. */
 async function newWords(input: Uint8Array, output: Uint8Array, index: number, password?: string): Promise<{ words: Word[]; width: number; height: number }> {
@@ -395,5 +455,309 @@ test.describe('header and footer', () => {
       expect(share(diff, { x: 0.2, y: 0, w: 0.6, h: 0.12 }, notWhite), 'header').toBeGreaterThan(0.002);
       expect(share(diff, { x: 0.2, y: 0.88, w: 0.6, h: 0.12 }, notWhite), 'footer').toBeGreaterThan(0.002);
     }
+  });
+});
+
+test.describe('sign', () => {
+  test('a drawn signature lands on the page and spot it was put, in blue, and nowhere else', async ({ page }) => {
+    const input = await leasePdf();
+    await openTool(page, 'sign');
+    await pick(page, [{ name: 'Lease.pdf', bytes: input }]);
+    await expect(page.getByTestId('run-button')).toBeDisabled();
+    await expect(page.locator('.run__note')).toHaveText('Draw your signature, then tap the page where it goes.');
+    await scribble(page);
+    await expect(page.locator('.run__note')).toHaveText('Tap the page where your signature goes.');
+    await editorTo(page, 2);
+    await tapPage(page, 0.55, 0.17);
+    await expect(page.getByTestId('editor-item')).toHaveCount(1);
+    const out = await runAndSave(page);
+    expect(out.name).toBe('Lease (signed).pdf');
+    await expect(page.getByTestId('result-detail')).toHaveText('Signed on page 2');
+    expect(extent(await added(input, out.bytes, 0), notWhite)).toBeNull();
+    const diff = await added(input, out.bytes, 1, 1);
+    const box = extent(diff, notWhite)!;
+    const [cx, cy] = centre(box);
+    expect(Math.abs(cx - 0.55)).toBeLessThan(0.04);
+    expect(Math.abs(cy - 0.17)).toBeLessThan(0.04);
+    // About a third of the page wide, as placed.
+    expect(box.w).toBeGreaterThan(0.2);
+    expect(box.w).toBeLessThan(0.34);
+    expect(share(diff, box, isBlue)).toBeGreaterThan(0.03);
+    // The words on the page are all still there.
+    const pdf = await openPdf(out.bytes);
+    expect(await pdf.text(1)).toContain('Tenant:');
+    await pdf.close();
+  });
+
+  test('a typed name, switched to black ink after typing, signs in black, in two places', async ({ page }) => {
+    const input = await leasePdf();
+    await openTool(page, 'sign');
+    await pick(page, [{ name: 'Lease.pdf', bytes: input }]);
+    await page.getByTestId('signature-typed').fill('Anjali Menon');
+    await page.getByTestId('opt-ink-black').check();
+    await tapPage(page, 0.5, 0.85);
+    await editorTo(page, 2);
+    await tapPage(page, 0.6, 0.24);
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('Signed in 2 places across 2 pages');
+    for (const [i, x, y] of [[0, 0.5, 0.85], [1, 0.6, 0.24]] as const) {
+      const diff = await added(input, out.bytes, i, 1);
+      const box = extent(diff, notWhite)!;
+      const [cx, cy] = centre(box);
+      expect(Math.abs(cx - x), `page ${i + 1}`).toBeLessThan(0.04);
+      expect(Math.abs(cy - y), `page ${i + 1}`).toBeLessThan(0.04);
+      expect(share(diff, box, isBlue), `no blue on page ${i + 1}`).toBe(0);
+      expect(share(diff, box, isInk), `black ink on page ${i + 1}`).toBeGreaterThan(0.02);
+    }
+  });
+
+  test('a placed signature can be moved and made bigger, and undo and × take signatures off', async ({ page }) => {
+    const input = await leasePdf();
+    await openTool(page, 'sign');
+    await pick(page, [{ name: 'Lease.pdf', bytes: input }]);
+    await scribble(page);
+    await tapPage(page, 0.3, 0.3);
+    await tapPage(page, 0.7, 0.7);
+    await expect(page.getByTestId('editor-item')).toHaveCount(2);
+    await page.getByTestId('editor-undo').click();
+    await expect(page.getByTestId('editor-item')).toHaveCount(1);
+    // Drag it from (0.3, 0.3) to (0.5, 0.8)…
+    await dragPage(page, [0.3, 0.3], [0.5, 0.8]);
+    // …then pull its corner out to make it half again as wide.
+    const handle = page.locator('.editor__item.is-selected .editor__resize');
+    const hb = (await handle.boundingBox())!;
+    const layer = (await page.getByTestId('editor-layer').boundingBox())!;
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hb.x + hb.width / 2 + layer.width * 0.16, hb.y + hb.height / 2, { steps: 6 });
+    await page.mouse.up();
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('Signed on page 1');
+    const box = extent(await added(input, out.bytes, 0, 1), notWhite)!;
+    // Its top-left corner stayed where the move put it, and it grew to the right and down.
+    expect(Math.abs(box.x - (0.5 - 0.16))).toBeLessThan(0.04);
+    expect(box.w).toBeGreaterThan(0.38);
+    expect(box.y).toBeGreaterThan(0.7);
+
+    await page.getByTestId('start-over').click();
+    await pick(page, [{ name: 'Lease.pdf', bytes: input }]);
+    await scribble(page);
+    await tapPage(page, 0.5, 0.5);
+    await page.getByTestId('editor-remove').click();
+    await expect(page.getByTestId('editor-item')).toHaveCount(0);
+    await expect(page.getByTestId('run-button')).toBeDisabled();
+    await page.getByTestId('signature-clear').click();
+    await expect(page.locator('.run__note')).toHaveText('Draw your signature, then tap the page where it goes.');
+  });
+});
+
+test.describe('add text', () => {
+  test('writes what was typed exactly where the page was tapped, at the size and colour chosen', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'add-text');
+    await pick(page, [{ name: 'Form.pdf', bytes: input }]);
+    await expect(page.getByTestId('opt-size-medium')).toBeChecked();
+    await expect(page.getByTestId('opt-color-black')).toBeChecked();
+    await page.getByTestId('opt-text').fill('Anjali Menon');
+    await tapPage(page, 0.3, 0.2);
+    await page.getByTestId('opt-size-large').check();
+    await page.getByTestId('opt-color-red').check();
+    await expect(page.locator('.editor__item--text')).toHaveCount(1);
+    // A second piece, two lines, small and blue, on page 2.
+    await editorTo(page, 2);
+    await page.getByTestId('opt-size-small').check();
+    await page.getByTestId('opt-color-blue').check();
+    await tapPage(page, 0.1, 0.5);
+    await page.getByTestId('opt-text').fill('Flat 4B, Rose Gardens\nKakkanad, Kochi 682030');
+    const out = await runAndSave(page);
+    expect(out.name).toBe('Form (with text).pdf');
+    await expect(page.getByTestId('result-detail')).toHaveText('2 pieces of text added across 2 pages');
+    const pdf = await openPdf(out.bytes);
+    const { width, height } = await pdf.size(0);
+    const name = (await pdf.words(0)).find((w) => w.text === 'Anjali Menon')!;
+    expect(name).toBeDefined();
+    // Large is 5% of the page's width; its top-left is where the page was tapped.
+    expect(name.size).toBeCloseTo(0.05 * width, 0);
+    expect(Math.abs(name.x - 0.3 * width)).toBeLessThan(4);
+    expect(Math.abs(name.y - (0.2 * height + 0.97 * name.size))).toBeLessThan(4);
+    expect(share(await added(input, out.bytes, 0, 1), { x: 0.28, y: 0.18, w: 0.5, h: 0.08 }, isRed)).toBeGreaterThan(0.01);
+    const lines = (await pdf.words(1)).filter((w) => w.text.includes('Rose') || w.text.includes('Kakkanad'));
+    expect(lines.map((w) => w.text)).toEqual(['Flat 4B, Rose Gardens', 'Kakkanad, Kochi 682030']);
+    expect(lines[0]!.size).toBeCloseTo(0.024 * width, 0);
+    expect(Math.abs(lines[0]!.x - 0.1 * width)).toBeLessThan(4);
+    expect(lines[1]!.y - lines[0]!.y).toBeCloseTo(lines[0]!.size * 1.25, 0);
+    expect(share(await added(input, out.bytes, 1, 1), { x: 0.08, y: 0.48, w: 0.6, h: 0.08 }, isBlue)).toBeGreaterThan(0.005);
+    await pdf.close();
+  });
+
+  test('text already placed can be tapped and changed, and dragged somewhere else', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'add-text');
+    await pick(page, [{ name: 'Form.pdf', bytes: input }]);
+    await page.getByTestId('opt-text').fill('Ravi');
+    await tapPage(page, 0.2, 0.3);
+    await tapPage(page, 0.6, 0.6);
+    await page.getByTestId('opt-text').fill('second');
+    // Back to the first: tapping it selects it, and the box shows its words.
+    await tapPage(page, 0.21, 0.31);
+    await expect(page.getByTestId('opt-text')).toHaveValue('Ravi');
+    await page.getByTestId('opt-text').fill('Ravi Kumar');
+    await dragPage(page, [0.21, 0.31], [0.41, 0.11]);
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('2 pieces of text added');
+    const pdf = await openPdf(out.bytes);
+    const { width, height } = await pdf.size(0);
+    const words = await pdf.words(0);
+    const ravi = words.find((w) => w.text === 'Ravi Kumar')!;
+    expect(ravi).toBeDefined();
+    expect(Math.abs(ravi.x - 0.4 * width)).toBeLessThan(5);
+    expect(Math.abs(ravi.y - 0.97 * ravi.size - 0.1 * height)).toBeLessThan(5);
+    expect(words.find((w) => w.text === 'second')).toBeDefined();
+    expect(words.find((w) => w.text === 'Ravi')).toBeUndefined();
+    await pdf.close();
+  });
+
+  test('Malayalam goes on as a picture of the words, where it was put', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'add-text');
+    await pick(page, [{ name: 'Form.pdf', bytes: input }]);
+    await page.getByTestId('opt-text').fill('അഞ്ജലി മേനോൻ');
+    await tapPage(page, 0.25, 0.4);
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('1 piece of text added');
+    await look(out.bytes, 0, 'add-text-malayalam');
+    const box = extent(await added(input, out.bytes, 0, 1), notWhite)!;
+    expect(box).not.toBeNull();
+    expect(Math.abs(box.x - 0.25)).toBeLessThan(0.02);
+    expect(Math.abs(box.y - 0.4)).toBeLessThan(0.03);
+  });
+
+  test('on a page turned sideways the words read the right way up, where they were put', async ({ page }) => {
+    const input = await turnedPagesPdf();
+    await openTool(page, 'add-text');
+    await pick(page, [{ name: 'Scans.pdf', bytes: input }]);
+    await editorTo(page, 2);
+    await page.getByTestId('opt-text').fill('Checked');
+    await tapPage(page, 0.5, 0.5);
+    const out = await runAndSave(page);
+    const pdf = await openPdf(out.bytes);
+    const { width, height } = await pdf.size(1);
+    const word = (await pdf.words(1)).find((w) => w.text === 'Checked')!;
+    expect(word.upright).toBe(true);
+    expect(Math.abs(word.x - 0.5 * width)).toBeLessThan(4);
+    expect(Math.abs(word.y - 0.97 * word.size - 0.5 * height)).toBeLessThan(4);
+    await pdf.close();
+  });
+});
+
+/** A plain two-page A4 document with a little text on each page. */
+async function applicationBlank(): Promise<Uint8Array> {
+  const { PDFDocument, StandardFonts } = await import('@cantoo/pdf-lib');
+  const doc = await PDFDocument.create({ updateMetadata: false });
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  for (let i = 0; i < 2; i++) doc.addPage([595.28, 841.89]).drawText(`Application, page ${i + 1}`, { x: 56, y: 790, size: 12, font });
+  return new Uint8Array(await doc.save());
+}
+
+/** The images a PDF holds: each one's pixel size and how it is stored. */
+async function imagesIn(bytes: Uint8Array): Promise<Array<{ width: number; height: number; filter: string; mask: boolean }>> {
+  const { PDFDocument, PDFName, PDFRawStream, PDFNumber } = await import('@cantoo/pdf-lib');
+  const doc = await PDFDocument.load(bytes, { updateMetadata: false, ignoreEncryption: true });
+  const out: Array<{ width: number; height: number; filter: string; mask: boolean }> = [];
+  for (const [, object] of doc.context.enumerateIndirectObjects()) {
+    if (!(object instanceof PDFRawStream) || object.dict.lookup(PDFName.of('Subtype'))?.toString() !== '/Image') continue;
+    const n = (key: string) => (object.dict.lookup(PDFName.of(key)) as InstanceType<typeof PDFNumber>).asNumber();
+    out.push({ width: n('Width'), height: n('Height'), filter: String(object.dict.lookup(PDFName.of('Filter')) ?? ''), mask: object.dict.has(PDFName.of('SMask')) });
+  }
+  return out;
+}
+
+test.describe('add image', () => {
+  test('a landscape photo goes where the page was tapped, its shape kept, still a JPEG', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'add-image');
+    await pick(page, [{ name: 'Form.pdf', bytes: input }]);
+    await expect(page.locator('.run__note')).toHaveText('Choose a picture, then tap the page where it goes.');
+    await page.getByTestId('opt-picture').setInputFiles({ name: 'House.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(await photoJpeg(1600, 1000)) });
+    await expect(page.locator('.picture-pick__words')).toHaveText('Now tap the page where it goes. Choose again to change it.');
+    await tapPage(page, 0.5, 0.4);
+    const out = await runAndSave(page);
+    expect(out.name).toBe('Form (with picture).pdf');
+    await expect(page.getByTestId('result-detail')).toHaveText('1 picture placed');
+    const pdf = await openPdf(out.bytes);
+    const { width, height } = await pdf.size(0);
+    await pdf.close();
+    const box = extent(await added(input, out.bytes, 0, 1), notWhite)!;
+    expect(box.w).toBeCloseTo(0.4, 1);
+    // 1600 × 1000 kept: as tall as it is wide over 1.6, on this page.
+    expect((box.h * height) / (box.w * width)).toBeCloseTo(1000 / 1600, 1);
+    const [cx, cy] = centre(box);
+    expect(Math.abs(cx - 0.5)).toBeLessThan(0.02);
+    expect(Math.abs(cy - 0.4)).toBeLessThan(0.02);
+    const images = await imagesIn(out.bytes);
+    expect(images).toHaveLength(1);
+    expect(images[0]!.filter).toBe('/DCTDecode');
+    expect(images[0]!.width).toBe(1600);
+  });
+
+  test('a logo with a see-through background keeps it, over the words beneath', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'add-image');
+    await pick(page, [{ name: 'Letterhead.pdf', bytes: input }]);
+    await page.getByTestId('opt-picture').setInputFiles({ name: 'Logo.png', mimeType: 'image/png', buffer: Buffer.from(await logoPng(400)) });
+    await expect(page.locator('.picture-pick__words')).toHaveText(/Now tap the page/);
+    // Over the line of words at the top left.
+    await tapPage(page, 0.2, 0.07);
+    const out = await runAndSave(page);
+    await look(out.bytes, 0, 'add-image-logo');
+    const pdf = await openPdf(out.bytes);
+    const picture = await pdf.render(0, 1);
+    const box = extent(await added(input, out.bytes, 0, 1), notWhite)!;
+    // The disc is green; outside it, in the corners of its square, the page shows through.
+    expect(share(picture, { x: box.x + box.w * 0.45, y: box.y + box.h * 0.08, w: box.w * 0.1, h: box.h * 0.05 }, isGreen)).toBeGreaterThan(0.8);
+    expect(share(picture, { x: box.x, y: box.y + box.h - box.h * 0.08, w: box.w * 0.08, h: box.h * 0.08 }, isWhite)).toBeGreaterThan(0.8);
+    expect(await pdf.text(0)).toContain('Application, page 1');
+    await pdf.close();
+    const images = await imagesIn(out.bytes);
+    expect(images.some((i) => i.mask)).toBe(true);
+  });
+
+  test('a phone photo taken sideways comes out the right way up', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'add-image');
+    await pick(page, [{ name: 'ID.pdf', bytes: input }]);
+    await page.getByTestId('opt-picture').setInputFiles({ name: 'IMG_2041.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(await sidewaysPhotoJpeg(800, 600)) });
+    await expect(page.locator('.picture-pick__words')).toHaveText(/Now tap the page/);
+    await tapPage(page, 0.5, 0.5);
+    const out = await runAndSave(page);
+    const pdf = await openPdf(out.bytes);
+    const { width, height } = await pdf.size(0);
+    const picture = await pdf.render(0, 1);
+    await pdf.close();
+    const box = extent(await added(input, out.bytes, 0, 1), notWhite)!;
+    // Seen 600 wide and 800 tall, red on top.
+    expect((box.h * height) / (box.w * width)).toBeCloseTo(800 / 600, 1);
+    expect(share(picture, { x: box.x, y: box.y, w: box.w, h: box.h * 0.45 }, isRed)).toBeGreaterThan(0.9);
+    expect(share(picture, { x: box.x, y: box.y + box.h * 0.55, w: box.w, h: box.h * 0.45 }, isBlue)).toBeGreaterThan(0.9);
+  });
+
+  test('a big photo is kept sharp but light; another picture can be chosen for the next spot', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'add-image');
+    await pick(page, [{ name: 'Album.pdf', bytes: input }]);
+    await page.getByTestId('opt-picture').setInputFiles({ name: 'Big.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(await photoJpeg(4000, 3000)) });
+    await expect(page.locator('.picture-pick__words')).toHaveText(/Now tap the page/, { timeout: 20_000 });
+    await tapPage(page, 0.3, 0.3);
+    await page.getByTestId('opt-picture').setInputFiles({ name: 'Logo.png', mimeType: 'image/png', buffer: Buffer.from(await logoPng(300)) });
+    await expect(page.locator('.picture-pick__preview')).toHaveAttribute('src', /^data:image\/png/);
+    await editorTo(page, 2);
+    await tapPage(page, 0.5, 0.5);
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('2 pictures placed across 2 pages');
+    const images = (await imagesIn(out.bytes)).filter((i) => !i.filter.includes('Flate') || i.width > 1);
+    const photo = images.find((i) => i.filter === '/DCTDecode')!;
+    expect(Math.max(photo.width, photo.height)).toBe(2000);
+    expect(out.bytes.length).toBeLessThan(2_000_000);
+    expect(extent(await added(input, out.bytes, 1, 0.5), isGreen)).not.toBeNull();
   });
 });
