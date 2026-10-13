@@ -219,8 +219,17 @@ if (finder && pill && pillOpen && pillInput && pillClose && pillResults && 'Inte
     pill.style.setProperty('--keyboard', `${Math.round(covered)}px`);
     pill.style.setProperty('--room', `${Math.round(vv.height)}px`);
   };
+  // (Chrome on Android also shrinks this page with its keyboard — the
+  // viewport tag asks it to, interactive-widget=resizes-content — so there
+  // nothing is covered and the pill simply sits above the keys.)
   vv?.addEventListener('resize', fitAboveKeyboard);
   vv?.addEventListener('scroll', fitAboveKeyboard);
+  window.addEventListener('resize', fitAboveKeyboard);
+  // A keyboard slides up over a few hundred milliseconds, and not every
+  // browser reports where it stopped: look again once it has.
+  pillInput.addEventListener('focus', () => {
+    for (const wait of [100, 300, 600, 1000]) window.setTimeout(fitAboveKeyboard, wait);
+  });
   fitAboveKeyboard();
 
   new IntersectionObserver(([entry]) => {
