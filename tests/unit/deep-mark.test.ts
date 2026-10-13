@@ -11,6 +11,7 @@ import type { OpContext, Outcome } from '../../app/src/ops/op';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
 import { createNodeEngine, installNodeCanvas } from '../fixtures/node-canvas';
 import { segmentsOf } from '../../app/src/pdf/find-text';
+import { paperFills } from '../../app/src/pdf/content-stream';
 import { openPdf } from '../fixtures/mark-inspect';
 import { pagesPdf, stampsIn } from '../fixtures/pdfs';
 import { applicationFormPdf } from '../fixtures/mark-samples';
@@ -235,5 +236,49 @@ describe('fill in a form, in any script', () => {
     const input = await h.workspace.put('Card.pdf', await applicationFormPdf(), 'pdf', { kind: 'picked' });
     const outcomes = await getOp('fill-form').run([input], { values: { pin: '൬൮൨൦൩൦൧' }, seal: false }, h.ctx);
     expect(outcomes[0]).toMatchObject({ kind: 'failed', reason: 'One answer is longer than its box allows (6 characters). Shorten it and try again.' });
+  });
+});
+
+describe('page background finds the white a page paints itself', () => {
+  const page = { x: 0, y: 0, width: 612, height: 792 };
+  const fills = (text: string) => paperFills(new TextEncoder().encode(text), page);
+
+  it('as Chrome and Skia write it: a white rectangle over the page, before anything else', () => {
+    const found = fills('q 1 0 0 -1 0 792 cm 1 1 1 rg 0 0 612 792 re f Q BT /F1 12 Tf (Hello) Tj ET');
+    expect(found.fills.map((f) => f.op)).toEqual(['f']);
+    expect(found.drawing).toBe(true);
+  });
+
+  it('as pdf-lib writes it: a closed path of four lines', () => {
+    const found = fills('q 1 0 0 1 0 792 cm 1 0 0 -1 0 0 cm 1 1 1 rg 0 0 m 612 0 l 612 792 l 0 792 l h f Q');
+    expect(found.fills).toHaveLength(1);
+    expect(found.drawing).toBe(false);
+  });
+
+  it('in grey or CMYK white too', () => {
+    expect(fills('1 g 0 0 612 792 re f*').fills.map((f) => f.op)).toEqual(['f*']);
+    expect(fills('0 0 0 0 k -10 -10 700 900 re f').fills).toHaveLength(1);
+  });
+
+  it('never a coloured page, a white box in a corner, a white shape, or white after the words', () => {
+    expect(fills('0.9 0.9 1 rg 0 0 612 792 re f').fills).toEqual([]);
+    expect(fills('1 1 1 rg 0 0 100 100 re f').fills).toEqual([]);
+    expect(fills('1 1 1 rg 0 0 m 612 0 l 306 792 l h f').fills).toEqual([]);
+    expect(fills('1 1 1 rg 0 0 m 612 0 c 0 0 612 792 612 792 v h f').fills).toEqual([]);
+    expect(fills('BT (Hi) Tj ET 1 1 1 rg 0 0 612 792 re f').fills).toEqual([]);
+    expect(fills('/Im0 Do 1 1 1 rg 0 0 612 792 re f').fills).toEqual([]);
+  });
+
+  it('the background op shows its colour on such a page, and keeps its words', async () => {
+    const h = harness();
+    const { whitePaintedPdf } = await import('../fixtures/mark-samples');
+    const input = await h.workspace.put('Printed.pdf', await whitePaintedPdf(), 'pdf', { kind: 'picked' });
+    const { bytes } = await only(await getOp('background').run([input], { color: '#eaf6ee', pages: '' }, h.ctx), h.workspace);
+    const pdf = await openPdf(bytes);
+    const picture = await pdf.render(0, 0.25);
+    expect(await pdf.text(0)).toContain('Printed from a browser, page 1');
+    await pdf.close();
+    const at = (Math.floor(picture.height / 2) * picture.width + Math.floor(picture.width / 2)) * 4;
+    expect([picture.data[at], picture.data[at + 1], picture.data[at + 2]]).toEqual([0xea, 0xf6, 0xee]);
   });
 });

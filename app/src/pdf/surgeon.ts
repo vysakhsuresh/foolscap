@@ -68,7 +68,7 @@ import { readIdentity } from '../sign/identity';
 import { signPdf } from './sign-pdf';
 import { layoutFlow } from './surgeon-flow';
 import { srgbProfile } from './icc';
-import { drawCalls, invert, multiply, unitBox, type Matrix } from './content-stream';
+import { drawCalls, invert, multiply, paperFills, unitBox, type Matrix } from './content-stream';
 import {
   PdfError,
   type Box,
@@ -649,9 +649,34 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const [r, g, b] = color;
       const n = (v: number) => Math.min(1, Math.max(0, v)).toFixed(4);
       const paint = d.context.register(d.context.flateStream(`q ${n(r)} ${n(g)} ${n(b)} rg ${x} ${y} ${width} ${height} re f Q\n`));
-      // First in the page's contents, so everything already there is drawn over it.
       page.node.normalize();
       const contents = page.node.Contents();
+      // A page that paints itself white before anything else (as browsers print) would hide the
+      // colour: those white fills are turned off, byte for byte, so the colour shows and nothing else moves.
+      if (contents instanceof PDFArray) {
+        const visible = page.getCropBox();
+        for (let k = 0; k < contents.size(); k++) {
+          const ref = contents.get(k);
+          const stream = ref instanceof PDFRef ? d.context.lookup(ref) : ref;
+          if (!(stream instanceof PDFRawStream || stream instanceof PDFContentStream)) break;
+          const bytes = stream instanceof PDFRawStream ? decodePDFRawStream(stream).decode() : stream.getUnencodedContents();
+          const { fills, drawing } = paperFills(bytes, visible);
+          if (fills.length === 0) {
+            // Only "q" and settings so far (pdf-lib opens an edited page that way): look on.
+            if (drawing) break;
+            continue;
+          }
+          const patched = new Uint8Array(bytes);
+          const off: Record<string, string> = { f: 'n', F: 'n', 'f*': 'n ', B: 'S', 'B*': 'S ', b: 's', 'b*': 's ' };
+          for (const fill of fills) {
+            const word = off[fill.op] ?? 'n';
+            for (let c = 0; c < word.length; c++) patched[fill.start + c] = word.charCodeAt(c);
+          }
+          contents.set(k, d.context.register(d.context.flateStream(patched)));
+          if (drawing) break;
+        }
+      }
+      // First in the page's contents, so everything already there is drawn over it.
       if (contents instanceof PDFArray) contents.insert(0, paint);
       else page.node.addContentStream(paint);
     },

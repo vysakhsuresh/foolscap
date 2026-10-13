@@ -6,8 +6,8 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { encryptedPdf, pagesPdf, pdfInfo } from '../fixtures/pdfs';
-import { annualReportPdf, applicationFormPdf, brochurePdf, leasePdf, orangePng, salarySlipPdf, logoPng, photoJpeg, sidewaysPhotoJpeg, turnedPagesPdf } from '../fixtures/mark-samples';
-import { added, extent, isBlue, isGreen, isInk, isRed, isWhite, look, mean, notWhite, openPdf, share, type Box, type Word } from '../fixtures/mark-inspect';
+import { annualReportPdf, applicationFormPdf, brochurePdf, leasePdf, whitePaintedPdf, orangePng, salarySlipPdf, logoPng, photoJpeg, sidewaysPhotoJpeg, turnedPagesPdf } from '../fixtures/mark-samples';
+import { added, extent, isBlue, isGreen, isInk, isRed, isWhite, look, pixel, mean, notWhite, openPdf, share, type Box, type Word } from '../fixtures/mark-inspect';
 import { downloadFrom, openTool, run, useDownloads } from './helpers';
 
 test.beforeEach(async ({ context }) => {
@@ -1337,5 +1337,78 @@ test.describe('fill in a form', () => {
     await expect(page.getByTestId('form-none')).toContainText('This PDF has no fields to fill in. To write on it anyway, use Add text.');
     await expect(page.getByTestId('form-none').getByRole('link', { name: 'Add text' })).toHaveAttribute('href', '/tools/add-text/');
     await expect(page.getByTestId('run-button')).toBeDisabled();
+  });
+});
+
+const near = (rgb: [number, number, number], hex: string, by = 6) => {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return Math.abs(rgb[0] - ((n >> 16) & 255)) <= by && Math.abs(rgb[1] - ((n >> 8) & 255)) <= by && Math.abs(rgb[2] - (n & 255)) <= by;
+};
+
+test.describe('page background', () => {
+  for (const [swatch, hex] of [['#fbf6e9', '#FBF6E9'], ['#f2f2ee', '#F2F2EE'], ['#eaf6ee', '#EAF6EE'], ['#e8f1fb', '#E8F1FB'], ['#fbeef0', '#FBEEF0']] as const) {
+    test(`${swatch} goes behind everything on every page, words and photo on top`, async ({ page }) => {
+      const { bytes } = await annualReportPdf();
+      await openTool(page, 'background');
+      await pick(page, [{ name: 'Report.pdf', bytes }]);
+      await page.getByTestId(`opt-colour-${swatch}`).check();
+      const out = await runAndSave(page);
+      expect(out.name).toBe('Report coloured.pdf');
+      await expect(page.getByTestId('result-detail')).toHaveText(`All 3 pages given a ${hex} background`);
+      const pdf = await openPdf(out.bytes);
+      for (let i = 0; i < 3; i++) {
+        const picture = await pdf.render(i, 0.5);
+        for (const [x, y] of [[0.02, 0.02], [0.98, 0.98], [0.5, 0.97]] as const) expect(near(pixel(picture, x, y), hex), `page ${i + 1} at ${x},${y}`).toBe(true);
+        expect(await pdf.text(i)).toContain(`Page ${i + 1}`);
+      }
+      // The photo on page one is drawn over the colour, as it was.
+      const before = await openPdf(bytes);
+      const photo = { x: 66 / A4W, y: (A4H - 710) / A4H, w: 380 / A4W, h: 230 / A4H };
+      expect(mean(await before.render(0, 0.5), photo)).toEqual(mean(await pdf.render(0, 0.5), photo));
+      await before.close();
+      await pdf.close();
+    });
+  }
+
+  test('your own colour, on the pages typed only', async ({ page }) => {
+    const input = await pagesPdf(4);
+    await openTool(page, 'background');
+    await pick(page, [{ name: 'Notes.pdf', bytes: input }]);
+    await expect(page.getByTestId('opt-color')).toBeHidden();
+    await page.getByTestId('opt-colour-custom').check();
+    await expect(page.getByTestId('opt-color')).toBeVisible();
+    await page.getByTestId('opt-color').fill('#ffd8a8');
+    await page.getByTestId('opt-pages').fill('2, 4');
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('Pages 2, 4 given a #FFD8A8 background');
+    const pdf = await openPdf(out.bytes);
+    for (const [i, coloured] of [[0, false], [1, true], [2, false], [3, true]] as const) {
+      expect(near(pixel(await pdf.render(i, 0.5), 0.9, 0.3), '#FFD8A8'), `page ${i + 1}`).toBe(coloured);
+    }
+    await pdf.close();
+  });
+
+  test('a page that paints itself white first (as browsers print) still gets its colour', async ({ page }) => {
+    const input = await whitePaintedPdf();
+    await openTool(page, 'background');
+    await pick(page, [{ name: 'Printed.pdf', bytes: input }]);
+    await page.getByTestId('opt-colour-#eaf6ee').check();
+    const out = await runAndSave(page);
+    const pdf = await openPdf(out.bytes);
+    for (const i of [0, 1]) {
+      const picture = await pdf.render(i, 0.5);
+      expect(near(pixel(picture, 0.5, 0.5), '#EAF6EE'), `page ${i + 1}`).toBe(true);
+      expect(await pdf.text(i)).toContain(`Printed from a browser, page ${i + 1}`);
+      expect(share(picture, { x: 0.08, y: 0.08, w: 0.6, h: 0.04 }, isInk)).toBeGreaterThan(0.01);
+    }
+    await pdf.close();
+  });
+
+  test('pages typed that are not in the file are refused in words', async ({ page }) => {
+    await openTool(page, 'background');
+    await pick(page, [{ name: 'Notes.pdf', bytes: await pagesPdf(2) }]);
+    await page.getByTestId('opt-pages').fill('5');
+    await run(page);
+    await expect(page.getByTestId('failure-item')).toContainText('This file has 2 pages; none of the pages typed are in it.');
   });
 });
