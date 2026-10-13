@@ -188,9 +188,12 @@ describe('crop', () => {
     const h = harness();
     const input = await h.add('Mixed.pdf', await rotatedPdf([0, 90]));
     const out = only(await run('crop', [input], { mode: 'paper', paper: 'a4' }, h.ctx));
-    const sizes = (await pdfInfo(await h.bytesOf(out.file))).sizes;
-    expect(sizes[0]).toEqual([595.28, 841.89]);
-    expect(sizes[1]).toEqual([841.89, 595.28]);
+    const info = await pdfInfo(await h.bytesOf(out.file));
+    // The page stays itself, turn and all: the second is stored portrait and shown a quarter turn round, so a reader sees it landscape.
+    const seen = info.sizes.map(([w, h], i) => (info.rotations[i] === 90 || info.rotations[i] === 270 ? [h, w] : [w, h]));
+    expect(seen[0]).toEqual([595.28, 841.89]);
+    expect(seen[1]).toEqual([841.89, 595.28]);
+    expect(info.rotations).toEqual([0, 90]);
     expect(out.file.name).toBe('Mixed on A4.pdf');
   });
 

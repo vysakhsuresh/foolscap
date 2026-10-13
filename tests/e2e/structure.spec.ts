@@ -38,7 +38,7 @@ test('page labels numbers the front pages in roman', async ({ page }) => {
   await pick(page, [{ name: 'Thesis.pdf', bytes: await pagesPdf(4) }]);
   await page.getByTestId('opt-front').fill('2');
   await results(page);
-  await expect(page.getByTestId('result-detail')).toContainText('Pages labelled i to ii, then 1 onwards');
+  await expect(page.getByTestId('result-detail')).toContainText('Pages labelled i to ii, then 1 to 2');
 });
 
 test('attachments puts any file inside a PDF, then takes it out again', async ({ page }) => {

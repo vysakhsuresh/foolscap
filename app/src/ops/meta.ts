@@ -19,7 +19,7 @@ export const OP_META: Partial<Record<ToolId, OpMeta>> = {
   organise: { arity: { kind: 'one' } },
   'extract-pages': { arity: { kind: 'one' } },
   'insert-pages': { arity: { kind: 'together', min: 1 } },
-  crop: { arity: { kind: 'each' } },
+  crop: { arity: { kind: 'each' }, engine: true },
   'split-by-size': { arity: { kind: 'one' } },
   'n-up': { arity: { kind: 'each' } },
   'images-to-pdf': { arity: { kind: 'together', min: 1 } },

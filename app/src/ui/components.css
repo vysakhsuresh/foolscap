@@ -909,6 +909,28 @@ a.tool-card:hover .tool-card__go {
   font-size: var(--text-s);
 }
 
+/* Crop's four edges: two by two on a phone, one row where there is room. */
+.field-row.edge-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+  .field-row.edge-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* A small number box with its word above it: Crop's four edges. */
+.edge-field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.edge-field__word {
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
 .options__note {
   color: var(--muted);
   font-size: var(--text-s);

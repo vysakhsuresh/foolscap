@@ -4,6 +4,8 @@ import { el } from './dom';
 export interface SplitOptions {
   readonly root: HTMLElement;
   params(): SplitParams;
+  /** Why the split cannot start as set, or null. */
+  problem(): string | null;
 }
 
 /** The three ways to split, as radio choices with their input beside them. */
@@ -23,7 +25,7 @@ export function createSplitOptions(onChange: () => void): SplitOptions {
   const everyInput = el('input', {
     class: 'input',
     testid: 'split-every',
-    attrs: { type: 'number', min: '1', step: '1', value: '1', inputmode: 'numeric', 'aria-label': 'Pages per file' },
+    attrs: { type: 'number', min: '1', step: '1', value: '2', inputmode: 'numeric', 'aria-label': 'Pages per file' },
     on: {
       input: () => {
         every.checked = true;
@@ -65,6 +67,11 @@ export function createSplitOptions(onChange: () => void): SplitOptions {
       if (ranges.checked) return { mode: 'ranges', ranges: rangesInput.value };
       if (bookmarks.checked) return { mode: 'bookmarks' };
       return { mode: 'every', every: Number(everyInput.value) };
+    },
+    problem() {
+      if (every.checked && !(Number.isInteger(Number(everyInput.value)) && Number(everyInput.value) >= 1)) return 'Type how many pages go in each file: 1 or more.';
+      if (ranges.checked && rangesInput.value.trim() === '') return 'Type the pages to split out, like 1-3, 7, 12-.';
+      return null;
     },
   };
 }

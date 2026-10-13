@@ -11,6 +11,9 @@ import { checkCancelled, type Op, type Outcome, type SplitParams } from './op';
 
 const RANGES_HELP = 'Type the pages to split out, like 1-3, 7, 12-';
 
+/** A part keeps the bookmarks, page labels and details that belong to its pages. */
+const ALL = { bookmarks: true, labels: true, details: true } as const;
+
 export const splitOp: Op<SplitParams> = {
   tool: 'split',
   arity: { kind: 'one' },
@@ -77,6 +80,7 @@ export const splitOp: Op<SplitParams> = {
           const part = await ctx.surgeon.create();
           try {
             await part.appendPages(source, pages);
+            part.carryOver(source, ALL);
             const { bytes, relocked } = await saveKeepingLock(ctx, part, input, source.wasEncrypted);
             const file = await ctx.workspace.put(fitName(name), bytes, 'pdf', origin);
             outcomes.push({ kind: 'produced', file, detail: `${plural(pages.length, 'page')}${lockNote(relocked)}` });

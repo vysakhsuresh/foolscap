@@ -436,6 +436,14 @@ export interface OutlineItem {
   readonly title: string;
   readonly page: number | null;
   readonly items: readonly OutlineItem[];
+  /**
+   * Where the bookmarks editor found this entry in the document's own
+   * bookmarks: its place counting depth-first from 0, and the title and page
+   * it had there. An entry whose page did not change keeps exactly where it
+   * opened (half way down a page, or a web page), its look, and whether it
+   * was open. Absent for an entry the person added.
+   */
+  readonly was?: { readonly index: number; readonly title: string; readonly page: number | null };
 }
 
 /** A form field as the page shows it to fill in. */
@@ -593,6 +601,21 @@ export interface PdfDoc {
    * which would leave dangling refs.
    */
   reorder(order: readonly number[]): void;
+  /**
+   * After `appendPages` from `source`: what belongs to `source` as a document
+   * rather than to its pages, for the pages that came across. `bookmarks`:
+   * each bookmark whose page came across, opening where it did, after any
+   * this document has. `labels`: the page labels, each range starting where
+   * its first page now is. `details`: the title, author, subject and keywords.
+   */
+  carryOver(source: PdfDoc, what: { readonly bookmarks?: boolean; readonly labels?: boolean; readonly details?: boolean }): void;
+  /**
+   * Puts page `index` on a sheet `width` × `height` as the reader sees it,
+   * scaled to fit and centred. The page keeps its words, links, notes and
+   * form fields. `enlarge` false leaves a page smaller than the sheet at its
+   * real size.
+   */
+  fitToPaper(index: number, width: number, height: number, enlarge: boolean): void;
   /** Absolute /Rotate for one page of this document. Replaces, never adds to, the page's own rotation. */
   setRotation(index: number, rotation: Rotation): void;
   setTitle(title: string): void;

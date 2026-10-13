@@ -46,6 +46,8 @@ export const mergeOp: Op<MergeParams> = {
             pagesDone += end - start;
             ctx.progress({ done: pagesDone, total: pagesTotal, label });
           }
+          // Each file's bookmarks come along, after the ones before it, still opening where they did.
+          out.carryOver(source, { bookmarks: true });
           used.push(input);
         } catch (error) {
           // The pages this input did get in stay in: the user still gets a merge of the rest.
