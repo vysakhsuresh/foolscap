@@ -148,3 +148,17 @@ describe('what a search result shows', () => {
     expect(blocks.find((b) => b.pattern === 'https://:project.pages.dev/*')?.headers['X-Robots-Tag']).toBe('noindex');
   });
 });
+
+describe('on a host that cannot send headers (GitHub Pages)', () => {
+  it('each page carries the policy _headers gives its path, without frame-ancestors', async () => {
+    const { metaFor, pagePath } = await import('../../scripts/vite-rebase-html');
+    const blocks = parseHeaders(readFileSync(join(APP, 'public', '_headers'), 'utf8'));
+    const tool = metaFor(blocks, pagePath('/tools/merge/index.html')).join('\n');
+    expect(tool).toContain(config.TOOL_PAGE_CSP.replace("; frame-ancestors 'none'", ''));
+    expect(tool).not.toContain('frame-ancestors');
+    expect(tool).toContain('<meta name="referrer" content="no-referrer">');
+    const home = metaFor(blocks, pagePath('/index.html')).join('\n');
+    expect(home).toContain(config.AD_PAGE_CSP.replace("; frame-ancestors 'none'", ''));
+    expect(metaFor(blocks, pagePath('/guides/merge-pdf-files/index.html')).join('\n')).toContain('https:');
+  });
+});

@@ -68,8 +68,10 @@ step is not essential, remove it.
   `_redirects` line proxying to an absolute URL. `tests/unit/no-server.test.ts`
   fails if any exists — `connect-src 'self'` is only a proof while the origin
   is a folder of files that runs no code.
-- Hosting: Cloudflare Pages free plan. 20,000 files per site, 25 MiB per
-  file. `app/public/_headers` carries the headers. `tests/unit/size.test.ts`
+- Hosting: GitHub Pages with the domain pointed from GoDaddy (see the
+  decisions log); every page carries its policy as a meta tag. The site stays
+  ready for Cloudflare Pages' free plan too (20,000 files, 25 MiB a file),
+  where `app/public/_headers` carries the headers. `tests/unit/size.test.ts`
   keeps every built file under 25 MiB.
 - Everything self-hosted: scripts, fonts, WASM, pdf.js cmaps. No CDN, no
   third-party request from a tool page.
@@ -308,6 +310,13 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   canonical, Open Graph image, structured data, sitemap, About, Terms,
   Contact, a real 404, a WhatsApp "Tell a friend" link in every footer; the
   GitHub Pages preview is noindex.
+- **2026-10-13** Hosting is GitHub Pages with the domain pointed from GoDaddy,
+  as for layerbit.co.in, at the owner's choice. The publish workflow finds the
+  custom domain from the Pages settings and builds for it (root base, CNAME);
+  each page carries its policy as a meta tag from `_headers`. Cloudflare
+  would add frame-ancestors and the workers' own policy, which only headers
+  can carry; `_headers` stays so that move needs no code. The privacy page
+  says "every tool page carries a policy", true on either host.
 - **2026-10-10** `@cantoo/pdf-lib` over `pdf-lib`: maintained, MIT, and it
   encrypts and decrypts, so passwords need no WASM.
 - **2026-10-10** The CSP is served on every path, including `/assets/*`,

@@ -50,7 +50,7 @@
       <p>This website is a folder of files: some pages, some scripts, some fonts. Nothing at this address can run code or receive a file. When you merge two PDFs, your browser does the merging, on your device, using scripts it already downloaded. There is nothing for it to send the file to.</p>
 
       <h2>The policy that enforces it</h2>
-      <p>Every tool page — and every script, worker and file those pages use — is served with a Content-Security-Policy header. It is a rule your browser enforces: it says where the page may load things from and where it may send things. Ours is this, exactly:</p>
+      <p>Every tool page carries a Content-Security-Policy. It is a rule your browser enforces: it says where the page may load things from and where it may send things. Ours is this, exactly:</p>
       <code class="csp" data-testid="privacy-csp">default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'</code>
       <p><strong>'self'</strong> means this website’s own address. <strong>connect-src 'self'</strong> means a page may only talk to this address — and because this address is a folder of files, nothing here can run code or receive a file. The policy also forbids inline scripts and anything from another domain, so no advert, tracker or third-party script can run on a tool page.</p>
 

@@ -1,10 +1,15 @@
-# Publishes the preview at https://vysakhsuresh.github.io/foolscap/ on every push to main.
+# Publishes the site with GitHub Pages on every push to main.
 #
-# The real home is Cloudflare Pages, which serves app/public/_headers. GitHub
-# Pages cannot send headers, so the preview build adds the page-level policy
-# as a <meta> tag instead (scripts/vite-rebase-html.ts). The unit tests run
-# first: a red build never reaches the preview.
-name: Preview on GitHub Pages
+# Once the repository's Pages settings name a custom domain (foolscap.co.in,
+# pointed there from GoDaddy), the site is built for that domain at its root,
+# with a CNAME file so each publish keeps the domain. Until then it is built
+# as the preview at https://vysakhsuresh.github.io/foolscap/, marked noindex.
+#
+# GitHub Pages cannot send headers, so every page carries its own policy as
+# a <meta> tag (scripts/vite-rebase-html.ts): the strict policy on the tool
+# pages, the ad policy on the home page and guides. The unit tests run first:
+# a red build never reaches the site.
+name: Publish on GitHub Pages
 
 on:
   push:
@@ -13,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  pages: read
 
 concurrency:
   group: pages
@@ -34,18 +40,33 @@ jobs:
       - name: Typecheck and unit tests
         run: npm run typecheck && npm run test:unit
 
-      - name: Build for /foolscap/
+      - name: Find the domain the site is served at
+        id: where
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cname=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages" \
+            | node -e 'let s="";process.stdin.on("data",(d)=>(s+=d)).on("end",()=>{try{process.stdout.write(JSON.parse(s).cname||"")}catch{}})' || true)
+          echo "cname=${cname}" >> "$GITHUB_OUTPUT"
+          if [ -n "$cname" ]; then echo "Building for https://${cname}/"; else echo "No custom domain yet: building the /foolscap/ preview"; fi
+
+      - name: Build
         run: npm run build
         env:
-          FOOLSCAP_BASE: /foolscap/
+          FOOLSCAP_HOST: github
+          FOOLSCAP_BASE: ${{ steps.where.outputs.cname != '' && '/' || '/foolscap/' }}
 
       - name: Publish dist/ to the gh-pages branch
+        env:
+          CNAME: ${{ steps.where.outputs.cname }}
         run: |
           touch dist/.nojekyll
+          if [ -n "$CNAME" ]; then echo "$CNAME" > dist/CNAME; fi
           cd dist
           git init -q -b gh-pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -q -m "Preview of ${GITHUB_SHA}"
+          git commit -q -m "Publish ${GITHUB_SHA}"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

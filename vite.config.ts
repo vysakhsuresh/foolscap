@@ -23,6 +23,8 @@ function pagesUnder(dir: string): string[] {
 // Cloudflare Pages serves the site at the root. The GitHub Pages preview serves
 // it under /foolscap/. One build, one environment variable.
 const base = process.env['FOOLSCAP_BASE'] || '/';
+// GitHub Pages cannot send headers: there each page carries its policy itself.
+const github = process.env['FOOLSCAP_HOST'] === 'github';
 
 export default defineConfig({
   base,
@@ -33,8 +35,9 @@ export default defineConfig({
     // that Cloudflare Pages will serve is enforced while the e2e tests run against
     // the built site. A tool page that reaches for a CDN fails here, not in production.
     cloudflareHeaders(),
-    // Vite rebases asset URLs for a non-root base but leaves <a href="/…"> alone.
-    rebaseHtml(base),
+    // Rebases <a href="/…"> under a non-root base, and puts each page's policy
+    // in the page on a host that cannot send headers (GitHub Pages).
+    rebaseHtml(base, { metaCsp: github || base !== '/', noindex: base !== '/' }),
     // Writes dist/sw.js from what the build wrote, so the tools work offline.
     serviceWorker(base),
   ],

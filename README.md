@@ -143,19 +143,21 @@ tests/        unit, e2e, fixtures
 
 ## Deploying
 
-**Preview:** every push to `main` publishes https://vysakhsuresh.github.io/foolscap/
-through `.github/workflows/pages.yml` (unit tests first, then a build with
-`FOOLSCAP_BASE=/foolscap/`, then the `gh-pages` branch). GitHub Pages cannot
-send headers, so the preview carries the page-level policy as a `<meta>` tag;
-the workers' policy and `frame-ancestors` only exist on Cloudflare.
+**Home:** https://foolscap.co.in on GitHub Pages, the domain pointed there
+from GoDaddy (the same arrangement as layerbit.co.in). Every push to `main`
+runs `.github/workflows/pages.yml`: unit tests first, then the build, then
+the `gh-pages` branch. The workflow asks GitHub which domain the Pages
+settings name; with one, it builds for that domain at the root and writes
+the CNAME file, and without one it builds the preview at
+https://vysakhsuresh.github.io/foolscap/ (noindex).
 
-**Home:** https://foolscap.co.in on Cloudflare Pages, free plan. Connect the
-GitHub repository; build command `npm run build`, output directory `dist`,
-environment variable `NODE_VERSION=22`. `app/public/_headers` and
-`_redirects` are applied automatically, and `dist/404.html` answers any
-unknown address with a real 404. Add `foolscap.co.in` and
-`www.foolscap.co.in` as custom domains, and a Cloudflare redirect rule from
-www to the bare domain.
+GitHub Pages cannot send headers, so every page carries its own policy as a
+`<meta>` tag, taken from `app/public/_headers` for its path: the strict
+policy on tool pages, the ad policy on the home page and guides. Two things
+only a header can do are missing there: `frame-ancestors`, and a policy on
+the workers themselves. Moving to Cloudflare Pages later adds both with no
+code change: build command `npm run build`, output `dist`, `NODE_VERSION=22`;
+`_headers` and `_redirects` are read automatically.
 
 **Search and ads.** `SITE_ORIGIN` in `app/src/site/config.ts` writes the
 canonical links, Open Graph tags, `sitemap.xml` and the sitemap line in
