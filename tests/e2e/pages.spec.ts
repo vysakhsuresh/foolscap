@@ -173,8 +173,12 @@ test('Buy me a coffee stays on screen as the page scrolls', async ({ page }) => 
   await openPage(page, '/');
   await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
   await expect(page.getByTestId('support')).toBeInViewport();
-  const cup = page.locator('[data-testid="support"] svg path');
-  expect((await cup.getAttribute('d'))!.match(/M\d+(\.\d+)? 2\.5c/g)).toHaveLength(3);
+  // Layerbit's cup: Lucide's coffee, three lines of steam, drawn at 18px.
+  const cup = page.locator('[data-testid="support"] svg');
+  const steam = await cup.locator('path').evaluateAll((paths) => paths.map((p) => p.getAttribute('d')).filter((d) => /^M\d+ 2v2$/.test(d ?? '')));
+  expect(steam).toHaveLength(3);
+  const box = await cup.boundingBox();
+  expect(Math.round(box?.width ?? 0)).toBe(18);
 });
 
 test('the mark and the icons are served from this site', async ({ page, request }) => {
