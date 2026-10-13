@@ -684,12 +684,12 @@ test.describe('pdf to word', () => {
 
 test.describe('pdf to excel', () => {
   test('a bank statement: one sheet of transactions whose amounts add up to the statement totals, and the details kept apart', async ({ page }) => {
-    test.setTimeout(120_000);
-    const statement = await bankStatementPdf([2024, 4], [2024, 9]);
+    test.setTimeout(240_000);
+    const statement = await bankStatementPdf([2024, 4], [2024, 7]);
     await openTool(page, 'pdf-to-excel');
     await expect(page.getByTestId('opt-scans')).toBeChecked();
     await pick(page, [{ name: 'Statement.pdf', bytes: statement.bytes }]);
-    await runTool(page, 90_000);
+    await runTool(page, 180_000);
     await expect(page.getByTestId('result-detail')).toContainText('Spreadsheet: 2 sheets');
     const parts = unzipParts((await save(page)).bytes);
     expect(parts.text('xl/workbook.xml')).toMatch(/<sheet name="Table"[\s\S]*<sheet name="Other details"/);

@@ -325,9 +325,10 @@ describe('small things a person would notice', { timeout: 60_000 }, () => {
     expect(nUpLayout(16, a4, upright)).toMatchObject({ cols: 4, rows: 4 });
   });
 
-  it('the Excel output of a statement still adds up after the table fixes', async () => {
+  it('the Excel output of a statement adds up, even when its last page holds only the headings and the summary', async () => {
     const { bankStatementPdf } = await import('../fixtures/statement');
-    const statement = await bankStatementPdf([2024, 4], [2024, 6]);
+    // Four months: the third page has the column headings, then only the summary box.
+    const statement = await bankStatementPdf([2024, 4], [2024, 7]);
     const h = harness();
     const input = await h.add('Statement.pdf', statement.bytes);
     const [out] = produced(await run('pdf-to-excel', [input], { scans: false }, h.ctx));
@@ -337,5 +338,7 @@ describe('small things a person would notice', { timeout: 60_000 }, () => {
     expect(rows).toHaveLength(statement.transactions + 1);
     const sum = rows.reduce((n, r) => n + (typeof r[4] === 'number' ? r[4] : 0), 0);
     expect(sum).toBeCloseTo(statement.withdrawals, 2);
+    expect(rows.every((r) => /^\d\d\/\d\d\/\d\d$/.test(String(r[0])))).toBe(true);
+    expect(sheetRows(parts, 2).map((r) => r.join(' | '))).toContain('Transactions | 76');
   });
 });
