@@ -410,7 +410,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
             field: cleanBox,
           },
           { value: 'strip', title: 'Remove the hidden details', hint: 'Title, author, the app that made it, dates, and hidden XMP metadata. The pages stay as they are.' },
-          { value: 'edit', title: 'Set new details', hint: 'The boxes start with what the file says now. Leave a box empty to remove that detail.', field: editBox },
+          { value: 'edit', title: 'Set new details', hint: ONE_FILE_HINT, field: editBox },
         ],
         'clean',
         onChange,
@@ -420,6 +420,9 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         if (radio) radio.checked = true;
       });
       let typed = false;
+      let prefilled = false;
+      let files = 0;
+      const editHint = mode.root.querySelector<HTMLElement>('[data-testid="opt-mode-edit"]')?.closest('label')?.querySelector<HTMLElement>('.choice__hint') ?? null;
       editBox.addEventListener('input', () => {
         typed = true;
         const radio = mode.root.querySelector<HTMLInputElement>('[data-testid="opt-mode-edit"]');
@@ -430,11 +433,12 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         // What the file says now, so changing the title does not quietly wipe the author.
         async load(view) {
           const details = await view.details();
-          if (typed) return;
+          if (typed || files > 1) return;
           (['title', 'author', 'subject', 'keywords'] as const).forEach((key, i) => {
             const box = fields[i]?.input;
             if (box) box.value = details[key] ?? '';
           });
+          prefilled = true;
         },
         params: (): DocumentDetailsParams =>
           mode.value() === 'strip'
@@ -442,7 +446,18 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
             : mode.value() === 'clean'
               ? { mode: 'clean', comments: comments.checked(), attachments: attached.checked() }
               : { mode: 'edit', title: fields[0]!.value(), author: fields[1]!.value(), subject: fields[2]!.value(), keywords: fields[3]!.value() },
-        problem: () => null,
+        problem: (count) => {
+          // Several files: one file's details must not be stamped on the rest, and an empty box keeps each file's own.
+          if (count !== files) {
+            files = count;
+            if (editHint) editHint.textContent = count > 1 ? SEVERAL_FILES_HINT : ONE_FILE_HINT;
+            if (count > 1 && prefilled && !typed) {
+              for (const f of fields) f.input.value = '';
+              prefilled = false;
+            }
+          }
+          return null;
+        },
       };
     }
 
@@ -817,6 +832,9 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       return null;
   }
 }
+
+const ONE_FILE_HINT = 'The boxes start with what the file says now. Leave a box empty to remove that detail.';
+const SEVERAL_FILES_HINT = 'What you type is set on every file. A box left empty keeps what each file already has.';
 
 /** A row of fields that wraps on a phone. */
 function el2(children: ReadonlyArray<HTMLElement>): HTMLElement {

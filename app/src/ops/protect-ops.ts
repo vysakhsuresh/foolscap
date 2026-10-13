@@ -101,7 +101,12 @@ export const documentDetailsOp: Op<DocumentDetailsParams> = {
         const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
         return store(ctx, 'document-details', [input], `${base} cleaned.pdf`, bytes, `${detail}${lockNote(relocked)}`);
       }
-      const next: DocInfo = { title: params.title.trim(), author: params.author.trim(), subject: params.subject.trim(), keywords: params.keywords.trim() };
+      // One file: an empty box removes that detail. Several: an empty box
+      // leaves each file's own, so setting one author on ten files does not
+      // wipe ten titles.
+      const several = inputs.length > 1;
+      const typed: DocInfo = { title: params.title.trim(), author: params.author.trim(), subject: params.subject.trim(), keywords: params.keywords.trim() };
+      const next: DocInfo = Object.fromEntries(Object.entries(typed).filter(([, v]) => !several || v !== '')) as DocInfo;
       const changed = (Object.keys(next) as DocInfoField[]).filter((k) => (before[k] ?? '') !== (next[k] ?? ''));
       if (changed.length === 0) return { kind: 'skipped', inputIds: [input.id], reason: 'Those details are what the file already has, so nothing changed.' };
       const hadXmp = doc.setInfo(next);

@@ -17,7 +17,7 @@ import { encryptedPdf, pagesPdf, pdfInfo, stampsIn } from '../fixtures/pdfs';
 import { oldLockPdf, restrictedPdf } from '../fixtures/awkward';
 import { darkShare, findWord, hiddenIn, meanColour, opens, pdfDetails, pdfText, renderPage } from '../fixtures/protect-inspect';
 import { CAMERA, SLIP, leasePdf, logoPng, mixedScanPdf, reportPdf, salarySlipPdf, scannedSlipPdf, slipPhotoJpeg, REPORT_ROWS } from '../fixtures/protect-samples';
-import { downloadFrom, openTool, run, useDownloads } from './helpers';
+import { ORIGIN, downloadFrom, openTool, run, useDownloads } from './helpers';
 
 test.beforeEach(async ({ context }) => {
   await useDownloads(context);
@@ -393,6 +393,32 @@ test.describe('clean hidden data', () => {
     expect(after.xmp.join('')).not.toContain('Payslip September 2026');
     const details = await pdfDetails(bytes);
     expect(details.info['Title']).toBe('Salary slip, September 2026');
+  });
+
+  test('with several files, what is typed is set on all, and an empty box keeps each file its own', async ({ page }, info) => {
+    laptopOnly(info);
+    const { PDFDocument } = await import('@cantoo/pdf-lib');
+    const titled = async (title: string) => {
+      const doc = await PDFDocument.load(await leasePdf(1), { updateMetadata: false });
+      doc.setTitle(title);
+      doc.setAuthor('Old Clerk');
+      return new Uint8Array(await doc.save());
+    };
+    await openTool(page, 'document-details');
+    await pick(page, [{ name: 'April.pdf', bytes: await titled('Rent receipt April') }]);
+    await expect(page.getByTestId('opt-title')).toHaveValue('Rent receipt April');
+    await pick(page, [{ name: 'May.pdf', bytes: await titled('Rent receipt May') }], 2);
+    // One file's details are not stamped on the other: the boxes empty, and say what empty means now.
+    await expect(page.getByTestId('opt-title')).toHaveValue('');
+    await expect(page.getByTestId('opt-mode-edit').locator('xpath=..')).toContainText('A box left empty keeps what each file already has.');
+    await page.getByTestId('opt-author').fill('Joseph Mathew');
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText(['Set the author', 'Set the author']);
+    for (const [i, title] of ['Rent receipt April', 'Rent receipt May'].entries()) {
+      const after = await hiddenIn((await save(page, i)).bytes);
+      expect(after.info['Title']).toBe(title);
+      expect(after.info['Author']).toBe('Joseph Mathew');
+    }
   });
 
   test('a locked file stays locked with its own password, and several files are cleaned at once', async ({ page }, info) => {
@@ -920,5 +946,619 @@ test.describe('digital signature', () => {
     await expect(page.getByTestId('result-detail')).toContainText('Its printing and copying restrictions are gone: setting them again would break the signature');
     const { bytes } = await save(page);
     expect((await signaturesIn(bytes))[0]!.ok).toBe(true);
+  });
+});
+
+// ============================================================ Compare
+
+/** The share of a region's pixels that are the compare green (more green than red and blue). */
+function greenShare(px: Awaited<ReturnType<typeof renderPage>>, region: { x: number; y: number; w: number; h: number }): number {
+  const x0 = Math.floor(region.x * px.width);
+  const y0 = Math.floor(region.y * px.height);
+  const x1 = Math.ceil((region.x + region.w) * px.width);
+  const y1 = Math.ceil((region.y + region.h) * px.height);
+  let green = 0;
+  let n = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const at = (y * px.width + x) * 4;
+      const [r, g, b] = [px.data[at]!, px.data[at + 1]!, px.data[at + 2]!];
+      if (g > r + 25 && g > b + 25) green++;
+      n++;
+    }
+  }
+  return n === 0 ? 0 : green / n;
+}
+
+/** Where `needle` sits inside the pdf.js text item that holds it, measured in Times-Roman 12. */
+async function wordIn(words: Awaited<ReturnType<typeof pdfText>>['words'], page: number, needle: string) {
+  const item = findWord(words, page, needle);
+  if (!item) throw new Error(`${needle} is not on page ${page + 1}`);
+  const at = item.text.indexOf(needle);
+  const { PDFDocument, StandardFonts } = await import('@cantoo/pdf-lib');
+  const font = await (await PDFDocument.create()).embedFont(StandardFonts.TimesRoman);
+  const whole = font.widthOfTextAtSize(item.text, 12);
+  const x = item.x + (item.w * font.widthOfTextAtSize(item.text.slice(0, at), 12)) / whole;
+  const w = (item.w * font.widthOfTextAtSize(needle, 12)) / whole;
+  return { x, y: item.y, w, h: item.h };
+}
+
+test.describe('compare', () => {
+  test('marks every change in a three-page lease: new words green where they are, a comment where words went', async ({ page }, info) => {
+    laptopOnly(info);
+    const [v1, v2] = [await leasePdf(1), await leasePdf(2)];
+    await openTool(page, 'compare');
+    // Added newest first by mistake, then put in order with the arrows.
+    await pick(page, [
+      { name: 'Lease v2.pdf', bytes: v2 },
+      { name: 'Lease v1.pdf', bytes: v1 },
+    ]);
+    await page.getByTestId('file-item').first().getByTestId('file-move-down').click();
+    await expect(page.getByTestId('file-item').first()).toHaveAttribute('data-name', 'Lease v1.pdf');
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText(
+      '11 words added and 18 words taken out, on 3 pages of the newer file: new words in green, a comment where words went',
+    );
+    const { name, bytes } = await save(page);
+    expect(name).toBe('Lease v2 (compared).pdf');
+    // The newer file's words are all still there, unchanged.
+    const v2Text = await pdfText(v2);
+    expect((await pdfText(bytes)).pages).toEqual(v2Text.pages);
+    // Comments where words went, on the pages they went from.
+    const notes = (await pdfDetails(bytes)).annotations.map((list) => list.filter((a) => a.subtype === 'Text').map((a) => a.contents));
+    expect(notes[0]).toEqual(['Removed: 18000']);
+    expect(notes[1]).toEqual(['Removed: not', 'Removed: one month']);
+    expect(notes[2]).toEqual(['Removed: 9. Visitors. The licensee shall not let any other person live in the flat.']);
+    // Green exactly on the new words.
+    const p1 = await renderPage(bytes, 0, 2);
+    expect(greenShare(p1, await wordIn(v2Text.words, 0, '19500'))).toBeGreaterThan(0.5);
+    expect(greenShare(p1, await wordIn(v2Text.words, 0, 'monthly rent'))).toBe(0);
+    const p2 = await renderPage(bytes, 1, 2);
+    expect(greenShare(p2, await wordIn(v2Text.words, 1, 'two months'))).toBeGreaterThan(0.5);
+    expect(greenShare(p2, await wordIn(v2Text.words, 1, 'Pets are allowed'))).toBe(0);
+    const p3 = await renderPage(bytes, 2, 2);
+    expect(greenShare(p3, await wordIn(v2Text.words, 2, 'Parking. One covered'))).toBeGreaterThan(0.5);
+    expect(greenShare(p3, await wordIn(v2Text.words, 2, 'Repairs'))).toBe(0);
+  });
+
+  test('two copies of the same words say so; a third file, or a scan, is turned away in words', async ({ page }, info) => {
+    laptopOnly(info);
+    const v1 = await leasePdf(1);
+    await openTool(page, 'compare');
+    await pick(page, [{ name: 'Lease.pdf', bytes: v1 }]);
+    await expect(page.locator('.run__note')).toHaveText('Add 1 more PDF.');
+    await pick(page, [{ name: 'Lease copy.pdf', bytes: v1 }, { name: 'Lease v2.pdf', bytes: await leasePdf(2) }], 3);
+    await expect(page.getByTestId('run-button')).toBeDisabled();
+    await expect(page.locator('.run__note')).toHaveText('Compare works on two files at a time: the older one, then the newer one.');
+    await page.getByTestId('file-item').nth(2).getByTestId('file-remove').click();
+    await run(page);
+    await expect(page.getByTestId('failure-item')).toContainText('The words in these two files are the same.');
+    await page.getByTestId('start-over').click();
+    await expect(page.getByTestId('file-item')).toHaveCount(0);
+    await expect(page.getByTestId('result')).toHaveCount(0);
+    await pick(page, [{ name: 'Lease.pdf', bytes: v1 }, { name: 'Scan.pdf', bytes: await scannedSlipPdf(100) }]);
+    await run(page);
+    await expect(page.getByTestId('failure-item')).toContainText('One of these files has no words to compare, only pictures of them. Run Make searchable on it first.');
+  });
+});
+
+// ============================================================ Extract text
+
+test.describe('extract text', () => {
+  test('a report comes out page by page, its table rows on their own lines in order', async ({ page }, info) => {
+    laptopOnly(info);
+    await openTool(page, 'extract-text');
+    await pick(page, [{ name: 'Quarterly review.pdf', bytes: await reportPdf() }]);
+    await run(page);
+    const detail = await page.getByTestId('result-detail').textContent();
+    expect(detail).toMatch(/^\d+ words from 2 pages$/);
+    await expect(page.getByTestId('then-menu')).toHaveCount(0);
+    const { name, bytes } = await save(page);
+    expect(name).toBe('Quarterly review.txt');
+    const text = new TextDecoder().decode(bytes);
+    const [one = '', two = ''] = text.split('--- Page 2 ---');
+    expect(one).toMatch(/^--- Page 1 ---\n\nQuarterly Sales Review\n/);
+    expect(one).toContain('Sales across the four districts grew steadily');
+    let last = -1;
+    for (const [district, orders, share] of REPORT_ROWS) {
+      const row = new RegExp(`^${district}\\s+${orders.replace('.', '\\.')}\\s+${share.replace('.', '\\.')}$`, 'm');
+      expect(one, district).toMatch(row);
+      const at = one.search(row);
+      expect(at).toBeGreaterThan(last);
+      last = at;
+    }
+    expect(two).toContain('We will open a second warehouse in Kannur before Onam.');
+    // The words in the file match the words a reader finds, word for word.
+    const words = Number(detail!.split(' ')[0]);
+    expect(words).toBe((await pdfText(await reportPdf())).pages.join(' ').split(/\s+/).filter(Boolean).length);
+  });
+
+  test('several files at once, a locked one unlocked first; a scan says what to do; a scanned page among typed ones is named', async ({ page }, info) => {
+    laptopOnly(info);
+    await openTool(page, 'extract-text');
+    await pick(page, [
+      { name: 'Lease.pdf', bytes: await leasePdf(1) },
+      { name: 'Payslip.pdf', bytes: await lock(await salarySlipPdf(), 'ANJA1990') },
+      { name: 'Scan.pdf', bytes: await scannedSlipPdf(100) },
+      { name: 'Mixed.pdf', bytes: await mixedScanPdf() },
+    ]);
+    await page.getByTestId('file-password').fill('ANJA1990');
+    await page.getByTestId('file-unlock').click();
+    await expect(page.getByTestId('file-item').nth(1)).toHaveAttribute('data-pages', '1');
+    await run(page);
+    await expect(page.getByTestId('result-item')).toHaveCount(3);
+    await expect(page.getByTestId('failure-item')).toHaveText(
+      "Scan.pdf: This PDF has no text in it, only pictures of text. It's probably a scan. Make searchable reads the words first; then extract them.",
+    );
+    await expect(page.getByTestId('result-detail').nth(2)).toHaveText(/^\d+ words from 2 pages\. Page 1 has no words in it, only pictures: Make searchable reads those$/);
+    const zip = unzipSync((await downloadFrom(page, page.getByTestId('save-all-button'))).bytes);
+    expect(Object.keys(zip).sort()).toEqual(['Lease.txt', 'Mixed.txt', 'Payslip.txt']);
+    const slip = new TextDecoder().decode(zip['Payslip.txt']);
+    for (const value of [SLIP.employee, SLIP.pan, SLIP.aadhaar, `Net pay ${SLIP.net}`]) expect(slip).toContain(value);
+    expect(new TextDecoder().decode(zip['Lease.txt'])).toContain('3. Rent. The licensee shall pay a monthly rent of 18000 rupees');
+  });
+});
+
+// ============================================================ Make searchable
+
+test.describe('make searchable', () => {
+  test('reads a scanned payslip, lays the words where they are on the page, and leaves the look unchanged', async ({ page }, info) => {
+    laptopOnly(info);
+    test.setTimeout(240_000);
+    const scan = await scannedSlipPdf(200);
+    await openTool(page, 'ocr');
+    await expect(page.getByTestId('opt-ocr-lang-1')).toHaveValue('eng');
+    await expect(page.getByTestId('ocr-downloads')).toBeHidden();
+    await pick(page, [{ name: 'Payslip scan.pdf', bytes: scan }]);
+    await page.getByTestId('run-button').click();
+    await expect(page.getByTestId('result')).toBeVisible({ timeout: 200_000 });
+    await expect(page.getByTestId('result-detail')).toHaveText(/^\d+ words read on 1 page\. You can now search, select and copy them$/);
+    const { name, bytes } = await save(page);
+    expect(name).toBe('Payslip scan (searchable).pdf');
+    const text = await pdfText(bytes);
+    for (const word of ['Kayal', 'Technologies', 'Payslip', 'Anjali', 'Menon', SLIP.pan, 'Accountant', 'Gross']) expect(text.pages[0], word).toContain(word);
+    // The invisible words sit over the picture of them.
+    const typed = await pdfText(await salarySlipPdf());
+    for (const word of ['Anjali', SLIP.pan, 'Kayal']) {
+      const read = text.words[0]!.find((w) => w.text.includes(word));
+      const real = typed.words[0]!.find((w) => w.text.includes(word));
+      expect(read, word).toBeDefined();
+      expect(Math.abs(read!.y - real!.y), `${word} down the page`).toBeLessThan(0.02);
+      expect(read!.x, `${word} across`).toBeGreaterThan(real!.x - 0.02);
+      expect(read!.x, `${word} across`).toBeLessThan(real!.x + real!.w);
+    }
+    // Same look: the text is invisible.
+    const [before, after] = [await renderPage(scan, 0, 0.5), await renderPage(bytes, 0, 0.5)];
+    let differ = 0;
+    for (let i = 0; i < before.data.length; i++) if (Math.abs(before.data[i]! - after.data[i]!) > 8) differ++;
+    expect(differ / before.data.length).toBeLessThan(0.001);
+  });
+
+  test('reads only the scanned page of a mixed file, says which language reader it needs, and passes the result on', async ({ page }, info) => {
+    laptopOnly(info);
+    test.setTimeout(240_000);
+    const mixed = await mixedScanPdf();
+    await openTool(page, 'ocr');
+    await page.getByTestId('opt-ocr-lang-2').selectOption('mal');
+    await expect(page.getByTestId('ocr-downloads')).toContainText('The Malayalam reader is downloaded from this site the first time you use it');
+    await expect(page.getByTestId('ocr-downloads')).toContainText('Words in Malayalam come out as a text file beside the PDF');
+    await page.getByTestId('opt-ocr-lang-2').selectOption('');
+    await expect(page.getByTestId('ocr-downloads')).toBeHidden();
+    await pick(page, [{ name: 'Mixed.pdf', bytes: mixed }]);
+    await page.getByTestId('run-button').click();
+    await expect(page.getByTestId('result')).toBeVisible({ timeout: 200_000 });
+    await expect(page.getByTestId('result-detail')).toContainText('read on 1 page');
+    const { bytes } = await save(page);
+    const [before, after] = [await pdfText(mixed), await pdfText(bytes)];
+    expect(before.pages[0]).toBe('');
+    expect(after.pages[0]).toContain('Anjali');
+    expect(after.pages[1]).toBe(before.pages[1]);
+    await page.getByTestId('then-menu').click();
+    await page.getByTestId('then-remove-areas').click();
+    await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+    await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 2');
+    // Find and remove now finds the PAN that was only a picture before.
+    await page.getByTestId('redact-finder').locator('summary').click();
+    await page.getByTestId('redact-find').click();
+    await expect(page.getByTestId('redact-found')).toContainText('Marked');
+  });
+});
+
+// ============================================================ Scan
+
+/** How light a page's four corners are (0–255): paper is light, the table is dark. */
+function cornerLight(px: Awaited<ReturnType<typeof renderPage>>): number {
+  const at = (x: number, y: number) => meanColour(px, { x, y, w: 0.04, h: 0.03 }).reduce((a, b) => a + b, 0) / 3;
+  return Math.min(at(0.01, 0.01), at(0.95, 0.01), at(0.01, 0.96), at(0.95, 0.96));
+}
+
+test.describe('scan', () => {
+  test('two phone photos, one taken sideways, become two straight A4 pages, the table gone and the words the right way up', async ({ page }, info) => {
+    laptopOnly(info);
+    test.setTimeout(120_000);
+    await openTool(page, 'scan');
+    await page.getByTestId('file-input').setInputFiles([
+      { name: 'IMG_2041.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(await slipPhotoJpeg(900, 1200)) },
+      { name: 'IMG_2042.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(await slipPhotoJpeg(1200, 900, true)) },
+    ]);
+    await expect(page.locator('[data-testid="scan-card"][data-found="true"]')).toHaveCount(2);
+    await expect(page.getByTestId('opt-look-grey')).toBeChecked();
+    await expect(page.getByTestId('opt-paper-a4')).toBeChecked();
+    // The sideways one: a quarter turn back, three taps.
+    const turn = page.getByTestId('scan-turn').nth(1);
+    for (let i = 0; i < 3; i++) await turn.click();
+    await expect(turn).toHaveText('Turned 270°');
+    await run(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('2 pages in grey on A4');
+    const { name, bytes } = await save(page);
+    expect(name).toBe('IMG_2041 (scanned).pdf');
+    expect((await pdfInfo(bytes)).sizes).toEqual([[595.28, 841.89], [595.28, 841.89]]);
+    for (const index of [0, 1]) {
+      const px = await renderPage(bytes, index, 0.5);
+      expect(cornerLight(px), `page ${index + 1} corners`).toBeGreaterThan(170);
+      // Upright: the company name at the top left is ink; the same spot turned round is not.
+      const top = darkShare(px, { x: 0.08, y: 0.03, w: 0.4, h: 0.06 }, 110);
+      const bottom = darkShare(px, { x: 0.52, y: 0.91, w: 0.4, h: 0.06 }, 110);
+      expect(top, `page ${index + 1} upright`).toBeGreaterThan(bottom + 0.01);
+    }
+  });
+
+  test('each look and paper is what it says: colour and grey as JPEG, black and white as PNG; Letter, and the photo’s own shape', async ({ page }, info) => {
+    laptopOnly(info);
+    test.setTimeout(120_000);
+    const photo = await slipPhotoJpeg(900, 1200);
+    for (const [look, paper, size] of [
+      ['colour', 'letter', [612, 792]],
+      ['bw', 'fit', null],
+    ] as const) {
+      await openTool(page, 'scan');
+      await page.getByTestId('file-input').setInputFiles([{ name: 'Slip.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(photo) }]);
+      await expect(page.locator('[data-testid="scan-card"][data-found="true"]')).toHaveCount(1);
+      await page.getByTestId(`opt-look-${look}`).check();
+      await page.getByTestId(`opt-paper-${paper}`).check();
+      await run(page);
+      const { bytes } = await save(page);
+      const raw = latin1(bytes);
+      if (look === 'bw') {
+        expect(raw).not.toContain('/DCTDecode');
+        await expect(page.getByTestId('result-detail')).toHaveText('1 page in black and white');
+        const [w, h] = (await pdfInfo(bytes)).sizes[0]!;
+        // The sheet's own shape: an A4-ish portrait, its long side 842.
+        expect(Math.max(w, h)).toBeCloseTo(842, 0);
+        expect(h / w).toBeGreaterThan(1.3);
+        expect(h / w).toBeLessThan(1.5);
+      } else {
+        expect(raw).toContain('/DCTDecode');
+        await expect(page.getByTestId('result-detail')).toHaveText('1 page in colour on Letter');
+        expect((await pdfInfo(bytes)).sizes).toEqual([size]);
+      }
+      const px = await renderPage(bytes, 0, 0.5);
+      expect(cornerLight(px)).toBeGreaterThan(170);
+    }
+  });
+
+  test('a corner dragged wrong can be found again, and a photo that is not a photo is turned away', async ({ page }, info) => {
+    laptopOnly(info);
+    await openTool(page, 'scan');
+    await page.getByTestId('file-input').setInputFiles([{ name: 'IMG_1.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(await slipPhotoJpeg(600, 800)) }]);
+    await expect(page.locator('[data-testid="scan-card"][data-found="true"]')).toHaveCount(1);
+    const handle = page.getByTestId('scan-handle-0');
+    const left = () => handle.evaluate((e) => parseFloat((e as HTMLElement).style.left));
+    const found = await left();
+    const box = (await handle.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 60, box.y + 40, { steps: 5 });
+    await page.mouse.up();
+    expect(Math.abs((await left()) - found)).toBeGreaterThan(3);
+    await page.getByTestId('scan-reset').click();
+    await expect.poll(left).toBeCloseTo(found, 3);
+    await page.getByTestId('file-input').setInputFiles([{ name: 'Lease.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await leasePdf(1)) }]);
+    await expect(page.locator('.notice')).toContainText('Lease.pdf');
+    await expect(page.getByTestId('scan-card')).toHaveCount(1);
+  });
+});
+
+// ============================================================ Read
+
+test.describe('read', () => {
+  test('a locked lease opens with its password, finds a word, and hands the file to Clean hidden data, which starts from its details', async ({ page }, info) => {
+    laptopOnly(info);
+    const { PDFDocument } = await import('@cantoo/pdf-lib');
+    const doc = await PDFDocument.load(await leasePdf(1), { updateMetadata: false });
+    doc.setTitle('Leave and licence, Flat 4B');
+    doc.setAuthor('Joseph Mathew');
+    const titled = new Uint8Array(await doc.save());
+    await openTool(page, 'read');
+    await pick(page, [{ name: 'Lease.pdf', bytes: await lock(titled, 'flat4b') }]);
+    await page.getByTestId('file-password').fill('flat4b');
+    await page.getByTestId('file-unlock').click();
+    await expect(page.getByTestId('reader-page')).toHaveCount(3);
+    await expect(page.locator('[data-testid="reader-page"][data-drawn="true"]').first()).toBeVisible();
+    await page.getByTestId('reader-find').fill('deposit');
+    await expect(page.getByTestId('reader-find-count')).toHaveText('2 matches on 1 page');
+    await expect(page.locator('[data-testid="reader-page"].is-current')).toHaveAttribute('data-page', '1');
+    await page.getByTestId('reader-find').fill('licensee');
+    await expect(page.getByTestId('reader-find-count')).toHaveText(/matches on 3 pages$/);
+    await page.getByTestId('reader-zoom-out').click();
+    await expect(page.getByTestId('reader-zoom')).toHaveText('80%');
+    await page.getByTestId('reader-then').click();
+    await page.getByTestId('then-document-details').click();
+    await expect(page).toHaveURL(/\/tools\/document-details\/$/);
+    await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
+    await page.getByTestId('file-password').fill('flat4b');
+    await page.getByTestId('file-unlock').click();
+    await expect(page.getByTestId('file-item')).toHaveAttribute('data-pages', '3');
+    await expect(page.getByTestId('opt-title')).toHaveValue('Leave and licence, Flat 4B');
+    await expect(page.getByTestId('opt-author')).toHaveValue('Joseph Mathew');
+  });
+});
+
+// ============================================================ Summarise and translate
+
+test.describe('summarise and translate', () => {
+  /** Stands in for the browser's own on-device models, recording what they were given. */
+  async function fakeAi(page: Page): Promise<void> {
+    await page.addInitScript(() => {
+      const seen: string[] = [];
+      (window as unknown as { aiSeen: string[] }).aiSeen = seen;
+      Object.assign(window, {
+        Summarizer: {
+          availability: async () => 'available',
+          create: async () => ({
+            inputQuota: 1000,
+            summarize: async (text: string) => {
+              seen.push(`summarise:${text}`);
+              return `• ${text.split(/\s+/).slice(0, 4).join(' ')}`;
+            },
+            destroy: () => undefined,
+          }),
+        },
+        LanguageDetector: { create: async () => ({ detect: async () => [{ detectedLanguage: 'en', confidence: 0.9 }], destroy: () => undefined }) },
+        Translator: {
+          availability: async ({ targetLanguage }: { targetLanguage: string }) => (targetLanguage === 'ja' ? 'unavailable' : 'available'),
+          create: async () => ({
+            translate: async (text: string) => {
+              seen.push(`translate:${text}`);
+              return `[ml] ${text}`;
+            },
+            destroy: () => undefined,
+          }),
+        },
+      });
+    });
+  }
+
+  test('summarises every page and translates every word with the on-device models, and says when it cannot', async ({ page }, info) => {
+    laptopOnly(info);
+    await fakeAi(page);
+    const requests: string[] = [];
+    page.on('request', (r) => requests.push(r.url()));
+    await openTool(page, 'summarise');
+    await pick(page, [{ name: 'Lease.pdf', bytes: await leasePdf(1) }]);
+    await expect(page.getByTestId('ai-summarise')).toBeEnabled();
+    await page.getByTestId('ai-summarise').click();
+    await expect(page.getByTestId('ai-status')).toHaveText('The key points of 3 pages, made on this device.');
+    const seen = () => page.evaluate(() => (window as unknown as { aiSeen: string[] }).aiSeen);
+    const given = (await seen()).filter((s) => s.startsWith('summarise:')).join(' ');
+    for (const clause of ['LEAVE AND LICENCE', '4. Deposit.', '9. Visitors.', 'Licensor: Joseph Mathew']) expect(given, clause).toContain(clause);
+    await expect(page.getByTestId('ai-output')).not.toHaveValue('');
+    await page.getByTestId('opt-ai-language').selectOption('ml');
+    await page.getByTestId('ai-translate').click();
+    await expect(page.getByTestId('ai-status')).toHaveText('Translated on this device, 3 pages.');
+    const translated = await page.getByTestId('ai-output').inputValue();
+    expect(translated).toContain('[ml] ');
+    expect(translated).toContain('18000 rupees');
+    expect(translated).toContain('Licensee: Anjali Menon');
+    await page.getByTestId('opt-ai-language').selectOption('en');
+    await page.getByTestId('ai-translate').click();
+    await expect(page.getByTestId('ai-status')).toHaveText('It is already in that language.');
+    await page.getByTestId('opt-ai-language').selectOption('ja');
+    await page.getByTestId('ai-translate').click();
+    await expect(page.getByTestId('ai-status')).toHaveText('Your browser cannot translate between these two languages on this device yet.');
+    expect(requests.filter((u) => !u.startsWith(ORIGIN))).toEqual([]);
+  });
+
+  test('a document longer than it reads says so, and a scan says to make it searchable', async ({ page }, info) => {
+    laptopOnly(info);
+    test.setTimeout(120_000);
+    await fakeAi(page);
+    await openTool(page, 'summarise');
+    await pick(page, [{ name: 'Long.pdf', bytes: await pagesPdf(305) }]);
+    await expect(page.getByTestId('ai-summarise')).toBeEnabled({ timeout: 60_000 });
+    await page.getByTestId('ai-summarise').click();
+    await expect(page.getByTestId('ai-status')).toHaveText('The key points of the first 300 of 305 pages, made on this device.', { timeout: 30_000 });
+    await page.getByTestId('file-remove').click();
+    await pick(page, [{ name: 'Scan.pdf', bytes: await scannedSlipPdf(100) }]);
+    await expect(page.getByTestId('ai-status')).toHaveText('This file has no words in it, only pictures of them. Run Make searchable first.');
+    await expect(page.getByTestId('ai-summarise')).toBeDisabled();
+  });
+});
+
+// ============================================================ On a phone (360 px)
+
+const phoneOnly = (info: TestInfo) => test.skip(info.project.name !== 'phone', 'the phone layout');
+
+/** Nothing wider than the screen, and every visible control inside it. */
+async function fitsTheScreen(page: Page): Promise<void> {
+  const problems = await page.evaluate(() => {
+    const width = document.documentElement.clientWidth;
+    const out: string[] = [];
+    if (document.documentElement.scrollWidth > width + 1) out.push(`page scrolls sideways: ${document.documentElement.scrollWidth} > ${width}`);
+    for (const el of document.querySelectorAll<HTMLElement>('main button, main input, main select, main textarea, main label, main summary')) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0 || getComputedStyle(el).visibility === 'hidden') continue;
+      if (el.closest('.visually-hidden') || el.classList.contains('visually-hidden')) continue;
+      if (el.closest('.reader__pages') || el.closest('.editor__page')) continue;
+      if (r.left < -1 || r.right > width + 1) out.push(`${el.tagName.toLowerCase()} "${(el.textContent ?? el.getAttribute('data-testid') ?? '').trim().slice(0, 30)}" runs off the screen (${Math.round(r.left)}–${Math.round(r.right)})`);
+    }
+    return out;
+  });
+  expect(problems).toEqual([]);
+}
+
+/** The control can be seen and tapped: on screen, and nothing (a pinned button, say) sits over its middle. */
+async function tappable(page: Page, testid: string, nth = 0): Promise<void> {
+  const target = page.getByTestId(testid).nth(nth);
+  await target.evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await expect(target).toBeInViewport();
+  const free = await target.evaluate((e) => {
+    const r = e.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return hit !== null && (hit === e || e.contains(hit) || hit.contains(e) || (e.id !== '' && hit.closest(`label[for="${e.id}"]`) !== null) || hit.closest('label')?.contains(e) === true);
+  });
+  expect(free, `${testid} is covered by something`).toBe(true);
+}
+
+/** The run button, pinned under the thumb: on screen without scrolling, and tappable. */
+async function runOnPhone(page: Page): Promise<void> {
+  const button = page.getByTestId('run-button');
+  await expect(button).toBeEnabled();
+  await expect(button).toBeInViewport();
+  await tappable(page, 'run-button');
+  await button.click();
+  await expect(page.getByTestId('result')).toBeVisible({ timeout: 60_000 });
+  await fitsTheScreen(page);
+}
+
+test.describe('on a phone', () => {
+  test('add a password: the boxes are not hidden under the pinned button, and the locked file saves', async ({ page }, info) => {
+    phoneOnly(info);
+    await openTool(page, 'add-password');
+    await fitsTheScreen(page);
+    await pick(page, [{ name: 'Payslip.pdf', bytes: await salarySlipPdf() }]);
+    for (const id of ['opt-password', 'opt-confirm', 'opt-allow-printing', 'opt-allow-copying', 'opt-allow-editing']) await tappable(page, id);
+    await page.getByTestId('opt-password').fill('Kochi@2026');
+    await page.getByTestId('opt-confirm').fill('Kochi@2026');
+    await fitsTheScreen(page);
+    await runOnPhone(page);
+    const { bytes } = await save(page);
+    expect(await opens(bytes, 'Kochi@2026')).toBe('opens');
+  });
+
+  test('remove a password: the password box on the file and its Unlock fit and work', async ({ page }, info) => {
+    phoneOnly(info);
+    await openTool(page, 'remove-password');
+    await pick(page, [{ name: 'HDFC statement Sep 2026.pdf', bytes: await lock(await salarySlipPdf(), 'hdfc1990') }]);
+    await tappable(page, 'file-password');
+    await tappable(page, 'file-unlock');
+    await fitsTheScreen(page);
+    await page.getByTestId('file-password').fill('hdfc1990');
+    await page.getByTestId('file-unlock').click();
+    await expect(page.getByTestId('file-item')).toHaveAttribute('data-pages', '1');
+    await runOnPhone(page);
+    expect(await opens((await save(page)).bytes)).toBe('opens');
+  });
+
+  test('clean hidden data and set new details fit, and work', async ({ page }, info) => {
+    phoneOnly(info);
+    await openTool(page, 'document-details');
+    await pick(page, [{ name: 'Payslip.pdf', bytes: await salarySlipPdf({ hidden: true }) }]);
+    await tappable(page, 'opt-mode-edit');
+    await page.getByTestId('opt-mode-edit').check();
+    for (const id of ['opt-title', 'opt-author', 'opt-subject', 'opt-keywords']) await tappable(page, id);
+    await page.getByTestId('opt-author').fill('');
+    await fitsTheScreen(page);
+    await runOnPhone(page);
+    await expect(page.getByTestId('result-detail')).toContainText('Removed the author');
+  });
+
+  test('attachments and compare: the file list, its arrows and the options fit', async ({ page }, info) => {
+    phoneOnly(info);
+    await openTool(page, 'attachments');
+    await pick(page, [
+      { name: 'Leave and licence agreement, Flat 4B, Rose Gardens.pdf', bytes: await leasePdf(1) },
+      { name: 'rent-receipts-april-to-september-2026.csv', bytes: new TextEncoder().encode('a,b\n'), mime: 'text/csv' },
+    ]);
+    await fitsTheScreen(page);
+    await tappable(page, 'file-move-down');
+    await runOnPhone(page);
+    await openTool(page, 'compare');
+    await pick(page, [
+      { name: 'Lease v1.pdf', bytes: await leasePdf(1) },
+      { name: 'Lease v2.pdf', bytes: await leasePdf(2) },
+    ]);
+    await fitsTheScreen(page);
+    await runOnPhone(page);
+    await expect(page.getByTestId('result-detail')).toContainText('words added');
+  });
+
+  test('digital signature: the certificate picker, its password and the choices fit', async ({ page }, info) => {
+    phoneOnly(info);
+    await openTool(page, 'digital-sign');
+    await pick(page, [{ name: 'Lease.pdf', bytes: await leasePdf(1) }]);
+    await page.getByTestId('opt-certificate').setInputFiles([{ name: 'me.pfx', mimeType: 'application/x-pkcs12', buffer: Buffer.from(AES_EC384, 'base64') }]);
+    for (const id of ['certificate-picked', 'opt-cert-password', 'opt-visible', 'opt-sign-page-first', 'opt-reason', 'opt-location']) await tappable(page, id);
+    await page.getByTestId('opt-cert-password').fill('pässword');
+    await fitsTheScreen(page);
+    await runOnPhone(page);
+    expect((await signaturesIn((await save(page)).bytes))[0]!.ok).toBe(true);
+  });
+
+  test('remove areas: drag with a finger-sized box on the phone page, and find and remove', async ({ page }, info) => {
+    phoneOnly(info);
+    await openTool(page, 'remove-areas');
+    await pick(page, [{ name: 'Payslip.pdf', bytes: await salarySlipPdf() }]);
+    await expect(page.getByTestId('editor-where')).toHaveText('Page 1 of 1');
+    await fitsTheScreen(page);
+    await page.getByTestId('redact-finder').locator('summary').click();
+    await tappable(page, 'opt-find-phone');
+    await page.getByTestId('opt-find-phone').check();
+    await tappable(page, 'redact-find');
+    await page.getByTestId('redact-find').click();
+    await expect(page.getByTestId('editor-item')).toHaveCount(3);
+    await dragAcross(page, [0.08, 0.04], [0.5, 0.08]);
+    await expect(page.getByTestId('editor-item')).toHaveCount(4);
+    await runOnPhone(page);
+    await expect(page.getByTestId('result-detail')).toContainText('4 areas removed');
+  });
+
+  test('scan: the photo cards, their handles and the looks fit, and a page comes out', async ({ page }, info) => {
+    phoneOnly(info);
+    await openTool(page, 'scan');
+    await page.getByTestId('file-input').setInputFiles([{ name: 'IMG_1.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(await slipPhotoJpeg(900, 1200)) }]);
+    await expect(page.locator('[data-testid="scan-card"][data-found="true"]')).toHaveCount(1);
+    await fitsTheScreen(page);
+    // The whole photo fits on the screen at once, and no corner handle hides under the pinned button.
+    await page.getByTestId('scan-card').evaluate((e) => e.scrollIntoView({ block: 'start', behavior: 'instant' }));
+    for (let i = 0; i < 4; i++) await expect(page.getByTestId(`scan-handle-${i}`)).toBeInViewport({ ratio: 0.3 });
+    for (let i = 0; i < 4; i++) await tappable(page, `scan-handle-${i}`);
+    for (const id of ['scan-turn', 'opt-look-bw', 'opt-paper-letter']) await tappable(page, id);
+    await runOnPhone(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('1 page in grey on A4');
+  });
+
+  test('read, make searchable, extract text and summarise fit', async ({ page }, info) => {
+    phoneOnly(info);
+    test.setTimeout(180_000);
+    await openTool(page, 'read');
+    await pick(page, [{ name: 'Lease.pdf', bytes: await leasePdf(1) }]);
+    await expect(page.getByTestId('reader-page')).toHaveCount(3);
+    await fitsTheScreen(page);
+    for (const id of ['reader-find', 'reader-zoom-in', 'reader-then']) await tappable(page, id);
+    await page.getByTestId('reader-find').fill('parking');
+    await expect(page.getByTestId('reader-find-count')).toHaveText('Not found');
+
+    await openTool(page, 'ocr');
+    await fitsTheScreen(page);
+    for (const id of ['opt-ocr-lang-1', 'opt-ocr-lang-2', 'opt-ocr-lang-3']) await tappable(page, id);
+    await pick(page, [{ name: 'Scan.pdf', bytes: await scannedSlipPdf(150) }]);
+    await tappable(page, 'run-button');
+    await page.getByTestId('run-button').click();
+    await expect(page.getByTestId('result')).toBeVisible({ timeout: 150_000 });
+    await expect(page.getByTestId('result-detail')).toContainText('read on 1 page');
+    await fitsTheScreen(page);
+
+    await openTool(page, 'extract-text');
+    await pick(page, [{ name: 'Lease.pdf', bytes: await leasePdf(1) }]);
+    await runOnPhone(page);
+    expect(new TextDecoder().decode((await save(page)).bytes)).toContain('LEAVE AND LICENCE AGREEMENT');
+
+    await openTool(page, 'summarise');
+    await pick(page, [{ name: 'Lease.pdf', bytes: await leasePdf(1) }]);
+    await fitsTheScreen(page);
+    for (const id of ['ai-summarise', 'opt-ai-language', 'ai-translate']) await tappable(page, id);
+    await page.getByTestId('ai-summarise').click();
+    await expect(page.getByTestId('ai-status')).toContainText(/built-in AI|key points/);
   });
 });

@@ -166,3 +166,30 @@ describe('digital signature on a locked file', () => {
     expect(details.annotations[2]).toEqual([]);
   });
 });
+
+describe('set new details', () => {
+  const titled = async (title: string) => {
+    const doc = await PDFDocument.load(await pagesPdf(1), { updateMetadata: false });
+    doc.setTitle(title);
+    doc.setAuthor('Old Clerk');
+    return new Uint8Array(await doc.save());
+  };
+
+  it('on one file, an empty box removes that detail', async () => {
+    const h = harness();
+    const one = await h.add('April.pdf', await titled('April'));
+    const [out] = produced(await getOp('document-details').run([one], { mode: 'edit', title: 'April rent', author: '', subject: '', keywords: '' }, h.ctx));
+    expect(out?.detail).toBe('Set the title; removed the author');
+    const doc = await PDFDocument.load(await h.bytesOf(out!.file), { updateMetadata: false });
+    expect([doc.getTitle(), doc.getAuthor()]).toEqual(['April rent', undefined]);
+  });
+
+  it('on several files, an empty box keeps each one its own', async () => {
+    const h = harness();
+    const files = [await h.add('April.pdf', await titled('April')), await h.add('May.pdf', await titled('May'))];
+    const outs = produced(await getOp('document-details').run(files, { mode: 'edit', title: '', author: 'Joseph Mathew', subject: '', keywords: '' }, h.ctx));
+    expect(outs.map((o) => o.detail)).toEqual(['Set the author', 'Set the author']);
+    const titles = await Promise.all(outs.map(async (o) => (await PDFDocument.load(await h.bytesOf(o.file), { updateMetadata: false })).getTitle()));
+    expect(titles).toEqual(['April', 'May']);
+  });
+});

@@ -89,21 +89,29 @@ export const extractTextOp: Op<NoParams> = {
       try {
         const n = view.pageCount;
         const parts: string[] = [];
+        const empty: number[] = [];
         let words = 0;
         for (let index = 0; index < n; index++) {
           checkCancelled(ctx.signal);
           ctx.progress({ done: index, total: n, label: `Reading page ${index + 1} of ${which}` });
           const text = await view.text(index);
-          words += text.split(/\s+/).filter(Boolean).length;
+          const count = text.split(/\s+/).filter(Boolean).length;
+          words += count;
+          if (count === 0) empty.push(index);
           parts.push(n > 1 ? `--- Page ${index + 1} ---\n\n${text}` : text);
         }
         if (words === 0) {
           outcomes.push(refused([input], NO_TEXT));
           continue;
         }
+        // A page with no words is usually a scan in among typed pages: say so, rather than let "from 3 pages" imply all three.
+        const blank =
+          empty.length === 0
+            ? ''
+            : `. ${empty.length === 1 ? 'Page' : 'Pages'} ${PageSelection.describe(empty)} ${empty.length === 1 ? 'has' : 'have'} no words in ${empty.length === 1 ? 'it' : 'them'}, only pictures: Make searchable reads those`;
         const bytes = new TextEncoder().encode(parts.join('\n\n') + '\n');
         outcomes.push(
-          await store(ctx, 'extract-text', [input], `${baseName(input.name)}.txt`, bytes, `${plural(words, 'word')} from ${plural(n, 'page')}`, 'text'),
+          await store(ctx, 'extract-text', [input], `${baseName(input.name)}.txt`, bytes, `${plural(words, 'word')} from ${plural(n, 'page')}${blank}`, 'text'),
         );
       } catch (error) {
         outcomes.push(failed(error, [input]));
