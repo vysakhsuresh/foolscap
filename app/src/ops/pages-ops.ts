@@ -197,23 +197,62 @@ export const cropOp: Op<CropParams> = {
   },
 };
 
+/** The ways a sheet can be cut into `per` equal cells: columns × rows. */
+const GRIDS: Record<NUpParams['perSheet'], ReadonlyArray<readonly [number, number]>> = {
+  2: [[2, 1], [1, 2]],
+  4: [[2, 2]],
+  6: [[3, 2], [2, 3]],
+  8: [[4, 2], [2, 4]],
+  9: [[3, 3]],
+  16: [[4, 4]],
+};
+
+/**
+ * The sheet and grid that show the pages biggest: two upright pages side by
+ * side on a sideways sheet, two wide slides one above the other on an upright
+ * one. Reading order is across, then down.
+ */
+export function nUpLayout(per: NUpParams['perSheet'], paper: { width: number; height: number }, page: { width: number; height: number }) {
+  const margin = 18;
+  const gap = 12;
+  let best: { sheetW: number; sheetH: number; cols: number; rows: number; cellW: number; cellH: number; scale: number } | undefined;
+  for (const [cols, rows] of GRIDS[per]) {
+    for (const landscape of [true, false]) {
+      const sheetW = landscape ? Math.max(paper.width, paper.height) : Math.min(paper.width, paper.height);
+      const sheetH = landscape ? Math.min(paper.width, paper.height) : Math.max(paper.width, paper.height);
+      const cellW = (sheetW - margin * 2 - gap * (cols - 1)) / cols;
+      const cellH = (sheetH - margin * 2 - gap * (rows - 1)) / rows;
+      const scale = Math.min(cellW / page.width, cellH / page.height);
+      if (!best || scale > best.scale + 1e-6) best = { sheetW, sheetH, cols, rows, cellW, cellH, scale };
+    }
+  }
+  return { margin, gap, ...best! };
+}
+
+const PER_SHEET: ReadonlyArray<NUpParams['perSheet']> = [2, 4, 6, 8, 9, 16];
+
 export const nUpOp: Op<NUpParams> = {
   tool: 'n-up',
   arity: { kind: 'each' },
   title: (p) => `${p.perSheet} pages per sheet`,
   async run(inputs, params, ctx) {
-    const per = params.perSheet === 4 ? 4 : 2;
-    const paper = PAPER[params.paper];
-    // Two up: a landscape sheet, two pages side by side. Four up: a portrait sheet, two by two.
-    const sheetW = per === 2 ? paper.height : paper.width;
-    const sheetH = per === 2 ? paper.width : paper.height;
-    const margin = 18;
-    const gap = 12;
-    const cols = 2;
-    const rows = per === 2 ? 1 : 2;
-    const cellW = (sheetW - margin * 2 - gap * (cols - 1)) / cols;
-    const cellH = (sheetH - margin * 2 - gap * (rows - 1)) / rows;
+    const per = PER_SHEET.includes(params.perSheet) ? params.perSheet : 2;
+    const paper = PAPER[params.paper] ?? PAPER.a4;
     return forEachPdf(inputs, ctx, async (doc, input) => {
+      // The grid is chosen for the shape most of the pages have, as the reader sees them.
+      const shapes = new Map<string, { width: number; height: number; n: number }>();
+      doc.pages().forEach((page, i) => {
+        const box = doc.visibleBox(i);
+        const sideways = page.rotation === 90 || page.rotation === 270;
+        const width = sideways ? box.height : box.width;
+        const height = sideways ? box.width : box.height;
+        const key = `${Math.round(width)}x${Math.round(height)}`;
+        const shape = shapes.get(key) ?? { width, height, n: 0 };
+        shape.n++;
+        shapes.set(key, shape);
+      });
+      const usual = [...shapes.values()].sort((a, b) => b.n - a.n)[0] ?? { width: 595, height: 842 };
+      const { sheetW, sheetH, cols, cellW, cellH, margin, gap } = nUpLayout(per, paper, usual);
       const out = await ctx.surgeon.create();
       try {
         for (let first = 0; first < doc.pageCount; first += per) {
@@ -231,7 +270,7 @@ export const nUpOp: Op<NUpParams> = {
           await out.composePage(sheetW, sheetH, placements);
         }
         const { bytes, relocked } = await saveKeepingLock(ctx, out, input, doc.wasEncrypted);
-        const detail = `${plural(doc.pageCount, 'page')} on ${plural(out.pageCount, 'sheet')} of ${paper.label}${lockNote(relocked)}`;
+        const detail = `${plural(doc.pageCount, 'page')} on ${plural(out.pageCount, 'sheet')} of ${paper.label}${sheetW > sheetH ? ' turned sideways' : ''}${lockNote(relocked)}`;
         return store(ctx, 'n-up', [input], `${baseName(input.name)} ${per}-up.pdf`, bytes, detail);
       } finally {
         out.close();

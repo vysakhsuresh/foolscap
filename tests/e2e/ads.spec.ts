@@ -10,7 +10,7 @@ import { GUIDES } from '../../app/src/site/guides';
 import { collectErrors } from './helpers';
 
 const host = new URL(SITE_ORIGIN ?? 'https://foolscap.co.in').hostname;
-test.use({ baseURL: `http://${host}`, launchOptions: { args: [`--host-resolver-rules=MAP ${host} 127.0.0.1:4173`] } });
+test.use({ baseURL: `http://${host}`, launchOptions: { args: [`--host-resolver-rules=MAP ${host} 127.0.0.1:${process.env['E2E_PORT'] ?? '4173'}`] } });
 
 async function visit(page: Page, path: string): Promise<string[]> {
   const ads: string[] = [];

@@ -78,7 +78,9 @@ function paragraph(p: Paragraph, options: MarkupOptions, counters: MarkupCounter
   const cls = classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
   if (p.heading) {
     const id = options.headingId ? ` id="${escapeAttr(options.headingId(counters.headings++))}"` : '';
-    return `<h${p.heading}${id}${cls}>${inline(p.runs)}</h${p.heading}>`;
+    // A heading is bold already; its words are not wrapped in <strong> again.
+    const runs = p.runs.every((r) => r.bold || r.text.trim() === '') ? p.runs.map(({ bold: _bold, ...r }) => r) : p.runs;
+    return `<h${p.heading}${id}${cls}>${inline(runs)}</h${p.heading}>`;
   }
   return `<p${cls}${style}>${inline(p.runs)}</p>`;
 }

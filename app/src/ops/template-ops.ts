@@ -44,6 +44,13 @@ export function rupeesInWords(amount: number): string {
     .join(' ');
 }
 
+/** 15000.5 → "Rupees Fifteen Thousand and Fifty Paise only", as a receipt or a cheque writes it. */
+export function amountInWords(amount: number): string {
+  const paise = Math.round(Math.abs(amount) * 100) % 100;
+  const rupees = Math.floor(Math.round(Math.abs(amount) * 100) / 100);
+  return `Rupees ${rupeesInWords(rupees)}${paise > 0 ? ` and ${belowHundred(paise)} Paise` : ''} only`;
+}
+
 /** 1234567 → "12,34,567": Indian grouping. */
 export function indianGrouping(amount: number): string {
   const [whole = '0', paise] = Math.abs(amount).toFixed(2).split('.');
@@ -67,7 +74,7 @@ const cell = (text: string, bold = false): TableCell => ({ paragraphs: [{ kind: 
 
 export function receiptsFlow(p: RentReceiptsParams): FlowDocument {
   const blocks: Block[] = [];
-  const amount = `Rs. ${indianGrouping(p.rent)} (Rupees ${rupeesInWords(p.rent)} only)`;
+  const amount = `Rs. ${indianGrouping(p.rent)} (${amountInWords(p.rent)})`;
   for (let i = 0; i < p.months; i++) {
     const month = monthName(p.start, i);
     if (i > 0 && i % 2 === 0) blocks.push({ kind: 'page-break' });
@@ -105,7 +112,9 @@ export const rentReceiptsOp: Op<RentReceiptsParams> = {
     const first = monthName(params.start, 0);
     const last = monthName(params.start, params.months - 1);
     const name = `Rent receipts ${params.months === 1 ? first : `${first} to ${last}`}.pdf`;
-    const detail = `${plural(params.months, 'receipt')}, ${first}${params.months > 1 ? ` to ${last}` : ''}, two to a page on ${plural(pages, 'page')}: print, sign, and hand them in`;
+    // Employers ask for the owner's PAN once the rent passes a lakh a year (the HRA rule).
+    const pan = !params.pan.trim() && params.rent * 12 > 100_000 ? ". The rent is over ₹1 lakh a year, so your employer will ask for the owner's PAN: add it above and make them again" : '';
+    const detail = `${plural(params.months, 'receipt')}, ${first}${params.months > 1 ? ` to ${last}` : ''}, two to a page on ${plural(pages, 'page')}: print, sign, and hand them in${pan}`;
     return [await store(ctx, 'rent-receipts', [], name, bytes, detail)];
   },
 };

@@ -257,6 +257,16 @@ async function compressToTarget(inputs: readonly FoolscapFile[], params: Compres
         continue;
       }
       const smallest = await withPhotos(PHOTO_LADDER.length - 1);
+      // No smaller than it was: say so, rather than hand back a copy of the same weight.
+      const noGain = (bytes: Uint8Array) => bytes.length >= input.size * WORTH_IT;
+      if (!params.allowPictures && noGain(smallest)) {
+        outcomes.push({
+          kind: 'skipped',
+          inputIds: [input.id],
+          reason: `This file is already as small as it gets with its words kept as text (${kb(input.size)}). Getting it under ${kb(limit)} means turning its pages into pictures: tick "Let pages become pictures" and run it again.`,
+        });
+        continue;
+      }
       if (!params.allowPictures) {
         outcomes.push(
           await store(
@@ -309,6 +319,14 @@ async function compressToTarget(inputs: readonly FoolscapFile[], params: Compres
       }
       const tiny = await asPictures(PICTURE_LADDER.length - 1);
       const best = tiny.length < smallest.length ? tiny : smallest;
+      if (noGain(best)) {
+        outcomes.push({
+          kind: 'skipped',
+          inputIds: [input.id],
+          reason: `${kb(limit)} is too small for this file to stay readable, even with its pages as pictures, and it is already as small as it gets (${kb(input.size)}). Choose a bigger size, or split it and send it in parts.`,
+        });
+        continue;
+      }
       outcomes.push(
         await store(ctx, 'compress', [input], `${baseName(input.name)} (compressed).pdf`, best, `${kb(input.size)} → ${kb(best.length)}. ${kb(limit)} is too small for this file to stay readable; this is the smallest that still reads`),
       );

@@ -11,6 +11,7 @@ import './shims';
 import {
   AbortException,
   getDocument,
+  ImageKind,
   InvalidPDFException,
   PasswordException,
   PasswordResponses,
@@ -87,6 +88,9 @@ export function createEngineOn(host: Host): PdfEngine {
         wasmUrl: PDFJS_ASSETS + 'wasm/',
         iccUrl: PDFJS_ASSETS + 'iccs/',
         verbosity: VerbosityLevel.ERRORS,
+        // Brings each font's own name across from pdf.js's worker ("ABCDEF+Arial-BoldMT",
+        // "Helvetica-Bold"): without it no word ever reads as bold or italic.
+        fontExtraProperties: true,
         ...host.options,
         ...(opts?.password === undefined ? {} : { password: opts.password }),
       });
@@ -239,16 +243,20 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
       try {
         const viewport = page.getViewport({ scale: 1 });
         const content = await page.getTextContent();
-        // The fonts' real names ("ABCDEF+Arial-BoldMT") say bold and italic;
-        // they are known once the page's drawing instructions have been read.
+        // The fonts say bold and italic, by pdf.js's own reading of them (which
+        // knows Helvetica-Bold is bold) or by their real names ("ABCDEF+Arial-BoldMT");
+        // both are known once the page's drawing instructions have been read.
         const names = new Map<string, string>();
+        const weights = new Map<string, { bold: boolean; italic: boolean }>();
         try {
           await page.getOperatorList();
           for (const item of content.items) {
             if (!('fontName' in item) || names.has(item.fontName)) continue;
             const font: unknown = page.commonObjs.has(item.fontName) ? page.commonObjs.get(item.fontName) : null;
+            const flag = (key: string) => font !== null && typeof font === 'object' && Reflect.get(font, key) === true;
             const name = font !== null && typeof font === 'object' && 'name' in font && typeof font.name === 'string' ? font.name : '';
             names.set(item.fontName, name);
+            weights.set(item.fontName, { bold: flag('bold') || flag('black'), italic: flag('italic') });
           }
         } catch {
           // Without the names, everything reads as regular weight. The words are what matter.
@@ -271,8 +279,8 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
             width: item.width,
             height: Math.hypot(c, d) || item.height,
             fontName: real || item.fontName,
-            bold: /bold|black|heavy|semibold|demi/i.test(real),
-            italic: /italic|oblique/i.test(real),
+            bold: weights.get(item.fontName)?.bold === true || /bold|black|heavy|semibold|demi/i.test(real),
+            italic: weights.get(item.fontName)?.italic === true || /italic|oblique/i.test(real),
             family: style === 'monospace' || /mono|courier|consol/i.test(real) ? 'mono' : style === 'serif' || /times|serif|georgia|garamond|cambria/i.test(real) ? 'serif' : 'sans',
           });
         }
@@ -319,6 +327,35 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
             // A picture too small to see (a dot, a rule drawn as an image) is not offered.
             if (w > 0.01 && h > 0.01) out.push({ page: index, x, y, w, h });
           }
+        }
+        return out;
+      } catch (error) {
+        throw toRenderError(error);
+      } finally {
+        page.cleanup();
+      }
+    },
+
+    async pictures(index) {
+      const page = await pageAt(index);
+      try {
+        const list = await page.getOperatorList();
+        const out: Array<{ width: number; height: number; png: Uint8Array }> = [];
+        const seen = new Set<string>();
+        for (let k = 0; k < list.fnArray.length; k++) {
+          const fn = list.fnArray[k];
+          const args = list.argsArray[k] as unknown[] | null;
+          let image: unknown;
+          if (fn === OPS.paintImageXObject && typeof args?.[0] === 'string') {
+            const id = args[0];
+            if (seen.has(id)) continue;
+            seen.add(id);
+            const objs = id.startsWith('g_') ? page.commonObjs : page.objs;
+            image = await new Promise<unknown>((resolve) => objs.get(id, resolve));
+          } else if (fn === OPS.paintInlineImageXObject) image = args?.[0];
+          else continue;
+          const png = await pictureToPng(host, image);
+          if (png) out.push(png);
         }
         return out;
       } catch (error) {
@@ -498,4 +535,54 @@ function toRenderError(error: unknown): PdfError {
     });
   }
   return new PdfError("This page couldn't be drawn.", 'unknown', { cause: error });
+}
+
+/**
+ * A picture as pdf.js hands it over (an ImageBitmap, or pixels in one of its
+ * three layouts), drawn onto a canvas and saved as PNG. Null for anything else.
+ */
+async function pictureToPng(host: Host, image: unknown): Promise<{ width: number; height: number; png: Uint8Array } | null> {
+  if (image === null || typeof image !== 'object') return null;
+  const width = Reflect.get(image, 'width');
+  const height = Reflect.get(image, 'height');
+  if (typeof width !== 'number' || typeof height !== 'number' || !(width > 0 && height > 0) || width * height > host.maxRenderPixels) return null;
+  const canvas = host.canvas(width, height);
+  try {
+    const context = canvas.getContext('2d') as CanvasRenderingContext2D | null;
+    if (context === null) return null;
+    const bitmap: unknown = Reflect.get(image, 'bitmap');
+    const data: unknown = Reflect.get(image, 'data');
+    const kind: unknown = Reflect.get(image, 'kind');
+    if (typeof ImageBitmap !== 'undefined' && bitmap instanceof ImageBitmap) {
+      context.drawImage(bitmap, 0, 0);
+    } else if (data instanceof Uint8Array || data instanceof Uint8ClampedArray) {
+      const rgba = new Uint8ClampedArray(width * height * 4);
+      if (kind === ImageKind.RGBA_32BPP) rgba.set(data.subarray(0, rgba.length));
+      else if (kind === ImageKind.RGB_24BPP) {
+        for (let i = 0, j = 0; i < width * height; i++, j += 3) {
+          rgba[i * 4] = data[j] ?? 0;
+          rgba[i * 4 + 1] = data[j + 1] ?? 0;
+          rgba[i * 4 + 2] = data[j + 2] ?? 0;
+          rgba[i * 4 + 3] = 255;
+        }
+      } else if (kind === ImageKind.GRAYSCALE_1BPP) {
+        // One bit a pixel, rows padded to a whole byte; a set bit is white.
+        const stride = Math.ceil(width / 8);
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const on = ((data[y * stride + (x >> 3)] ?? 0) >> (7 - (x & 7))) & 1;
+            const at = (y * width + x) * 4;
+            rgba[at] = rgba[at + 1] = rgba[at + 2] = on ? 255 : 0;
+            rgba[at + 3] = 255;
+          }
+        }
+      } else return null;
+      context.putImageData(new ImageData(rgba, width, height), 0, 0);
+    } else return null;
+    const blob = await host.encode(canvas, 'image/png', 1);
+    return { width, height, png: new Uint8Array(await blob.arrayBuffer()) };
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+  }
 }

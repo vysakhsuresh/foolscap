@@ -249,10 +249,12 @@ export interface SplitBySizeParams {
 export interface ImagesToPdfParams {
   readonly paper: 'fit' | Paper;
   readonly margin: 'none' | 'small' | 'large';
+  /** One PDF for each image instead of one PDF holding them all. */
+  readonly separate?: boolean;
 }
 
 export interface NUpParams {
-  readonly perSheet: 2 | 4;
+  readonly perSheet: 2 | 4 | 6 | 8 | 9 | 16;
   readonly paper: Paper;
 }
 
@@ -393,6 +395,14 @@ export interface BookmarksParams {
 export interface PdfToWordParams {
   /** Read the words in scanned pages too (slower; the text reader is fetched from this site once). */
   readonly scans: boolean;
+}
+
+export interface PdfToPowerPointParams {
+  /**
+   * The words as text boxes to edit, over each page drawn without them; the
+   * default. False puts each page on its slide exactly as it looks, as one picture.
+   */
+  readonly editable?: boolean;
 }
 
 export interface PdfToEpubParams extends PdfToWordParams {

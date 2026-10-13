@@ -37,12 +37,17 @@ export function toEpub(doc: FlowDocument): Uint8Array {
   const allText = doc.blocks.map((b) => (b.kind === 'paragraph' ? plainText(b.runs) : '')).join(' ');
   const lang = guessLanguage(allText);
 
-  // Chapters start at each top-level heading; page breaks are dropped.
+  // Chapters start at each top-level heading; page breaks are dropped. A book whose only
+  // top-level heading is its title (a report: one title, then numbered sections) is cut
+  // at the next level down instead, so it does not come out as one long chapter.
+  const levels = doc.blocks.flatMap((b) => (b.kind === 'paragraph' && b.heading !== undefined ? [b.heading] : []));
+  const top = levels.length > 0 ? Math.min(...levels) : 1;
+  const chapterLevel = levels.filter((l) => l === top).length <= 1 && levels.some((l) => l === top + 1) ? top + 1 : top;
   const chapters: Chapter[] = [];
   let current: Chapter | undefined;
   for (const block of doc.blocks) {
     if (block.kind === 'page-break') continue;
-    const startsChapter = block.kind === 'paragraph' && block.heading === 1;
+    const startsChapter = block.kind === 'paragraph' && block.heading !== undefined && block.heading <= chapterLevel;
     if (!current || (startsChapter && current.blocks.length > 0)) {
       current = { file: `chapter${chapters.length + 1}.xhtml`, blocks: [] };
       chapters.push(current);

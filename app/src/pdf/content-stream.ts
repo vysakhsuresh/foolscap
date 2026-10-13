@@ -198,3 +198,100 @@ export function unitBox(m: Matrix): [number, number, number, number] {
   const ys = [m[5], m[1] + m[5], m[3] + m[5], m[1] + m[3] + m[5]];
   return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
 }
+
+/**
+ * The drawing instructions with every piece of text taken out: each BT … ET
+ * block, whole. What is left draws everything else on the page exactly as
+ * before (photos, shapes, rules, shading), which is the background an
+ * editable slide puts its own text boxes over. Strings, dictionaries and
+ * inline images are stepped over whole, as in `drawCalls`.
+ */
+export function withoutText(bytes: Uint8Array): Uint8Array {
+  const cuts: Array<[number, number]> = [];
+  let open = -1;
+  const n = bytes.length;
+  let i = 0;
+  while (i < n) {
+    const c = bytes[i]!;
+    if (WHITE.has(c)) {
+      i++;
+      continue;
+    }
+    if (c === 0x25) {
+      while (i < n && bytes[i] !== 0x0a && bytes[i] !== 0x0d) i++;
+      continue;
+    }
+    if (c === 0x28) {
+      let depth = 0;
+      for (; i < n; i++) {
+        const b = bytes[i];
+        if (b === 0x5c) i++;
+        else if (b === 0x28) depth++;
+        else if (b === 0x29 && --depth === 0) {
+          i++;
+          break;
+        }
+      }
+      continue;
+    }
+    if (c === 0x3c && bytes[i + 1] === 0x3c) {
+      let depth = 0;
+      for (; i < n; i++) {
+        if (bytes[i] === 0x3c && bytes[i + 1] === 0x3c) {
+          depth++;
+          i++;
+        } else if (bytes[i] === 0x3e && bytes[i + 1] === 0x3e) {
+          depth--;
+          i++;
+          if (depth === 0) {
+            i++;
+            break;
+          }
+        }
+      }
+      continue;
+    }
+    if (c === 0x3c) {
+      while (i < n && bytes[i] !== 0x3e) i++;
+      i++;
+      continue;
+    }
+    if (c === 0x2f) {
+      // A name ("/BT" is a name, not the operator).
+      i++;
+      while (i < n && !WHITE.has(bytes[i]!) && !DELIM.has(bytes[i]!)) i++;
+      continue;
+    }
+    if (DELIM.has(c)) {
+      i++;
+      continue;
+    }
+    const start = i;
+    while (i < n && !WHITE.has(bytes[i]!) && !DELIM.has(bytes[i]!)) i++;
+    const word = String.fromCharCode(...bytes.subarray(start, Math.min(i, start + 3)));
+    const length = i - start;
+    if (length === 2 && word === 'BT' && open < 0) open = start;
+    else if (length === 2 && word === 'ET' && open >= 0) {
+      cuts.push([open, i]);
+      open = -1;
+    } else if (length === 2 && word === 'BI') {
+      const id = indexOfWord(bytes, 'ID', i);
+      if (id < 0) break;
+      const ei = findEI(bytes, id + 3);
+      i = ei < 0 ? n : ei + 2;
+    }
+  }
+  if (cuts.length === 0) return bytes;
+  const out = new Uint8Array(bytes.length);
+  let at = 0;
+  let from = 0;
+  for (const [a, b] of cuts) {
+    out.set(bytes.subarray(from, a), at);
+    at += a - from;
+    out[at++] = 0x0a;
+    from = b;
+  }
+  out.set(bytes.subarray(from), at);
+  at += n - from;
+  return out.slice(0, at);
+}

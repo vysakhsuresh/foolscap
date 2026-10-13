@@ -11,6 +11,7 @@ import type {
   BackgroundParams,
   DigitalSignParams,
   PdfToEpubParams,
+  PdfToPowerPointParams,
   RentReceiptsParams,
   PdfToWordParams,
   PageLabelsParams,
@@ -173,20 +174,25 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         onChange,
         'pills',
       );
+      const separate = check('separate', 'A separate PDF for each image', false, onChange, 'Instead of one PDF with every image in it.');
       return {
-        root: group([paper.root, margin.root, note('Photos taken sideways on a phone come out the right way up. One image per page, in the order listed.')]),
-        params: (): ImagesToPdfParams => ({ paper: paper.value(), margin: margin.value() }),
+        root: group([paper.root, margin.root, separate.root, note('Photos taken sideways on a phone come out the right way up, and a landscape photo gets a landscape page. One image per page, in the order listed.')]),
+        params: (): ImagesToPdfParams => ({ paper: paper.value(), margin: margin.value(), ...(separate.checked() ? { separate: true } : {}) }),
         problem: () => null,
       };
     }
 
     case 'n-up': {
-      const per = choices<'2' | '4'>(
+      const per = choices<'2' | '4' | '6' | '8' | '9' | '16'>(
         'per-sheet',
         'Pages on each sheet',
         [
-          { value: '2', title: '2 per sheet' },
-          { value: '4', title: '4 per sheet' },
+          { value: '2', title: '2' },
+          { value: '4', title: '4' },
+          { value: '6', title: '6' },
+          { value: '8', title: '8' },
+          { value: '9', title: '9' },
+          { value: '16', title: '16' },
         ],
         '2',
         onChange,
@@ -194,8 +200,8 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       );
       const paper = choices<Paper>('paper', 'Sheet size', [{ value: 'a4', title: 'A4' }, { value: 'letter', title: 'Letter' }], 'a4', onChange, 'pills');
       return {
-        root: group([per.root, paper.root]),
-        params: (): NUpParams => ({ perSheet: per.value() === '4' ? 4 : 2, paper: paper.value() }),
+        root: group([per.root, paper.root, note('The sheet is turned whichever way shows the pages biggest: upright pages go side by side, wide slides one above the other. Pages run across, then down.')]),
+        params: (): NUpParams => ({ perSheet: Number(per.value()) as NUpParams['perSheet'], paper: paper.value() }),
         problem: () => null,
       };
     }
@@ -562,7 +568,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
           scans.root,
           note(
             word
-              ? 'Headings, paragraphs, lists and tables are worked out from where the words sit, so a tidy PDF comes out tidy. Pictures stay in the PDF for now. Fonts become their nearest Word font.'
+              ? 'Headings, paragraphs, lists and tables are worked out from where the words sit, so a tidy PDF comes out tidy. Photos and pictures come along where they were; page numbers and running headers are left out. Fonts become their nearest Word font.'
               : 'Rows and columns are worked out from where the words line up: bank statements, invoices and price lists come out as real tables, amounts as numbers.',
           ),
         ]),
@@ -584,7 +590,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       );
       const scans = check('scans', 'Read scanned pages too', false, onChange, 'Slower; the text reader is fetched from this site the first time.');
       return {
-        root: group([format.root, scans.root, note('Chapters start at each heading. Page layout gives way to text that fits any screen.')]),
+        root: group([format.root, scans.root, note('Chapters start at each main heading, and photos come along. Page layout gives way to text that fits any screen.')]),
         params: (): PdfToEpubParams => ({ format: format.value(), scans: scans.checked() }),
         problem: () => null,
       };
@@ -592,7 +598,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
 
     case 'office-to-pdf':
       return {
-        root: note('Headings, lists, tables, links and pictures are laid out on A4, with the words kept as real text. Wide spreadsheets go on sideways pages. Fonts become the nearest of Helvetica, Times or Courier; Malayalam, Hindi and other scripts are drawn by your browser. Headers, footers and footnotes are left out for now.'),
+        root: note('Headings, lists, tables, links and pictures are laid out on the Word file’s own page size, with the words kept as real text; headers and footers go on every page with their page numbers, and footnotes are gathered under Notes at the end. Wide spreadsheets go on sideways pages, with their heading row on every page. Fonts become the nearest of Helvetica, Times or Courier; Malayalam, Hindi and other scripts are drawn by your browser.'),
         params: () => ({}),
         problem: () => null,
       };
@@ -605,6 +611,9 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       const landlord = field('landlord', { label: 'Owner’s name', placeholder: 'e.g. Joseph Mathew', spellcheck: true }, onChange);
       const address = field('address', { label: 'Address of the rented home', placeholder: 'Flat 4B, Rose Gardens, Kakkanad, Kochi 682030', spellcheck: true }, onChange);
       const rent = field('rent', { label: 'Monthly rent (₹)', type: 'number', min: 1, placeholder: '15000' }, onChange);
+      // Rent can carry paise; the receipt writes them in words too.
+      rent.input.step = '0.01';
+      rent.input.inputMode = 'decimal';
       const start = field('start', { label: 'First month', value: fyStart }, onChange);
       start.input.type = 'month';
       const months = field('months', { label: 'How many months', type: 'number', min: 1, max: 24, value: '12' }, onChange);
@@ -659,12 +668,20 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         problem: (count) => (count === 2 ? null : count < 2 ? 'Add the newer version as well.' : 'Compare works on two files at a time: the older one, then the newer one.'),
       };
 
-    case 'pdf-to-powerpoint':
+    case 'pdf-to-powerpoint': {
+      const editable = check(
+        'editable',
+        'Text you can edit',
+        true,
+        onChange,
+        "The words become text boxes over the page's own pictures, shapes and colours. Untick to make each slide one picture of the page, exactly as it looks.",
+      );
       return {
-        root: note('Each page becomes a slide that looks exactly like it, and its words go in the speaker notes. Slides are pictures, so editing means adding over them.'),
-        params: () => ({}),
+        root: group([editable.root, note('One slide per page, the size of the page. The words also go in the speaker notes, so the deck can be searched. Fonts become Arial, Times New Roman or Courier New.')]),
+        params: (): PdfToPowerPointParams => ({ editable: editable.checked() }),
         problem: () => null,
       };
+    }
 
     case 'extract-images':
       return {

@@ -158,6 +158,13 @@ export interface PdfView {
   comments(): Promise<readonly PdfComment[]>;
   /** Where each picture on a page is drawn, as fractions of the page as seen, top-left origin. Pictures inside drawings are left out. */
   images(index: number): Promise<readonly Area[]>;
+  /**
+   * The pictures a page draws, each once, decoded the way a reader decodes
+   * them and saved as PNG: what Extract images falls back on for pictures
+   * stored in forms a file cannot simply be cut from (a palette, CMYK, a
+   * one-bit fax or JBIG2 scan). Stencil masks are not pictures and are left out.
+   */
+  pictures(index: number): Promise<ReadonlyArray<{ readonly width: number; readonly height: number; readonly png: Uint8Array }>>;
   /** The document's fillable fields, in page order. Empty when it has none. */
   fields(): Promise<readonly FormField[]>;
   /** Awaits pdf.js destroy: frees page caches, decoded images and fonts. The UI calls it when a grid unmounts. */
@@ -303,6 +310,14 @@ export interface CleanReport {
 }
 
 /** An image embedded in a document, as a file a person can open. */
+/** A picture that is in the document but stored in a form that cannot be saved as a file as it is: where, and how big. */
+export interface OddImage {
+  /** Zero-based index of the first page it appears on. */
+  readonly page: number;
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface ExtractedImage {
   /** Zero-based index of the first page it appears on. */
   readonly page: number;
@@ -505,7 +520,7 @@ export interface PdfDoc {
     margin: number,
   ): Promise<void>;
   /** The images embedded in the document, each once, and how many could not be turned into a file. */
-  images(): { readonly images: readonly ExtractedImage[]; readonly skipped: number };
+  images(): { readonly images: readonly ExtractedImage[]; readonly skipped: number; readonly odd: readonly OddImage[] };
   /**
    * Makes the document smaller in place: re-encodes photos through
    * `recompress` (null keeps the original), drops objects nothing points at,
@@ -563,6 +578,12 @@ export interface PdfDoc {
    * was actually done, one entry per edit that found its picture.
    */
   editImages(index: number, edits: readonly ImageEdit[]): Promise<ReadonlyArray<ImageEdit['action']>>;
+  /**
+   * Takes every piece of text off every page (each BT … ET block, in the
+   * pages and in the drawings they use), leaving photos, shapes and shading
+   * exactly as they were: the background of an editable slide. Save afterwards.
+   */
+  removeText(): void;
   compress(
     recompress: (image: ExtractedImage) => Promise<RecompressedImage | null>,
     signal?: AbortSignal,

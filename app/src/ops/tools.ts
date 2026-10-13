@@ -157,7 +157,7 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'compress', title: 'Compress', summary: 'Make a PDF smaller, and say so when it cannot', action: 'Compress it', input: 'several-pdfs', group: 'convert', status: 'live' },
   { id: 'pdf-to-word', title: 'PDF to Word', summary: 'An editable .docx with headings, lists and tables, even from a scan', action: 'Make a Word file', input: 'several-pdfs', group: 'convert', status: 'live' },
   { id: 'pdf-to-excel', title: 'PDF to Excel', summary: 'Tables and statements into a spreadsheet you can add up', action: 'Make a spreadsheet', input: 'several-pdfs', group: 'convert', status: 'live' },
-  { id: 'pdf-to-powerpoint', title: 'PDF to PowerPoint', summary: 'One slide per page, words in the speaker notes', action: 'Make the slides', input: 'several-pdfs', group: 'convert', status: 'live' },
+  { id: 'pdf-to-powerpoint', title: 'PDF to PowerPoint', summary: 'One slide per page, with the words as text you can edit', action: 'Make the slides', input: 'several-pdfs', group: 'convert', status: 'live' },
   { id: 'pdf-to-epub', title: 'PDF to EPUB or web page', summary: 'Text that reflows on a phone or e-reader', action: 'Make the e-book', input: 'several-pdfs', group: 'convert', status: 'live' },
   { id: 'office-to-pdf', title: 'Word or Excel to PDF', summary: 'A .docx or .xlsx laid out as a PDF, words still selectable', action: 'Make the PDF', input: 'office', group: 'convert', status: 'live' },
   { id: 'pdf-a', title: 'Archive copy (PDF/A)', summary: 'A copy made for keeping: PDF/A-2b, colour profile and details inside', action: 'Make the archive copy', input: 'several-pdfs', group: 'convert', status: 'live' },
