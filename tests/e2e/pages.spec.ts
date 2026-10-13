@@ -145,8 +145,16 @@ test('every tool page has a way home, bottom-left, that lands where you left the
   expect(box.x).toBeLessThan(40);
   // At the bottom on a laptop; on a phone just above the pinned button.
   expect(viewport.height - (box.y + box.height)).toBeLessThan(viewport.width < 820 ? 120 : 40);
-  // The mark sits in the middle of the circle.
+  // The same circle as Get help on the other side, at the same height.
+  const orb = (await page.getByTestId('help-orb').boundingBox())!;
+  expect(Math.round(box.height)).toBe(Math.round(orb.height));
+  expect(Math.round(box.width)).toBe(Math.round(orb.width));
+  expect(Math.abs(box.y - orb.y)).toBeLessThan(1.5);
+  expect(Math.abs(box.x - (viewport.width - orb.x - orb.width))).toBeLessThan(1.5);
+  // The mark sits in the middle of the circle, about half its width.
   const mark = (await fab.locator('svg').boundingBox())!;
+  expect(mark.width / box.width).toBeGreaterThan(0.4);
+  expect(mark.width / box.width).toBeLessThan(0.56);
   expect(Math.abs(mark.x + mark.width / 2 - (box.x + box.width / 2))).toBeLessThan(1.5);
   // And the main button keeps the whole width it is given.
   const run = (await page.getByTestId('run-button').boundingBox())!;

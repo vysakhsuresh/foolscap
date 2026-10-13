@@ -2795,17 +2795,18 @@ select.input option {
    spot you left it, not the top; on a phone it sits beside the pinned button. */
 
 .home-fab {
+  /* The same circle as Get help on the other side, at every size: the two
+     read as a pair. The mark sits dead centre: (circle - border - mark) / 2. */
   position: fixed;
-  left: 16px;
-  bottom: max(16px, env(safe-area-inset-bottom));
+  left: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
   z-index: 50;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 48px;
-  min-width: 48px;
-  /* The mark sits dead centre in the circle: (48 - 28) / 2 on each side. */
-  padding: 0 10px;
+  height: 56px;
+  min-width: 56px;
+  padding: 0 13px;
   border-radius: 999px;
   background: rgb(20 22 30 / 0.94);
   border: 1px solid rgb(255 255 255 / 0.12);
@@ -2884,21 +2885,17 @@ select.input option {
 @media (max-width: 819px) {
   /* On a phone it rides above the pinned button, mirroring Get help on the
      right, so the button keeps the full width of the screen. */
-  .home-fab {
-    /* The smallest a thumb target should be, and no bigger. */
-    height: 44px;
-    min-width: 44px;
-    padding-inline: 10px;
-    bottom: max(var(--space-3), env(safe-area-inset-bottom));
-  }
-
+  /* Get help shrinks to 50px above the pinned button on a tool page; so does this. */
   body[data-page='tool'] .home-fab {
     bottom: 104px;
+    height: 50px;
+    min-width: 50px;
+    padding-inline: 11px;
   }
 
-  .home-fab__mark {
-    width: 24px;
-    height: 24px;
+  body[data-page='tool'] .home-fab__mark {
+    width: 26px;
+    height: 26px;
   }
 }
 
@@ -2906,14 +2903,9 @@ select.input option {
   .home-fab {
     left: 30px;
     bottom: 30px;
-    height: 48px;
-    min-width: 48px;
-    padding-inline: 10px;
-  }
-
-  .home-fab__mark {
-    width: 28px;
-    height: 28px;
+    height: 60px;
+    min-width: 60px;
+    padding-inline: 15px;
   }
 }
 

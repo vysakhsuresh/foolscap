@@ -368,9 +368,12 @@
 }
 
 @media (min-width: 820px) {
+  /* The same circle as Get help on a laptop. */
   .search-fab {
     left: 30px;
     bottom: 30px;
+    width: 60px;
+    height: 60px;
   }
 }
 
