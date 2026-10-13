@@ -21,7 +21,8 @@
   <meta property="og:image:alt" content="Foolscap: PDF tools that can’t upload your files">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://foolscap.co.in/"},{"@type":"ListItem","position":2,"name":"Add a password","item":"https://foolscap.co.in/tools/add-password/"}]}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What if I forget the password?","acceptedAnswer":{"@type":"Answer","text":"Nobody can open the file, us included. Keep the unlocked original safe."}},{"@type":"Question","name":"Can I lock several files at once?","acceptedAnswer":{"@type":"Answer","text":"Yes, all with the password you type."}},{"@type":"Question","name":"More help?","acceptedAnswer":{"@type":"Answer","text":"See password protect a PDF."}}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"HowTo","name":"How to use Password protect PDF","step":[{"@type":"HowToStep","position":1,"text":"Add one or more PDFs."},{"@type":"HowToStep","position":2,"text":"Leave Lock it with a password chosen, then type the password and type it again."},{"@type":"HowToStep","position":3,"text":"Tick or untick Allow printing, Allow copying text, and Allow changes and comments."},{"@type":"HowToStep","position":4,"text":"Press Lock it and save the locked copy."}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What if I forget the password?","acceptedAnswer":{"@type":"Answer","text":"Nobody can open the file, us included. Keep the unlocked original safe."}},{"@type":"Question","name":"Can I lock several files at once?","acceptedAnswer":{"@type":"Answer","text":"Yes, all with the password you type."}},{"@type":"Question","name":"Will it open on a phone?","acceptedAnswer":{"@type":"Answer","text":"Yes. Any PDF reader that supports AES-256, which is nearly all of them, asks for the password and opens it."}},{"@type":"Question","name":"More help?","acceptedAnswer":{"@type":"Answer","text":"See password protect a PDF."}}]}</script>
   <!-- seo:end -->
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -69,10 +70,17 @@
     <section class="tool-help" aria-labelledby="tool-help-title">
       <h2 class="tool-help__title" id="tool-help-title">About Add a password</h2>
       <p class="tool-help__about">Locks a PDF with AES-256, so nobody can open it without the password, and chooses whether printing, copying and changes are allowed. Or only restrict those, with no password to open: readers that respect the settings obey them, but a determined person can switch them off. The password is never stored or sent, so write it down.</p>
+      <h3 class="tool-help__subtitle">How to use it</h3>
+      <ol class="tool-help__steps"><li>Add one or more PDFs.</li><li>Leave Lock it with a password chosen, then type the password and type it again.</li><li>Tick or untick Allow printing, Allow copying text, and Allow changes and comments.</li><li>Press Lock it and save the locked copy.</li></ol>
+      <h3 class="tool-help__subtitle">Good to know</h3>
+      <p class="tool-help__about">AES-256 is the strongest lock a PDF can carry, but a password anyone can guess undoes it. A date of birth or a phone number alone is easy for anyone who knows you. Several words strung together are both strong and easy to remember. Send the password by a different route from the file: a call, or a separate message.</p>
+      <p class="tool-help__about">Printing is allowed at first, while copying and changes are not. These settings ride along with the password and are obeyed by Acrobat, Chrome and most readers, so a locked contract can still be printed but not edited. Only restrict printing, copying and editing makes a file anyone can open, with those settings as a polite request.</p>
+      <p class="tool-help__about">Every file you add is locked with the same password. Nobody can open a locked file without it, this site included, and there is no reset: keep the unlocked original somewhere safe. To take the lock off later, use <a href="/tools/remove-password/">Remove a password</a>.</p>
       <h3 class="tool-help__subtitle">Questions people ask</h3>
       <div class="faq">
         <details class="faq__item"><summary>What if I forget the password?</summary><p>Nobody can open the file, us included. Keep the unlocked original safe.</p></details>
         <details class="faq__item"><summary>Can I lock several files at once?</summary><p>Yes, all with the password you type.</p></details>
+        <details class="faq__item"><summary>Will it open on a phone?</summary><p>Yes. Any PDF reader that supports AES-256, which is nearly all of them, asks for the password and opens it.</p></details>
         <details class="faq__item"><summary>More help?</summary><p>See <a href="/guides/password-protect-pdf/">password protect a PDF</a>.</p></details>
       </div>
       <h3 class="tool-help__subtitle">Guides</h3>

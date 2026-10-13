@@ -21,7 +21,8 @@
   <meta property="og:image:alt" content="Foolscap: PDF tools that can’t upload your files">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://foolscap.co.in/"},{"@type":"ListItem","position":2,"name":"Extract or remove pages","item":"https://foolscap.co.in/tools/extract-pages/"}]}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What does 12- mean?","acceptedAnswer":{"@type":"Answer","text":"Page 12 to the end."}},{"@type":"Question","name":"Can I see the pages instead of typing numbers?","acceptedAnswer":{"@type":"Answer","text":"Yes, in Organise pages, where you tap the bin under each page to drop."}},{"@type":"Question","name":"Does it change my original?","acceptedAnswer":{"@type":"Answer","text":"No. The result is a new file. See extract pages from a PDF."}}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"HowTo","name":"How to use Extract or remove PDF pages","step":[{"@type":"HowToStep","position":1,"text":"Add the PDF, typing its password if it asks for one."},{"@type":"HowToStep","position":2,"text":"Type the pages in the Pages box, such as 1-3, 7, 12-."},{"@type":"HowToStep","position":3,"text":"Choose Keep these pages for a file of only those, or Remove these pages for everything else."},{"@type":"HowToStep","position":4,"text":"Press Make the new file and save it."}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What does 12- mean?","acceptedAnswer":{"@type":"Answer","text":"Page 12 to the end."}},{"@type":"Question","name":"Can I see the pages instead of typing numbers?","acceptedAnswer":{"@type":"Answer","text":"Yes, in Organise pages, where you tap the bin under each page to drop."}},{"@type":"Question","name":"Does it change my original?","acceptedAnswer":{"@type":"Answer","text":"No. The result is a new file. See extract pages from a PDF."}},{"@type":"Question","name":"Does a locked PDF stay locked?","acceptedAnswer":{"@type":"Answer","text":"Yes. Type its password when asked; the new file opens with the same password."}}]}</script>
   <!-- seo:end -->
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -72,11 +73,18 @@
     <section class="tool-help" aria-labelledby="tool-help-title">
       <h2 class="tool-help__title" id="tool-help-title">About Extract or remove pages</h2>
       <p class="tool-help__about">Type the pages, like 1-3, 7, 12-, and choose whether to keep only those or remove them. You get a new PDF built from the pages that stay, copied as they are, not redrawn. Removed pages are not in the new file at all.</p>
+      <h3 class="tool-help__subtitle">How to use it</h3>
+      <ol class="tool-help__steps"><li>Add the PDF, typing its password if it asks for one.</li><li>Type the pages in the Pages box, such as 1-3, 7, 12-.</li><li>Choose Keep these pages for a file of only those, or Remove these pages for everything else.</li><li>Press Make the new file and save it.</li></ol>
+      <h3 class="tool-help__subtitle">Good to know</h3>
+      <p class="tool-help__about">Ranges are forgiving. A backwards range such as 9-3 is read as 3 to 9, a page number past the end is simply left out, and -5 means the first five pages. The pages always come out in the order of the original, whatever order you type them in.</p>
+      <p class="tool-help__about">The new file’s name says which pages it holds, or which were taken out, so it never gets mixed up with the original. The result line counts the pages kept and removed, a quick check that you typed what you meant before the file goes to a portal or an office.</p>
+      <p class="tool-help__about">If Keep would give back every page, or Remove names no page that exists, nothing is made and the tool says why. At least one page must always stay. To put the kept pages in a different order as well, tap Then and choose Organise pages.</p>
       <h3 class="tool-help__subtitle">Questions people ask</h3>
       <div class="faq">
         <details class="faq__item"><summary>What does 12- mean?</summary><p>Page 12 to the end.</p></details>
         <details class="faq__item"><summary>Can I see the pages instead of typing numbers?</summary><p>Yes, in <a href="/tools/organise/">Organise pages</a>, where you tap the bin under each page to drop.</p></details>
         <details class="faq__item"><summary>Does it change my original?</summary><p>No. The result is a new file. See <a href="/guides/extract-pages-from-pdf/">extract pages from a PDF</a>.</p></details>
+        <details class="faq__item"><summary>Does a locked PDF stay locked?</summary><p>Yes. Type its password when asked; the new file opens with the same password.</p></details>
       </div>
       <h3 class="tool-help__subtitle">Guides</h3>
       <ul class="guide-links">

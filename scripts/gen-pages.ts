@@ -245,7 +245,7 @@ function toolPage(tool: ToolMeta): string {
   // No WebApplication block: Google's software-app report insists on ratings or
   // reviews, and we will not invent either.
   const ld: object[] = [breadcrumbs([['Home', '/'], [tool.title, path]])];
-  if (copy?.steps && copy.steps.length > 0) {
+  if (copy) {
     ld.push({ '@type': 'HowTo', name: `How to use ${SEARCH_NAMES[tool.id]}`, step: copy.steps.map((text, i) => ({ '@type': 'HowToStep', position: i + 1, text: plain(text) })) });
   }
   if (copy) ld.push(faqLd(copy.faq));
@@ -257,8 +257,8 @@ function toolPage(tool: ToolMeta): string {
         copy
           ? [
               `<p class="tool-help__about">${rich(copy.about)}</p>`,
-              copy.steps && copy.steps.length > 0 ? `<h3 class="tool-help__subtitle">How to use it</h3>\n      <ol class="tool-help__steps">${copy.steps.map((step) => `<li>${rich(step)}</li>`).join('')}</ol>` : '',
-              copy.notes && copy.notes.length > 0 ? `<h3 class="tool-help__subtitle">Good to know</h3>\n      ${copy.notes.map((note) => `<p class="tool-help__about">${rich(note)}</p>`).join('\n      ')}` : '',
+              copy.steps.length > 0 ? `<h3 class="tool-help__subtitle">How to use it</h3>\n      <ol class="tool-help__steps">${copy.steps.map((step) => `<li>${rich(step)}</li>`).join('')}</ol>` : '',
+              copy.notes.length > 0 ? `<h3 class="tool-help__subtitle">Good to know</h3>\n      ${copy.notes.map((note) => `<p class="tool-help__about">${rich(note)}</p>`).join('\n      ')}` : '',
               `<h3 class="tool-help__subtitle">Questions people ask</h3>\n      ${faqHtml(copy.faq)}`,
             ]
               .filter(Boolean)
@@ -491,6 +491,11 @@ const aboutPage = () =>
       <p>Browsers are now strong enough to do the work themselves. So Foolscap is a folder of files — pages, scripts and fonts — that your browser downloads once and runs. There is no server to send anything to, which is also why there is no file-size limit, no daily limit and no account.</p>
       <h2>Who makes it</h2>
       <p>Foolscap is made by <a href="${MADE_BY.url}" rel="noopener">${MADE_BY.name}</a>, in India. It is the web version of Sheaf, our Android PDF app, and follows the same rules.</p>
+      <h2>What it can do</h2>
+      <p>There are ${live.length} tools, in five groups. <strong>Pages</strong> joins, splits, reorders and trims. <strong>Convert and print</strong> makes PDFs smaller, turns them into Word, Excel, PowerPoint or e-books, and turns photos and Word or Excel files into PDFs. <strong>Mark up</strong> signs, writes, highlights, numbers and stamps pages, and fills in or creates forms. <strong>Protect</strong> adds and removes passwords, removes private details for good, cleans hidden data and signs with a certificate. <strong>Read and capture</strong> opens documents, scans paper with a phone camera, makes scans searchable and compares two versions.</p>
+      <p>Every tool makes a new file and leaves the one you picked untouched. Once a tool page has loaded, it keeps working with no internet connection, and the site can be installed on a phone or computer like an app.</p>
+      <h2>Honest about limits</h2>
+      <p>Doing the work on your device has costs as well as benefits. A very large file needs a device with enough memory, and an old phone is slower than a server would be. Some jobs that need a server or a paid licence — opening a password you do not know, signing with a USB token — are not offered at all, rather than offered badly. Where a tool cannot do something well, it says so in plain words instead of handing back a poor result.</p>
       <h2>How it stays free</h2>
       <p>The home page and the guides show adverts from Google. The tool pages never do: their security policy makes it impossible for any outside script to run where your documents are. If Foolscap saves you time, you can also <a href="${HELP.coffee}" rel="noopener">buy us a coffee</a>.</p>
       <h2>The promises</h2>
@@ -524,6 +529,10 @@ const termsPage = () =>
       <p>The tools are provided free and as they are. We work hard to make them correct and test them on real documents, but we cannot promise any result is right for your purpose. Check what matters — a figure in a converted spreadsheet, a page in a merged file — before you rely on it. To the extent the law allows, we are not liable for any loss from using the site.</p>
       <h2>Adverts</h2>
       <p>The home page and the guides show adverts served by Google. Tool pages never do. How Google uses information on these pages is explained on our <a href="/private/">privacy page</a>.</p>
+      <h2>Links to other sites</h2>
+      <p>Some pages link to other services, such as WhatsApp, email and buymeacoffee.com. Those services have their own terms and privacy policies, and we are not responsible for them. Nothing is sent to them unless you tap the link.</p>
+      <h2>Availability</h2>
+      <p>We aim to keep the site available at all times, but we do not guarantee it. Because the tools run in your browser, a tool page that has already loaded, or a copy installed as an app, keeps working even when the site itself cannot be reached.</p>
       <h2>Changes</h2>
       <p>We may change these terms or the site. The current terms are always on this page.</p>
       <h2>Contact</h2>
@@ -547,8 +556,21 @@ const contactPage = () =>
         <a class="help-option help-option--whatsapp" href="${HELP.whatsapp}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.8L4 20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 9.5c.3 1.8 2.2 4 4 4.6l1.2-1.1 1.8.8c0 1-.9 1.7-2 1.7-3 0-5.9-2.9-5.9-5.9 0-1.1.7-2 1.7-2l.8 1.8Z" fill="currentColor"/></svg>Chat on WhatsApp</a>
       </div>
       <h2>Please don’t send your documents</h2>
-      <p>We never need them to help, and we would rather not hold them. If a file goes wrong, tell us which tool you used, what you expected, and what happened instead — the browser and phone you used helps too.</p>
-      <p>Made by <a href="${MADE_BY.url}" rel="noopener">${MADE_BY.name}</a>.</p>
+      <p>We never need them to help, and we would rather not hold them. Foolscap is built so that your files never reach us, and sending one by email or WhatsApp would undo that. If a file is the only way to show a problem, make a copy with nothing private in it — a blank form, a page of test text — and check that the same thing happens with the copy.</p>
+      <h2>When something goes wrong</h2>
+      <p>A short description is enough for us to find most problems. It helps to say:</p>
+      <ul>
+        <li>which tool you used, for example Compress or PDF to Excel;</li>
+        <li>what you expected, and what happened instead, including any message the page showed;</li>
+        <li>the phone or computer and the browser you used, such as an Android phone with Chrome or a laptop with Edge;</li>
+        <li>roughly how big the file was and how many pages it had.</li>
+      </ul>
+      <p>Before writing, it is worth trying once more after reloading the page, and making sure the browser is up to date: Foolscap needs a recent Chrome, Edge, Firefox or Safari.</p>
+      <h2>Asking for a tool</h2>
+      <p>Many of the tools on this site exist because someone asked. If there is a job you do with PDFs every month — a form your office sends, a report you split, a statement you convert — tell us what it is and what the result should look like. We read every request, though we can’t promise when, or whether, a tool will appear.</p>
+      <h2>Quick answers</h2>
+      <p>Many questions already have a page: how to <a href="/guides/compress-pdf-to-100kb/">get a PDF under 100 KB</a>, how to <a href="/guides/aadhaar-pdf-password/">open an e-Aadhaar PDF</a>, how to <a href="/guides/bank-statement-pdf-to-excel/">turn a bank statement into a spreadsheet</a>, and <a href="/guides/">all the other guides</a>. How your files are kept private is explained on the <a href="/private/">privacy page</a>.</p>
+      <p>Foolscap is made by <a href="${MADE_BY.url}" rel="noopener">${MADE_BY.name}</a> in India. For anything else, including press and partnerships, the email above reaches the same people.</p>
     </article>`,
     ld: [{ '@type': 'ContactPage', name: 'Contact Foolscap', url: absolute('/contact/'), about: { ...ORGANIZATION, email: HELP.email } }, breadcrumbs([['Home', '/'], ['Contact', '/contact/']])],
   });

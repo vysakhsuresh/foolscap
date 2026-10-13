@@ -21,7 +21,8 @@
   <meta property="og:image:alt" content="Foolscap: PDF tools that can’t upload your files">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://foolscap.co.in/"},{"@type":"ListItem","position":2,"name":"Compare","item":"https://foolscap.co.in/tools/compare/"}]}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Can I compare scans?","acceptedAnswer":{"@type":"Answer","text":"Make each one searchable with Make searchable first; a scan has no words to compare."}},{"@type":"Question","name":"More help?","acceptedAnswer":{"@type":"Answer","text":"See compare two PDFs."}}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"HowTo","name":"How to use Compare two PDFs","step":[{"@type":"HowToStep","position":1,"text":"Add the older version first."},{"@type":"HowToStep","position":2,"text":"Add the newer version second."},{"@type":"HowToStep","position":3,"text":"Press Compare them."},{"@type":"HowToStep","position":4,"text":"Open the marked copy and step through the green words and the comments."}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Can I compare scans?","acceptedAnswer":{"@type":"Answer","text":"Make each one searchable with Make searchable first; a scan has no words to compare."}},{"@type":"Question","name":"Can I compare more than two files?","acceptedAnswer":{"@type":"Answer","text":"Two at a time: the older one, then the newer one."}},{"@type":"Question","name":"Does it notice a changed amount?","acceptedAnswer":{"@type":"Answer","text":"Yes. Numbers count as words, so a new figure is highlighted in green and a comment gives the old one."}},{"@type":"Question","name":"Are my documents uploaded?","acceptedAnswer":{"@type":"Answer","text":"No. Both are read and compared in your browser, and neither leaves your device."}},{"@type":"Question","name":"More help?","acceptedAnswer":{"@type":"Answer","text":"See compare two PDFs."}}]}</script>
   <!-- seo:end -->
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -69,9 +70,18 @@
     <section class="tool-help" aria-labelledby="tool-help-title">
       <h2 class="tool-help__title" id="tool-help-title">About Compare</h2>
       <p class="tool-help__about">Shows what changed between two versions, word by word. Add the older one first, then the newer; the newer comes back marked, with new words in green and a comment wherever words were taken out. Words are compared, not pictures or layout.</p>
+      <h3 class="tool-help__subtitle">How to use it</h3>
+      <ol class="tool-help__steps"><li>Add the older version first.</li><li>Add the newer version second.</li><li>Press Compare them.</li><li>Open the marked copy and step through the green words and the comments.</li></ol>
+      <h3 class="tool-help__subtitle">Good to know</h3>
+      <p class="tool-help__about">Words that are new in the later version are highlighted in green, joined into one mark where they run on together. Where words were taken out, a comment sits at that place saying what they were. A paragraph that only moved does not make everything after it look changed. Because the older file always goes first, green always means added since then, and a comment always means taken out.</p>
+      <p class="tool-help__about">Only words are compared. A change of font, spacing, colour or picture is not reported, and neither is a page that was reordered but left the same. Numbers are words here, so a changed rent, date or figure in a table shows up clearly.</p>
+      <p class="tool-help__about">The marked copy is a new file, and both files you added stay as they were. Read it in any PDF reader, or in <a href="/tools/read/">Read</a>, whose comments list lets you step through every removal. Scans have no words to compare until they are run through <a href="/tools/ocr/">Make searchable</a>.</p>
       <h3 class="tool-help__subtitle">Questions people ask</h3>
       <div class="faq">
-        <details class="faq__item"><summary>Can I compare scans?</summary><p>Make each one searchable with <a href="/tools/ocr/">Make searchable</a> first; a scan has no words to compare.</p></details>
+        <details class="faq__item"><summary>Can I compare scans?</summary><p>Make each one searchable with Make searchable first; a scan has no words to compare.</p></details>
+        <details class="faq__item"><summary>Can I compare more than two files?</summary><p>Two at a time: the older one, then the newer one.</p></details>
+        <details class="faq__item"><summary>Does it notice a changed amount?</summary><p>Yes. Numbers count as words, so a new figure is highlighted in green and a comment gives the old one.</p></details>
+        <details class="faq__item"><summary>Are my documents uploaded?</summary><p>No. Both are read and compared in your browser, and neither leaves your device.</p></details>
         <details class="faq__item"><summary>More help?</summary><p>See <a href="/guides/compare-two-pdfs/">compare two PDFs</a>.</p></details>
       </div>
       <h3 class="tool-help__subtitle">Guides</h3>

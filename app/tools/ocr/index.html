@@ -21,7 +21,8 @@
   <meta property="og:image:alt" content="Foolscap: PDF tools that can’t upload your files">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://foolscap.co.in/"},{"@type":"ListItem","position":2,"name":"Make searchable","item":"https://foolscap.co.in/tools/ocr/"}]}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How many languages can I pick?","acceptedAnswer":{"@type":"Answer","text":"Up to three. More makes the reading worse, not better."}},{"@type":"Question","name":"Is my scan sent anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Only the language model comes from this site; your document stays on your device."}},{"@type":"Question","name":"More help?","acceptedAnswer":{"@type":"Answer","text":"See make a scanned PDF searchable."}}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"HowTo","name":"How to use OCR PDF: make a scan searchable","step":[{"@type":"HowToStep","position":1,"text":"Add one or more scanned PDFs."},{"@type":"HowToStep","position":2,"text":"Pick the main language of the scan, and up to two more if the pages mix languages."},{"@type":"HowToStep","position":3,"text":"Press Make it searchable."},{"@type":"HowToStep","position":4,"text":"Save the searchable PDF, and the .txt file too if one comes out."}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How many languages can I pick?","acceptedAnswer":{"@type":"Answer","text":"Up to three. More makes the reading worse, not better."}},{"@type":"Question","name":"Is my scan sent anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Only the language model comes from this site; your document stays on your device."}},{"@type":"Question","name":"How long does it take?","acceptedAnswer":{"@type":"Answer","text":"Each page is real work for your device, so a long scan on an older phone takes a while. A progress line shows which page it is reading."}},{"@type":"Question","name":"More help?","acceptedAnswer":{"@type":"Answer","text":"See make a scanned PDF searchable."}}]}</script>
   <!-- seo:end -->
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -68,11 +69,18 @@
     </nav>
     <section class="tool-help" aria-labelledby="tool-help-title">
       <h2 class="tool-help__title" id="tool-help-title">About Make searchable</h2>
-      <p class="tool-help__about">Reads the words in scanned pages and lays them invisibly over the pictures, so you can search, select and copy them; the pages look exactly the same. English is ready at once; Malayalam, Hindi, Tamil and seventeen more are fetched from this site the first time you pick them. Words in scripts other than English letters also come out as a .txt beside the PDF for now.</p>
+      <p class="tool-help__about">Reads the words in scanned pages and lays them invisibly over the pictures, so you can search, select and copy them; the pages look exactly the same. English is ready at once; Malayalam, Hindi, Tamil and seventeen more are fetched from this site the first time you pick them. Words in scripts other than Latin letters also come out as a .txt beside the PDF for now.</p>
+      <h3 class="tool-help__subtitle">How to use it</h3>
+      <ol class="tool-help__steps"><li>Add one or more scanned PDFs.</li><li>Pick the main language of the scan, and up to two more if the pages mix languages.</li><li>Press Make it searchable.</li><li>Save the searchable PDF, and the .txt file too if one comes out.</li></ol>
+      <h3 class="tool-help__subtitle">Good to know</h3>
+      <p class="tool-help__about">Each page with no text of its own is drawn at 300 dpi and read; pages that already have text are left alone. The words go back in as an invisible layer lined up with the picture, so the reader’s find, select and copy work on them while the page looks exactly as before.</p>
+      <p class="tool-help__about">The invisible layer can hold Latin letters, the ones used for English, French, German, Spanish, Portuguese and Italian. Malayalam, Hindi, Tamil, Arabic and the other scripts are read just as well, but for now their words come out in a .txt file beside the PDF, and the result says which file holds what.</p>
+      <p class="tool-help__about">Clean, straight, printed pages read best. Handwriting, faint photocopies and unusual fonts read worse, so check names and numbers before relying on them. If a page is a crooked photo, run it through <a href="/tools/scan/">Scan</a> first for a straighter, sharper page.</p>
       <h3 class="tool-help__subtitle">Questions people ask</h3>
       <div class="faq">
         <details class="faq__item"><summary>How many languages can I pick?</summary><p>Up to three. More makes the reading worse, not better.</p></details>
         <details class="faq__item"><summary>Is my scan sent anywhere?</summary><p>No. Only the language model comes from this site; your document stays on your device.</p></details>
+        <details class="faq__item"><summary>How long does it take?</summary><p>Each page is real work for your device, so a long scan on an older phone takes a while. A progress line shows which page it is reading.</p></details>
         <details class="faq__item"><summary>More help?</summary><p>See <a href="/guides/make-scanned-pdf-searchable/">make a scanned PDF searchable</a>.</p></details>
       </div>
       <h3 class="tool-help__subtitle">Guides</h3>

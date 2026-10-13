@@ -120,7 +120,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       return {
         root: group([
           mode.root,
-          note('Cropping hides what falls outside the edge; it does not remove it. Someone could crop the other way and see it again. To take something out for good, use Remove areas when it arrives.'),
+          note('Cropping hides what falls outside the edge; it does not remove it. Someone could crop the other way and see it again. To take something out for good, use Remove areas.'),
         ]),
         params: (): CropParams => (mode.value() === 'trim' ? { mode: 'trim', mm: mm.number() } : { mode: 'paper', paper: mode.value() as Paper }),
         problem: () => null,

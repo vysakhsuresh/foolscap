@@ -21,7 +21,8 @@
   <meta property="og:image:alt" content="Foolscap: PDF tools that can’t upload your files">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://foolscap.co.in/"},{"@type":"ListItem","position":2,"name":"Fill in a form","item":"https://foolscap.co.in/tools/fill-form/"}]}</script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"It says the PDF has no fields. What now?","acceptedAnswer":{"@type":"Answer","text":"The form is just a printed page. Write on it with Add text."}},{"@type":"Question","name":"What does Seal the answers do?","acceptedAnswer":{"@type":"Answer","text":"It flattens them into the page so they can no longer be changed. Leave it off to keep the form fillable."}},{"@type":"Question","name":"More help?","acceptedAnswer":{"@type":"Answer","text":"See fill a PDF form."}}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"HowTo","name":"How to use Fill PDF form","step":[{"@type":"HowToStep","position":1,"text":"Add the PDF form; its fields appear as a list of boxes, each with its name."},{"@type":"HowToStep","position":2,"text":"Type your answers, tick the boxes that apply, and pick from any lists."},{"@type":"HowToStep","position":3,"text":"Or choose Fill it from saved answers to load a .json or .xfdf file from last time."},{"@type":"HowToStep","position":4,"text":"Tick Seal the answers, or Also save my answers as a file, if you want either."},{"@type":"HowToStep","position":5,"text":"Press Fill it in and save the filled form."}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"It says the PDF has no fields. What now?","acceptedAnswer":{"@type":"Answer","text":"The form is just a printed page. Write on it with Add text."}},{"@type":"Question","name":"What does Seal the answers do?","acceptedAnswer":{"@type":"Answer","text":"It flattens them into the page so they can no longer be changed. Leave it off to keep the form fillable."}},{"@type":"Question","name":"Does a locked form stay locked?","acceptedAnswer":{"@type":"Answer","text":"Yes. Type its password when asked; the filled copy keeps the same password."}},{"@type":"Question","name":"More help?","acceptedAnswer":{"@type":"Answer","text":"See fill a PDF form."}}]}</script>
   <!-- seo:end -->
   <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -75,10 +76,17 @@
     <section class="tool-help" aria-labelledby="tool-help-title">
       <h2 class="tool-help__title" id="tool-help-title">About Fill in a form</h2>
       <p class="tool-help__about">Type into a PDF form’s own fields, tick its boxes and pick from its lists, then save it still editable or sealed so the answers can no longer change. You can save your answers as a file and fill the same form from it next time; Acrobat .xfdf answers work too.</p>
+      <h3 class="tool-help__subtitle">How to use it</h3>
+      <ol class="tool-help__steps"><li>Add the PDF form; its fields appear as a list of boxes, each with its name.</li><li>Type your answers, tick the boxes that apply, and pick from any lists.</li><li>Or choose Fill it from saved answers to load a .json or .xfdf file from last time.</li><li>Tick Seal the answers, or Also save my answers as a file, if you want either.</li><li>Press Fill it in and save the filled form.</li></ol>
+      <h3 class="tool-help__subtitle">Good to know</h3>
+      <p class="tool-help__about">The answers go into the form’s own fields, so they sit exactly where the form’s maker put the boxes and print neatly. Some fields have a set length, and the box says how many characters it takes. Answers saved from a different form fill nothing, and the tool says so rather than pretend.</p>
+      <p class="tool-help__about">Seal the answers when you send a final copy, so nobody can change them after you. Leave it off while a form is still being completed, or when the office asks for an editable form. The answers file is small and holds only what you typed; keep it private if the form is.</p>
+      <p class="tool-help__about">Answers are written with the form’s own font, and most forms are set up for English letters only. If an answer has letters the font cannot draw, such as Malayalam, the tool says so instead of leaving empty boxes; write those words on with <a href="/tools/add-text/">Add text</a>.</p>
       <h3 class="tool-help__subtitle">Questions people ask</h3>
       <div class="faq">
         <details class="faq__item"><summary>It says the PDF has no fields. What now?</summary><p>The form is just a printed page. Write on it with <a href="/tools/add-text/">Add text</a>.</p></details>
         <details class="faq__item"><summary>What does Seal the answers do?</summary><p>It flattens them into the page so they can no longer be changed. Leave it off to keep the form fillable.</p></details>
+        <details class="faq__item"><summary>Does a locked form stay locked?</summary><p>Yes. Type its password when asked; the filled copy keeps the same password.</p></details>
         <details class="faq__item"><summary>More help?</summary><p>See <a href="/guides/fill-pdf-form/">fill a PDF form</a>.</p></details>
       </div>
       <h3 class="tool-help__subtitle">Guides</h3>
