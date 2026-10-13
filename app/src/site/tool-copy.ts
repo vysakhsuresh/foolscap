@@ -6,6 +6,8 @@ export interface ToolCopy {
   readonly about: string;
   /** Two to four questions with short true answers. */
   readonly faq: ReadonlyArray<{ readonly q: string; readonly a: string }>;
+  readonly steps?: readonly string[];
+  readonly notes?: readonly string[];
 }
 
 export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {

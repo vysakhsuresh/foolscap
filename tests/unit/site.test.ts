@@ -3,7 +3,7 @@
  * must exist: a page per live tool, an Op per live tool, the home page linking
  * to each, and the privacy page's quoted policy matching the one really served.
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { OP_IDS } from '../../app/src/ops';
@@ -111,5 +111,40 @@ describe('ads', () => {
   it('ads.txt names the same publisher', () => {
     const ads = readFileSync(join(APP, 'public', 'ads.txt'), 'utf8');
     expect(ads).toContain(`google.com, ${config.ADSENSE.client.replace('ca-', '')}, DIRECT, f08c47fec0942fa0`);
+  });
+});
+
+describe('what a search result shows', () => {
+  const pages = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+      if (!e.isDirectory() || ['src', 'public'].includes(e.name)) return [];
+      const sub = join(dir, e.name);
+      return [...(existsSync(join(sub, 'index.html')) ? [join(sub, 'index.html')] : []), ...pages(sub)];
+    });
+
+  it('every indexable page has a title of at most 60 characters and a description of 110 to 160, none shared', () => {
+    const titles = new Set<string>();
+    const descriptions = new Set<string>();
+    for (const file of [join(APP, 'index.html'), ...pages(APP)]) {
+      const html = readFileSync(file, 'utf8');
+      if (html.includes('name="robots" content="noindex"')) continue;
+      const title = /<title>([^<]*)<\/title>/.exec(html)?.[1] ?? '';
+      const description = (/<meta name="description" content="([^"]*)">/.exec(html)?.[1] ?? '').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+      expect(title.length, `${file}: "${title}"`).toBeLessThanOrEqual(60);
+      expect(description.length, `${file}: description`).toBeGreaterThanOrEqual(110);
+      expect(description.length, `${file}: description`).toBeLessThanOrEqual(160);
+      expect(titles.has(title), `${file}: title used twice`).toBe(false);
+      expect(descriptions.has(description), `${file}: description used twice`).toBe(false);
+      titles.add(title);
+      descriptions.add(description);
+      expect(html.match(/<h1\b/g)?.length ?? 0, `${file}: one h1`).toBe(1);
+      expect(html, `${file}: canonical`).toMatch(/<link rel="canonical" href="https:\/\/foolscap\.co\.in\/[^"]*">/);
+      expect(html, `${file}: no WebApplication block (Google's app report wants ratings we will not invent)`).not.toContain('"WebApplication"');
+    }
+  });
+
+  it('the pages.dev copy is never indexed', () => {
+    const blocks = parseHeaders(readFileSync(join(APP, 'public', '_headers'), 'utf8'));
+    expect(blocks.find((b) => b.pattern === 'https://:project.pages.dev/*')?.headers['X-Robots-Tag']).toBe('noindex');
   });
 });

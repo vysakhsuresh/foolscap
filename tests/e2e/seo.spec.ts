@@ -27,9 +27,10 @@ test('every page in the sitemap is there, canonical, titled, described and previ
     const title = attr(html, /<title>([^<]+)<\/title>/) ?? '';
     const description = attr(html, /<meta name="description" content="([^"]+)">/) ?? '';
     expect(title.length, `${path} title "${title}"`).toBeGreaterThan(10);
-    expect(title.length, `${path} title "${title}"`).toBeLessThanOrEqual(70);
-    expect(description.length, `${path} description`).toBeGreaterThanOrEqual(70);
-    expect(description.length, `${path} description`).toBeLessThanOrEqual(175);
+    expect(title.length, `${path} title "${title}"`).toBeLessThanOrEqual(60);
+    const shown = description.replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+    expect(shown.length, `${path} description`).toBeGreaterThanOrEqual(110);
+    expect(shown.length, `${path} description`).toBeLessThanOrEqual(160);
     expect(titles.has(title), `${path} title is unique`).toBe(false);
     expect(descriptions.has(description), `${path} description is unique`).toBe(false);
     titles.add(title);

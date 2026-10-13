@@ -86,6 +86,12 @@
   Cross-Origin-Opener-Policy: same-origin-allow-popups
   Referrer-Policy: strict-origin-when-cross-origin
 
+# The pages.dev address Cloudflare gives every project is a copy of the real
+# site: search engines are told to leave it alone, so only foolscap.co.in is
+# indexed.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
 # Hashed assets and the versioned pdf.js and OCR pieces never change; cache them for a year.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable

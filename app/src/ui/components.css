@@ -132,8 +132,9 @@
 }
 
 .support svg {
-  width: 22px;
-  height: 22px;
+  /* Layerbit's cup: Lucide's coffee at 18px. */
+  width: 18px;
+  height: 18px;
   flex: none;
   color: var(--gold);
 }
@@ -1786,12 +1787,6 @@ select.input option {
   overflow: visible;
 }
 
-.help-orb__ring {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: orb-orbit 8s linear infinite;
-}
-
 .help-orb__bar {
   transform-box: fill-box;
   transform-origin: center;
@@ -1850,12 +1845,6 @@ select.input option {
     box-shadow:
       0 8px 25px rgb(0 0 0 / 0.5),
       0 0 22px rgb(56 189 248 / 0.35);
-  }
-}
-
-@keyframes orb-orbit {
-  to {
-    transform: rotate(360deg);
   }
 }
 
@@ -2946,7 +2935,7 @@ select.input option {
 }
 
 /* The way home sits at the bottom-left: the footer leaves it room. */
-body[data-page='tool'] .site-footer {
+body:has(.home-fab) .site-footer {
   padding-bottom: calc(var(--space-6) + 76px);
 }
 

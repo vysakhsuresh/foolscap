@@ -40,9 +40,9 @@ const CAP_GRADIENT = (id: string) =>
   `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#4facfe"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>`;
 const MARK = `<svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true" focusable="false">${CAP_GRADIENT('mark-g')}<rect width="64" height="64" rx="15" fill="url(#mark-g)"/><g transform="translate(8.5 9) scale(.74)">${CAP_DRAWING('#fff')}</g></svg>`;
 
-// Buy me a coffee's cup: a mug, its handle, and three lines of steam.
+// Buy me a coffee's cup: Lucide's coffee, the same drawing and size as on layerbit.co.in.
 const CUP =
-  '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.5 10h13v4.5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6V10ZM16.5 11.5h1.25a2.75 2.75 0 0 1 0 5.5H16M6.5 2.5c0 1.25 1 1.75 1 3.25M10 2.5c0 1.25 1 1.75 1 3.25M13.5 2.5c0 1.25 1 1.75 1 3.25" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></g></svg>';
 
 // The tab icon, the home-screen icon and the install manifest, on every page.
 const ICONS = `<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
@@ -87,7 +87,7 @@ const FOOTER = `<footer class="site-footer" data-testid="site-footer">
   </footer>
   <button class="help-orb" type="button" popovertarget="help-panel" data-testid="help-orb" aria-label="Get help">
     <span class="help-orb__label" aria-hidden="true">GET HELP</span>
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle class="help-orb__ring" cx="12" cy="12" r="11.5" fill="none" stroke="#94a3b8" stroke-width="0.6" stroke-dasharray="3 6" opacity="0.5"/><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="#38bdf8" fill-opacity="0.1" stroke="#38bdf8" stroke-width="2" stroke-linejoin="round"/><rect class="help-orb__bar" x="8" y="8.5" width="1.6" height="5" rx="0.8" fill="#00f2fe"/><rect class="help-orb__bar" x="11.2" y="7" width="1.6" height="8" rx="0.8" fill="#38bdf8"/><rect class="help-orb__bar" x="14.4" y="8.5" width="1.6" height="5" rx="0.8" fill="#00f2fe"/></svg>
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="#38bdf8" fill-opacity="0.1" stroke="#38bdf8" stroke-width="2" stroke-linejoin="round"/><rect class="help-orb__bar" x="8" y="8.5" width="1.6" height="5" rx="0.8" fill="#00f2fe"/><rect class="help-orb__bar" x="11.2" y="7" width="1.6" height="8" rx="0.8" fill="#38bdf8"/><rect class="help-orb__bar" x="14.4" y="8.5" width="1.6" height="5" rx="0.8" fill="#00f2fe"/></svg>
   </button>
   <div class="help-panel" id="help-panel" popover data-testid="help-panel" role="dialog" aria-labelledby="help-title">
     <button class="help-panel__close" type="button" popovertarget="help-panel" popovertargetaction="hide" aria-label="Close">×</button>
@@ -107,6 +107,9 @@ interface HeadOptions {
   /** Open Graph type: 'website', or 'article' for a guide. */
   readonly kind?: 'website' | 'article' | undefined;
 }
+
+/** What a search result shows of a title before it cuts it. */
+const TITLE_MAX = 60;
 
 const absolute = (path: string) => `${SITE_ORIGIN ?? ''}${path}`;
 const OG_IMAGE = '/brand/og.png';
@@ -227,9 +230,10 @@ function toolPage(tool: ToolMeta): string {
     .map((t) => `<a class="related__item" href="/tools/${t.id}/">${svg(TOOL_ICONS[t.id], 'related__icon')}<span>${esc(t.title)}</span></a>`)
     .join('\n        ');
   const path = `/tools/${tool.id}/`;
-  // Search results cut a title at about 60 characters: the long form only when it fits.
-  const long = `${SEARCH_NAMES[tool.id]} online, free and private — Foolscap`;
-  const title = [long, `${SEARCH_NAMES[tool.id]}, free and private — Foolscap`].find((t) => t.length <= 65) ?? `${SEARCH_NAMES[tool.id]}, free — Foolscap`;
+  // Search results cut a title at about 60 characters: the longest form that fits.
+  const name = SEARCH_NAMES[tool.id];
+  const title =
+    [`${name} online, free and private — Foolscap`, `${name}, free and private — Foolscap`, `${name}, free — Foolscap`, `${name} — Foolscap`].find((t) => t.length <= TITLE_MAX) ?? name.slice(0, TITLE_MAX);
   // Search results show about 160 characters of a description: the promise shortens before the summary does.
   const description = [
     `${SEARCH_NAMES[tool.id]} in your browser. ${tool.summary}. Nothing is uploaded: free, no sign-up, no limits, no watermark.`,
@@ -238,27 +242,29 @@ function toolPage(tool: ToolMeta): string {
   ].find((d) => d.length <= 160) ?? `${tool.summary}. Nothing is uploaded.`;
   const copy = TOOL_COPY[tool.id];
   const guides = GUIDES.filter((g) => g.tool === tool.id || g.related.includes(tool.id)).sort((a, b) => Number(b.tool === tool.id) - Number(a.tool === tool.id)).slice(0, 4);
-  const ld: object[] = [
-    {
-      '@type': 'WebApplication',
-      name: `${SEARCH_NAMES[tool.id]} — ${SITE_NAME}`,
-      url: absolute(path),
-      description: `${tool.summary}. In your browser; nothing is uploaded.`,
-      applicationCategory: 'UtilitiesApplication',
-      operatingSystem: 'Any, in a web browser',
-      browserRequirements: 'A current Chrome, Edge, Firefox or Safari',
-      isAccessibleForFree: true,
-      offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
-      publisher: ORGANIZATION,
-    },
-    breadcrumbs([['Home', '/'], [group.title, `/#${group.id}`], [tool.title, path]]),
-  ];
+  // No WebApplication block: Google's software-app report insists on ratings or
+  // reviews, and we will not invent either.
+  const ld: object[] = [breadcrumbs([['Home', '/'], [tool.title, path]])];
+  if (copy?.steps && copy.steps.length > 0) {
+    ld.push({ '@type': 'HowTo', name: `How to use ${SEARCH_NAMES[tool.id]}`, step: copy.steps.map((text, i) => ({ '@type': 'HowToStep', position: i + 1, text: plain(text) })) });
+  }
   if (copy) ld.push(faqLd(copy.faq));
   const help =
     copy || guides.length > 0
       ? `<section class="tool-help" aria-labelledby="tool-help-title">
       <h2 class="tool-help__title" id="tool-help-title">About ${esc(tool.title)}</h2>
-      ${copy ? `<p class="tool-help__about">${rich(copy.about)}</p>\n      ${faqHtml(copy.faq)}` : ''}
+      ${
+        copy
+          ? [
+              `<p class="tool-help__about">${rich(copy.about)}</p>`,
+              copy.steps && copy.steps.length > 0 ? `<h3 class="tool-help__subtitle">How to use it</h3>\n      <ol class="tool-help__steps">${copy.steps.map((step) => `<li>${rich(step)}</li>`).join('')}</ol>` : '',
+              copy.notes && copy.notes.length > 0 ? `<h3 class="tool-help__subtitle">Good to know</h3>\n      ${copy.notes.map((note) => `<p class="tool-help__about">${rich(note)}</p>`).join('\n      ')}` : '',
+              `<h3 class="tool-help__subtitle">Questions people ask</h3>\n      ${faqHtml(copy.faq)}`,
+            ]
+              .filter(Boolean)
+              .join('\n      ')
+          : ''
+      }
       ${
         guides.length > 0
           ? `<h3 class="tool-help__subtitle">Guides</h3>
@@ -363,6 +369,8 @@ interface ArticleOptions {
   readonly kind?: 'website' | 'article';
   /** Only the guides carry ads (AD_PAGES in site/config.ts); the policy on every other path refuses them. */
   readonly ads?: boolean;
+  /** Where the way home says you came from: the home page lands where you left it. */
+  readonly from: string;
 }
 
 function articlePage(o: ArticleOptions): string {
@@ -373,6 +381,7 @@ function articlePage(o: ArticleOptions): string {
     ${o.body}
   </main>
   ${FOOTER}
+  ${HOME_FAB(o.from)}
 </body>
 </html>
 `;
@@ -419,7 +428,8 @@ function guidePage(g: Guide): string {
       ${others.length > 0 ? `<h2>More guides</h2>\n      <ul class="guide-links">\n        ${others.map((o) => `<li><a href="/guides/${o.slug}/">${esc(o.h1)}</a></li>`).join('\n        ')}\n      </ul>` : ''}
     </article>`;
   return articlePage({
-    title: `${g.title} — ${SITE_NAME}`,
+    from: 'guide',
+    title: `${g.title} — ${SITE_NAME}`.length <= TITLE_MAX ? `${g.title} — ${SITE_NAME}` : g.title,
     description: g.description,
     path,
     section: 'guides',
@@ -448,6 +458,7 @@ function guidesIndex(): string {
     .filter(Boolean)
     .join('\n      ');
   return articlePage({
+    from: 'guides',
     title: 'PDF guides: compress, unlock, convert, sign — Foolscap',
     description: `${GUIDES.length} short guides to the PDF jobs people search for most: compress to 100 KB, open an Aadhaar PDF, bank statement to Excel, sign, merge.`,
     path: '/guides/',
@@ -467,6 +478,7 @@ function guidesIndex(): string {
 
 const aboutPage = () =>
   articlePage({
+    from: 'about',
     title: 'About Foolscap: free PDF tools that never upload',
     description: 'Who makes Foolscap, why the tools run in your browser instead of on a server, and how a free site with no sign-up and no limits pays for itself.',
     path: '/about/',
@@ -496,6 +508,7 @@ const aboutPage = () =>
 
 const termsPage = () =>
   articlePage({
+    from: 'terms',
     title: 'Terms of use — Foolscap',
     description: 'The terms for using Foolscap: free PDF tools that run in your browser. What we promise, what you are responsible for, and the adverts on some pages.',
     path: '/terms/',
@@ -521,6 +534,7 @@ const termsPage = () =>
 
 const contactPage = () =>
   articlePage({
+    from: 'contact',
     title: 'Contact Foolscap — email or WhatsApp',
     description: 'Get help with Foolscap’s free PDF tools, report a problem or ask for a tool, by email or WhatsApp. Please never send us your documents.',
     path: '/contact/',
@@ -541,6 +555,7 @@ const contactPage = () =>
 
 const notFoundPage = () =>
   articlePage({
+    from: 'not-found',
     title: 'Page not found — Foolscap',
     description: 'That page is not here. Every Foolscap tool is one tap away from the home page.',
     path: null,
@@ -610,16 +625,6 @@ const HOME_DESCRIPTION = `Free PDF tools in your browser: merge, compress, sign,
 const HOME_LD: object[] = [
   { '@type': 'WebSite', name: SITE_NAME, url: absolute('/'), description: DESCRIPTION, inLanguage: 'en', publisher: ORGANIZATION },
   ORGANIZATION,
-  {
-    '@type': 'WebApplication',
-    name: SITE_NAME,
-    url: absolute('/'),
-    applicationCategory: 'UtilitiesApplication',
-    operatingSystem: 'Any, in a web browser',
-    isAccessibleForFree: true,
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
-    featureList: live.map((t) => t.title).join(', '),
-  },
 ];
 
 const homePath = resolve(APP, 'index.html');
@@ -632,7 +637,10 @@ home = home.replace(/<meta name="description" content="[^"]*">/, `<meta name="de
 if (writeIfChanged(homePath, shell(home, 'tools', '/', HOME_LD))) changed++;
 
 const privatePath = resolve(APP, 'private', 'index.html');
-if (writeIfChanged(privatePath, shell(readFileSync(privatePath, 'utf8'), 'privacy', '/private/', [breadcrumbs([['Home', '/'], ['Privacy', '/private/']])]))) changed++;
+const privacy = shell(readFileSync(privatePath, 'utf8'), 'privacy', '/private/', [breadcrumbs([['Home', '/'], ['Privacy', '/private/']])])
+  .replace(/\s*<nav class="home-fab__nav"[\s\S]*?<\/nav>/, '')
+  .replace(/(\s*)<\/body>/, `$1  ${HOME_FAB('privacy')}$1</body>`);
+if (writeIfChanged(privatePath, privacy)) changed++;
 
 // The reading pages, all generated.
 const guidesDir = resolve(APP, 'guides');
