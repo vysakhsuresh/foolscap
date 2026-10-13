@@ -109,6 +109,7 @@ function nameOf(mark: Mark): [string, string] {
     case 'text':
       return mark.boxed ? ['text box', 'text boxes'] : ['piece of text', 'pieces of text'];
     case 'image':
+      return mark.stands === 'stamp' ? ['stamp', 'stamps'] : mark.stands === 'text-box' ? ['text box', 'text boxes'] : mark.stands === 'text' ? ['piece of text', 'pieces of text'] : ['picture', 'pictures'];
     case 'picture':
       return ['picture', 'pictures'];
     case 'fill':

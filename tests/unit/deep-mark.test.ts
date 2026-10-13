@@ -9,7 +9,8 @@ import { createMemoryWorkspace } from '../../app/src/files/workspace-memory';
 import { getOp } from '../../app/src/ops';
 import type { OpContext, Outcome } from '../../app/src/ops/op';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
-import { installNodeCanvas } from '../fixtures/node-canvas';
+import { createNodeEngine, installNodeCanvas } from '../fixtures/node-canvas';
+import { segmentsOf } from '../../app/src/pdf/find-text';
 import { openPdf } from '../fixtures/mark-inspect';
 import { pagesPdf, stampsIn } from '../fixtures/pdfs';
 
@@ -158,5 +159,49 @@ describe('header and footer', () => {
     const input = await h.workspace.put('വാടക കരാർ.pdf', await pagesPdf(2), 'pdf', { kind: 'picked' });
     const { detail } = await only(await getOp('header-footer').run([input], { header: '', footer: '{name} {page}', align: 'center' }, h.ctx), h.workspace);
     expect(detail).toBe('Footer on 2 pages');
+  });
+});
+
+describe('edit text keeps the look of the words it changes', () => {
+  async function fontsPdf(): Promise<Uint8Array> {
+    const { PDFDocument, StandardFonts } = await import('@cantoo/pdf-lib');
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    const page = doc.addPage([400, 400]);
+    page.drawText('Gross earnings', { x: 20, y: 300, size: 12, font: await doc.embedFont(StandardFonts.HelveticaBold) });
+    page.drawText('Terms', { x: 20, y: 250, size: 12, font: await doc.embedFont(StandardFonts.TimesRoman) });
+    page.drawText('Plain words', { x: 20, y: 200, size: 12, font: await doc.embedFont(StandardFonts.Helvetica) });
+    return new Uint8Array(await doc.save());
+  }
+
+  it('the page reader says which words are bold and which are serif, and a line carries it', async () => {
+    const engine = await createNodeEngine();
+    const view = await engine.open(await fontsPdf());
+    try {
+      const segments = segmentsOf(await view.layout(0));
+      expect(segments.find((s) => s.text === 'Gross earnings')?.bold).toBe(true);
+      expect(segments.find((s) => s.text === 'Terms')?.family).toBe('serif');
+      const plain = segments.find((s) => s.text === 'Plain words');
+      expect(plain?.bold).toBeUndefined();
+      expect(plain?.family).toBeUndefined();
+    } finally {
+      await view.close();
+    }
+  });
+
+  it('the surgeon writes text in the face asked for', async () => {
+    const h = harness();
+    const input = await h.workspace.put('Slip.pdf', await pagesPdf(1), 'pdf', { kind: 'picked' });
+    const marks = [
+      { kind: 'text' as const, area: { page: 0, x: 0.1, y: 0.1, w: 0.5, h: 0.05 }, text: 'Bold one', size: 0.04, color: [0, 0, 0] as const, face: { bold: true } },
+      { kind: 'text' as const, area: { page: 0, x: 0.1, y: 0.3, w: 0.5, h: 0.05 }, text: 'Serif italic', size: 0.04, color: [0, 0, 0] as const, face: { family: 'serif' as const, italic: true } },
+      { kind: 'text' as const, area: { page: 0, x: 0.1, y: 0.5, w: 0.5, h: 0.05 }, text: 'Typewriter', size: 0.04, color: [0, 0, 0] as const, face: { family: 'mono' as const } },
+    ];
+    const { bytes } = await only(await getOp('edit-text').run([input], { marks }, h.ctx), h.workspace);
+    const pdf = await openPdf(bytes);
+    const fonts = await pdf.fonts(0);
+    await pdf.close();
+    expect(fonts.find((f) => f.text === 'Bold one')?.font).toMatch(/Helvetica-Bold$/);
+    expect(fonts.find((f) => f.text === 'Serif italic')?.font).toMatch(/Times-Italic$/);
+    expect(fonts.find((f) => f.text === 'Typewriter')?.font).toMatch(/Courier$/);
   });
 });

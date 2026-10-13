@@ -89,6 +89,7 @@ import {
   type PdfSurgeon,
   type RecompressedImage,
   type Rotation,
+  type TextFace,
   type TextStamp,
 } from './types';
 
@@ -381,6 +382,25 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
     if (f === undefined) {
       f = live().embedStandardFont(bold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica);
       fonts.set(key, f);
+    }
+    return f;
+  };
+  /** The built-in face nearest to `face`: the standard 14 cover sans, serif and fixed-width, each plain, bold, italic or both. */
+  const faces = new Map<StandardFonts, PDFFont>();
+  const fontFor = (face: TextFace | undefined): PDFFont => {
+    const b = face?.bold === true;
+    const i = face?.italic === true;
+    if (face === undefined || ((face.family ?? 'sans') === 'sans' && !i)) return font(b);
+    const table: Record<'sans' | 'serif' | 'mono', [StandardFonts, StandardFonts, StandardFonts, StandardFonts]> = {
+      sans: [StandardFonts.Helvetica, StandardFonts.HelveticaBold, StandardFonts.HelveticaOblique, StandardFonts.HelveticaBoldOblique],
+      serif: [StandardFonts.TimesRoman, StandardFonts.TimesRomanBold, StandardFonts.TimesRomanItalic, StandardFonts.TimesRomanBoldItalic],
+      mono: [StandardFonts.Courier, StandardFonts.CourierBold, StandardFonts.CourierOblique, StandardFonts.CourierBoldOblique],
+    };
+    const name = table[face.family ?? 'sans'][(b ? 1 : 0) + (i ? 2 : 0)] ?? StandardFonts.Helvetica;
+    let f = faces.get(name);
+    if (f === undefined) {
+      f = live().embedStandardFont(name);
+      faces.set(name, f);
     }
     return f;
   };
@@ -900,7 +920,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
             break;
           }
           case 'text': {
-            const f = font(false);
+            const f = fontFor(mark.face);
             const lines = mark.text.replace(/\r\n?/g, '\n').replace(/\t/g, ' ').split('\n');
             assertDrawable(f, lines.join(''));
             const size = mark.size * W;

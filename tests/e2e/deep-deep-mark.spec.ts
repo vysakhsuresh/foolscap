@@ -6,7 +6,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { encryptedPdf, pagesPdf, pdfInfo } from '../fixtures/pdfs';
-import { annualReportPdf, leasePdf, logoPng, photoJpeg, sidewaysPhotoJpeg, turnedPagesPdf } from '../fixtures/mark-samples';
+import { annualReportPdf, leasePdf, salarySlipPdf, logoPng, photoJpeg, sidewaysPhotoJpeg, turnedPagesPdf } from '../fixtures/mark-samples';
 import { added, extent, isBlue, isGreen, isInk, isRed, isWhite, look, mean, notWhite, openPdf, share, type Box, type Word } from '../fixtures/mark-inspect';
 import { downloadFrom, openTool, run, useDownloads } from './helpers';
 
@@ -759,5 +759,349 @@ test.describe('add image', () => {
     expect(Math.max(photo.width, photo.height)).toBe(2000);
     expect(out.bytes.length).toBeLessThan(2_000_000);
     expect(extent(await added(input, out.bytes, 1, 0.5), isGreen)).not.toBeNull();
+  });
+});
+
+const isYellow = (r: number, g: number, b: number) => r > 225 && g > 215 && b < 205;
+const isMint = (r: number, g: number, b: number) => g > 235 && r < 220 && b < 210;
+const isPink = (r: number, g: number, b: number) => r > 225 && g < 215 && b > 180 && b < 235;
+
+test.describe('mark up', () => {
+  test('highlighter in three colours, underline and strike-out land on the words dragged across, which stay readable', async ({ page }) => {
+    const input = await leasePdf();
+    await openTool(page, 'mark-up');
+    await pick(page, [{ name: 'Lease.pdf', bytes: input }]);
+    await expect(page.getByTestId('opt-tool-highlight')).toBeChecked();
+    await expect(page.getByTestId('opt-marker-yellow')).toBeChecked();
+    await dragPage(page, [0.09, 0.115], [0.5, 0.135]);
+    await page.getByTestId('opt-marker-green').check();
+    await dragPage(page, [0.09, 0.2], [0.5, 0.22]);
+    await page.getByTestId('opt-marker-pink').check();
+    await dragPage(page, [0.09, 0.3], [0.5, 0.32]);
+    await page.getByTestId('opt-tool-underline').check();
+    await expect(page.getByTestId('opt-pen-blue')).toBeVisible();
+    await page.getByTestId('opt-pen-red').check();
+    await dragPage(page, [0.1, 0.4], [0.6, 0.41]);
+    await page.getByTestId('opt-tool-strike').check();
+    await page.getByTestId('opt-pen-black').check();
+    await dragPage(page, [0.1, 0.5], [0.6, 0.52]);
+    const out = await runAndSave(page);
+    expect(out.name).toBe('Lease (marked up).pdf');
+    await expect(page.getByTestId('result-detail')).toHaveText('3 highlights, 1 underline and 1 strike-through');
+    const diff = await added(input, out.bytes, 0, 1);
+    expect(share(diff, { x: 0.1, y: 0.118, w: 0.38, h: 0.014 }, isYellow)).toBeGreaterThan(0.5);
+    expect(share(diff, { x: 0.1, y: 0.203, w: 0.38, h: 0.014 }, isMint)).toBeGreaterThan(0.3);
+    expect(share(diff, { x: 0.1, y: 0.303, w: 0.38, h: 0.014 }, isPink)).toBeGreaterThan(0.3);
+    const reddish = (r: number, g: number, b: number) => r > g + 60 && r > b + 60;
+    const underline = extent(diff, reddish)!;
+    expect(underline.y).toBeGreaterThan(0.39);
+    expect(underline.y).toBeLessThan(0.42);
+    expect(underline.w).toBeGreaterThan(0.45);
+    // Nothing outside what was dragged.
+    expect(share(diff, { x: 0, y: 0.6, w: 1, h: 0.4 }, notWhite)).toBe(0);
+    // The words under the marks are still the page's own words.
+    const pdf = await openPdf(out.bytes);
+    expect(await pdf.text(0)).toContain('This agreement is made at Kochi');
+    await pdf.close();
+  });
+
+  test('pen, box, circle, arrow, line and a measurement in mm', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'mark-up');
+    await pick(page, [{ name: 'Plan.pdf', bytes: input }]);
+    await page.getByTestId('opt-tool-pen').check();
+    await page.getByTestId('opt-pen-red').check();
+    await dragPage(page, [0.1, 0.1], [0.3, 0.2]);
+    await page.getByTestId('opt-tool-rect').check();
+    await page.getByTestId('opt-pen-blue').check();
+    await dragPage(page, [0.5, 0.1], [0.8, 0.25]);
+    await page.getByTestId('opt-tool-ellipse').check();
+    await dragPage(page, [0.1, 0.35], [0.4, 0.5]);
+    await page.getByTestId('opt-tool-arrow').check();
+    await page.getByTestId('opt-pen-black').check();
+    await dragPage(page, [0.5, 0.4], [0.9, 0.4]);
+    await page.getByTestId('opt-tool-line').check();
+    await dragPage(page, [0.1, 0.6], [0.9, 0.6]);
+    await page.getByTestId('opt-tool-measure').check();
+    await page.getByTestId('opt-pen-red').check();
+    // Half the width of an A4 page: 105 mm.
+    await dragPage(page, [0.25, 0.8], [0.75, 0.8]);
+    await expect(page.getByTestId('editor-measure')).toHaveText(/^10[45] mm$|^10\.[45] cm$/);
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('1 pen stroke, 1 box, 1 circle, 1 arrow, 1 line and 1 measurement');
+    const diff = await added(input, out.bytes, 0, 1);
+    // The pen stroke, in red, from its start to its end.
+    const pen = extent({ ...diff, data: diff.data }, (r, g, b) => isRed(r, g, b))!;
+    expect(pen.x).toBeLessThan(0.12);
+    expect(pen.y).toBeLessThan(0.12);
+    // The box: blue on its edges, nothing inside.
+    expect(share(diff, { x: 0.5, y: 0.095, w: 0.3, h: 0.012 }, isBlue)).toBeGreaterThan(0.1);
+    expect(share(diff, { x: 0.55, y: 0.13, w: 0.2, h: 0.08 }, notWhite)).toBe(0);
+    // The circle: blue at its left and right, and empty in the middle.
+    expect(share(diff, { x: 0.095, y: 0.41, w: 0.012, h: 0.03 }, isBlue)).toBeGreaterThan(0.1);
+    expect(share(diff, { x: 0.2, y: 0.4, w: 0.1, h: 0.05 }, notWhite)).toBe(0);
+    // The arrow has a head at its end; the line has none.
+    expect(share(diff, { x: 0.86, y: 0.38, w: 0.04, h: 0.015 }, isInk)).toBeGreaterThan(0.02);
+    expect(share(diff, { x: 0.86, y: 0.585, w: 0.04, h: 0.01 }, isInk)).toBe(0);
+    // The measurement says 105 mm (half of A4's 210 mm), on the page itself.
+    const pdf = await openPdf(out.bytes);
+    expect(await pdf.text(0)).toMatch(/10[45] mm|10\.[45] cm/);
+    await pdf.close();
+  });
+
+  test('notes are real comments in any script, text boxes are real text, links really open', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'mark-up');
+    await pick(page, [{ name: 'Draft.pdf', bytes: input }]);
+    await page.getByTestId('opt-tool-note').check();
+    await page.getByTestId('opt-words').fill('ഫീസ് ചോദിക്കുക: ask about the fee');
+    await tapPage(page, 0.8, 0.2);
+    await page.getByTestId('opt-tool-textbox').check();
+    await page.getByTestId('opt-words').fill('See clause 4');
+    await tapPage(page, 0.1, 0.5);
+    await page.getByTestId('opt-tool-link').check();
+    await page.getByTestId('opt-link').fill('https://example.org/terms');
+    await dragPage(page, [0.1, 0.7], [0.5, 0.75]);
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('1 note, 1 text box and 1 link');
+    const pdf = await openPdf(out.bytes);
+    const annots = await pdf.annotations(0);
+    const note = annots.find((a) => a['subtype'] === 'Text')!;
+    expect(note).toBeDefined();
+    expect((note['contentsObj'] as { str: string }).str).toBe('ഫീസ് ചോദിക്കുക: ask about the fee');
+    const link = annots.find((a) => a['subtype'] === 'Link')!;
+    expect(link['url']).toBe('https://example.org/terms');
+    const { width, height } = await pdf.size(0);
+    const rect = link['rect'] as number[];
+    expect(rect[0]! / width).toBeCloseTo(0.1, 1);
+    expect(1 - rect[3]! / height).toBeCloseTo(0.7, 1);
+    expect((await pdf.words(0)).find((w) => w.text === 'See clause 4')).toBeDefined();
+    await pdf.close();
+  });
+
+  for (const stamp of ['APPROVED', 'PAID', 'RECEIVED', 'DRAFT', 'CONFIDENTIAL', 'URGENT', 'COPY', 'VOID'] as const) {
+    test(`the ${stamp} stamp goes on in the colour chosen, inside its frame`, async ({ page }) => {
+      const input = await applicationBlank();
+      await openTool(page, 'mark-up');
+      await pick(page, [{ name: 'Invoice.pdf', bytes: input }]);
+      await page.getByTestId('opt-tool-stamp').check();
+      await page.getByTestId('opt-stamp').selectOption(stamp);
+      await page.getByTestId('opt-pen-red').check();
+      await tapPage(page, 0.6, 0.3);
+      const out = await runAndSave(page);
+      await expect(page.getByTestId('result-detail')).toHaveText('1 stamp');
+      const pdf = await openPdf(out.bytes);
+      const word = (await pdf.words(0)).find((w) => w.text === stamp)!;
+      expect(word).toBeDefined();
+      await pdf.close();
+      const diff = await added(input, out.bytes, 0, 1);
+      const box = extent(diff, notWhite)!;
+      const [cx, cy] = centre(box);
+      expect(Math.abs(cx - 0.6)).toBeLessThan(0.03);
+      expect(Math.abs(cy - 0.3)).toBeLessThan(0.03);
+      expect(share(diff, box, isRed)).toBeGreaterThan(0.05);
+      expect(share(diff, box, isBlue)).toBe(0);
+    });
+  }
+
+  test('a stamp in your own words, in any script, and a stamp made bigger by its corner', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'mark-up');
+    await pick(page, [{ name: 'Bill.pdf', bytes: input }]);
+    await page.getByTestId('opt-tool-stamp').check();
+    await expect(page.getByTestId('opt-stamp-words')).toBeHidden();
+    await page.getByTestId('opt-stamp').selectOption('custom');
+    await expect(page.getByTestId('opt-stamp-words')).toBeVisible();
+    // Nothing typed yet: a tap says so rather than stamping nothing.
+    await tapPage(page, 0.5, 0.2);
+    await expect(page.getByTestId('editor-item')).toHaveCount(0);
+    await expect(page.getByTestId('editor-hint')).toHaveText('Type the stamp’s words first.');
+    await page.getByTestId('opt-stamp-words').fill('Paid on 12 Oct');
+    await tapPage(page, 0.5, 0.2);
+    // A second one: tap, and then change its words (typing changes the stamp that is selected).
+    await tapPage(page, 0.5, 0.5);
+    await page.getByTestId('opt-stamp-words').fill('പണമടച്ചു');
+    await expect(page.getByTestId('editor-item')).toHaveCount(2);
+    await expect(page.locator('.editor__stamp-words')).toHaveText(['PAID ON 12 OCT', 'പണമടച്ചു']);
+    // The first one, made half again as wide by its corner.
+    await tapPage(page, 0.5, 0.2);
+    const handle = page.locator('.editor__item.is-selected .editor__resize');
+    const hb = (await handle.boundingBox())!;
+    const layer = (await page.getByTestId('editor-layer').boundingBox())!;
+    await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(hb.x + hb.width / 2 + layer.width * 0.12, hb.y + hb.height / 2, { steps: 5 });
+    await page.mouse.up();
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('2 stamps');
+    await look(out.bytes, 0, 'markup-own-stamps');
+    const pdf = await openPdf(out.bytes);
+    const words = (await pdf.words(0)).filter((w) => w.text === 'PAID ON 12 OCT');
+    expect(words).toHaveLength(1);
+    await pdf.close();
+    const diff = await added(input, out.bytes, 0, 1);
+    const first = extent({ ...diff }, notWhite)!;
+    expect(first.y).toBeLessThan(0.2);
+    // The Malayalam stamp is on the page too, as a picture, round (0.5, 0.5).
+    const second = share(diff, { x: 0.3, y: 0.45, w: 0.4, h: 0.1 }, notWhite);
+    expect(second).toBeGreaterThan(0.02);
+  });
+
+  test('undo takes the last mark off, and every mark’s × takes that one off', async ({ page }) => {
+    const input = await applicationBlank();
+    await openTool(page, 'mark-up');
+    await pick(page, [{ name: 'Plan.pdf', bytes: input }]);
+    await page.getByTestId('opt-tool-rect').check();
+    await dragPage(page, [0.1, 0.1], [0.3, 0.2]);
+    await dragPage(page, [0.5, 0.5], [0.7, 0.6]);
+    await page.getByTestId('opt-tool-pen').check();
+    await dragPage(page, [0.1, 0.8], [0.6, 0.85]);
+    await page.getByTestId('editor-undo').click();
+    // The second box, selected, then its ×.
+    await tapPage(page, 0.5, 0.55);
+    await page.locator('.editor__item.is-selected [data-testid="editor-remove"]').click();
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('1 box');
+    const diff = await added(input, out.bytes, 0, 0.5);
+    expect(share(diff, { x: 0, y: 0.45, w: 1, h: 0.55 }, notWhite)).toBe(0);
+  });
+});
+
+test.describe('edit text', () => {
+  test('a tapped name is changed in place: same line, same start, the old words painted out', async ({ page }) => {
+    const input = await salarySlipPdf();
+    const before = await openPdf(input);
+    const { width, height } = await before.size(0);
+    const old = (await before.words(0)).find((w) => w.text === 'Anjali Menon')!;
+    await before.close();
+    await openTool(page, 'edit-text');
+    await pick(page, [{ name: 'Payslip.pdf', bytes: input }]);
+    await expect(page.locator('.editor__line-hint').first()).toBeAttached();
+    await tapPage(page, (old.x + 10) / width, (old.y - old.size * 0.3) / height);
+    await expect(page.getByTestId('opt-words')).toHaveValue('Anjali Menon');
+    await expect(page.getByTestId('run-button')).toBeDisabled();
+    await expect(page.locator('.run__note')).toHaveText('Change the words first.');
+    await page.getByTestId('opt-words').fill('Anjali M. Nair');
+    const out = await runAndSave(page);
+    expect(out.name).toBe('Payslip (edited).pdf');
+    await expect(page.getByTestId('result-detail')).toHaveText('1 change made');
+    const pdf = await openPdf(out.bytes);
+    const fresh = (await pdf.words(0)).find((w) => w.text === 'Anjali M. Nair')!;
+    expect(fresh).toBeDefined();
+    expect(Math.abs(fresh.x - old.x)).toBeLessThan(1.5);
+    expect(Math.abs(fresh.y - old.y)).toBeLessThan(1.5);
+    expect(Math.abs(fresh.size - old.size)).toBeLessThan(0.6);
+    // On the page, the old words are gone: where "Menon" ran past the new words' end is clean paper again.
+    const picture = await pdf.render(0, 2);
+    await pdf.close();
+    const tail = { x: (fresh.x + fresh.width + 2) / width, y: (old.y - old.size * 0.8) / height, w: Math.max(0, old.width - fresh.width - 4) / width, h: (old.size * 0.9) / height };
+    if (tail.w > 0) expect(share(picture, tail, isInk)).toBe(0);
+    // Everything else on the slip is as it was.
+    expect(share(await added(input, out.bytes, 0, 1), { x: 0, y: 0.25, w: 1, h: 0.75 }, notWhite)).toBe(0);
+  });
+
+  test('a changed amount keeps its right edge, in a table cell, and nothing else in the row moves', async ({ page }) => {
+    const input = await salarySlipPdf();
+    const before = await openPdf(input);
+    const { width, height } = await before.size(0);
+    const tds = (await before.words(0)).find((w) => w.text === '7,999.00')!;
+    await before.close();
+    await openTool(page, 'edit-text');
+    await pick(page, [{ name: 'Payslip.pdf', bytes: input }]);
+    await expect(page.locator('.editor__line-hint').first()).toBeAttached();
+    await tapPage(page, (tds.x + tds.width / 2) / width, (tds.y - tds.size * 0.3) / height);
+    await expect(page.getByTestId('opt-words')).toHaveValue('7,999.00');
+    await page.getByTestId('opt-words').fill('12,250.00');
+    const out = await runAndSave(page);
+    const pdf = await openPdf(out.bytes);
+    const words = await pdf.words(0);
+    const fresh = words.find((w) => w.text === '12,250.00')!;
+    expect(Math.abs(fresh.x + fresh.width - (tds.x + tds.width))).toBeLessThan(1);
+    expect(Math.abs(fresh.y - tds.y)).toBeLessThan(1);
+    // Its label on the same row is untouched.
+    const label = words.find((w) => w.text === 'Income tax (TDS)')!;
+    expect(label).toBeDefined();
+    const picture = await pdf.render(0, 2);
+    await pdf.close();
+    expect(share(picture, { x: label.x / width, y: (label.y - label.size * 0.7) / height, w: label.width / width, h: (label.size * 0.6) / height }, isInk)).toBeGreaterThan(0.05);
+  });
+
+  test('a bold label is written back bold, and a Times heading in Times', async ({ page }) => {
+    const { PDFDocument, StandardFonts } = await import('@cantoo/pdf-lib');
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    const p = doc.addPage([595.28, 841.89]);
+    p.drawText('Gross earnings', { x: 56, y: 700, size: 12, font: await doc.embedFont(StandardFonts.HelveticaBold) });
+    p.drawText('Terms of service', { x: 56, y: 600, size: 16, font: await doc.embedFont(StandardFonts.TimesRoman) });
+    p.drawText('Note in italics', { x: 56, y: 500, size: 12, font: await doc.embedFont(StandardFonts.HelveticaOblique) });
+    const input = new Uint8Array(await doc.save());
+    await openTool(page, 'edit-text');
+    await pick(page, [{ name: 'Fonts.pdf', bytes: input }]);
+    await expect(page.locator('.editor__line-hint').first()).toBeAttached();
+    await tapPage(page, 70 / 595.28, (842 - 704) / 841.89);
+    await expect(page.getByTestId('opt-words')).toHaveValue('Gross earnings');
+    await page.getByTestId('opt-words').fill('Gross pay');
+    await tapPage(page, 70 / 595.28, (842 - 605) / 841.89);
+    await expect(page.getByTestId('opt-words')).toHaveValue('Terms of service');
+    await page.getByTestId('opt-words').fill('Terms of use');
+    await tapPage(page, 70 / 595.28, (842 - 504) / 841.89);
+    await page.getByTestId('opt-words').fill('A note in italics');
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('3 changes made');
+    const pdf = await openPdf(out.bytes);
+    const fonts = await pdf.fonts(0);
+    await pdf.close();
+    expect(fonts.find((f) => f.text === 'Gross pay')?.font).toMatch(/Helvetica-Bold$/);
+    expect(fonts.find((f) => f.text === 'Terms of use')?.font).toMatch(/Times-Roman$/);
+    expect(fonts.find((f) => f.text === 'A note in italics')?.font).toMatch(/Helvetica-Oblique$/);
+  });
+
+  test('find and replace changes every whole match, on every page, and says where', async ({ page }) => {
+    const input = await leasePdf();
+    await openTool(page, 'edit-text');
+    await pick(page, [{ name: 'Lease.pdf', bytes: input }]);
+    await page.getByTestId('find-replace-box').locator('summary').click();
+    await page.getByTestId('opt-find').fill('Kochi');
+    await page.getByTestId('opt-replace-with').fill('Ernakulam');
+    await page.getByTestId('find-replace').click();
+    await expect(page.getByTestId('find-replace-said')).toHaveText('Changed in 1 place, on 1 page. Each is outlined on its page; tap one to adjust it.');
+    await page.getByTestId('opt-find').fill('of 2');
+    await page.getByTestId('opt-replace-with').fill('of two');
+    await page.getByTestId('find-replace').click();
+    await expect(page.getByTestId('find-replace-said')).toHaveText('Changed in 2 places, on 2 pages. Each is outlined on its page; tap one to adjust it.');
+    await page.getByTestId('opt-find').fill('Mumbai');
+    await page.getByTestId('find-replace').click();
+    await expect(page.getByTestId('find-replace-said')).toHaveText('“Mumbai” isn’t in the text of this document.');
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('3 changes made across 2 pages');
+    const pdf = await openPdf(out.bytes);
+    expect(await pdf.text(0)).toContain('This agreement is made at Ernakulam on the first day');
+    expect(await pdf.text(0)).toContain('Page 1 of two');
+    expect(await pdf.text(1)).toContain('Page 2 of two');
+    await pdf.close();
+  });
+
+  test('clearing a line takes its words off the page; Malayalam goes in as a picture of the words', async ({ page }) => {
+    const input = await salarySlipPdf();
+    const before = await openPdf(input);
+    const { width, height } = await before.size(0);
+    const words = await before.words(0);
+    const pan = words.find((w) => w.text === 'ABCPM1234K')!;
+    const name = words.find((w) => w.text === 'Anjali Menon')!;
+    await before.close();
+    await openTool(page, 'edit-text');
+    await pick(page, [{ name: 'Payslip.pdf', bytes: input }]);
+    await expect(page.locator('.editor__line-hint').first()).toBeAttached();
+    await tapPage(page, (pan.x + 5) / width, (pan.y - pan.size * 0.3) / height);
+    await page.getByTestId('opt-words').fill('');
+    await tapPage(page, (name.x + 5) / width, (name.y - name.size * 0.3) / height);
+    await page.getByTestId('opt-words').fill('അഞ്ജലി മേനോൻ');
+    const out = await runAndSave(page);
+    await expect(page.getByTestId('result-detail')).toHaveText('2 changes made');
+    const pdf = await openPdf(out.bytes);
+    const picture = await pdf.render(0, 2);
+    await pdf.close();
+    expect(share(picture, { x: pan.x / width, y: (pan.y - pan.size * 0.8) / height, w: pan.width / width, h: (pan.size * 0.9) / height }, isInk)).toBe(0);
+    const diff = await added(input, out.bytes, 0, 2);
+    expect(share(diff, { x: name.x / width, y: (name.y - name.size) / height, w: (name.width * 1.5) / width, h: (name.size * 1.4) / height }, isInk)).toBeGreaterThan(0.02);
   });
 });

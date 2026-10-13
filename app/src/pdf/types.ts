@@ -342,11 +342,34 @@ export interface Area {
 export type Rgb = readonly [number, number, number];
 
 /** Something drawn onto a page by Sign, Add text or Mark up. */
+/** How words look, as far as the built-in PDF fonts can say it. */
+export interface TextFace {
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly family?: 'sans' | 'serif' | 'mono';
+}
+
 export type Mark =
   /** A PNG (a signature, or text in a script the built-in font cannot draw) filling `area`. */
-  | { readonly kind: 'image'; readonly area: Area; readonly png: Uint8Array }
+  | {
+      readonly kind: 'image';
+      readonly area: Area;
+      readonly png: Uint8Array;
+      /** What the picture stands in for, when it is words in a script the PDF fonts cannot draw: so the result can say "1 stamp", not "1 picture". */
+      readonly stands?: 'stamp' | 'text' | 'text-box';
+    }
   /** Lines of text whose first line's top is the area's top; `size` is a fraction of the page width. */
-  | { readonly kind: 'text'; readonly area: Area; readonly text: string; readonly size: number; readonly color: Rgb; readonly boxed?: boolean; readonly align?: 'left' | 'right' }
+  | {
+      readonly kind: 'text';
+      readonly area: Area;
+      readonly text: string;
+      readonly size: number;
+      readonly color: Rgb;
+      readonly boxed?: boolean;
+      readonly align?: 'left' | 'right';
+      /** The nearest built-in face: Helvetica unless told, bold or italic, or Times or Courier for serif and fixed-width text. */
+      readonly face?: TextFace;
+    }
   /**
    * A see-through marker over `area`, multiplied so the words under it stay
    * dark; or, with `style`, a line under the words or through them.

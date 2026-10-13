@@ -2206,7 +2206,7 @@ select.input option {
 }
 
 .editor__stamp-words {
-  font: 800 calc(var(--page-w) * 0.035) / 1 Helvetica, Arial, sans-serif;
+  font: 800 calc(var(--page-w) * var(--stamp-size, 0.035)) / 1 Helvetica, Arial, sans-serif;
   letter-spacing: 0.04em;
   white-space: nowrap;
   pointer-events: none;

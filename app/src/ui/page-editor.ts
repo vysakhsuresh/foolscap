@@ -8,7 +8,7 @@
  * down, drag to draw or move. Whatever is selected gets a × to take it off.
  */
 import type { CreateFormParams, EditImagesParams, MarksParams, RemoveAreasParams } from '../ops/op';
-import { measureLabel, type Area, type Mark, type PdfView, type Rgb } from '../pdf/types';
+import { measureLabel, type Area, type Mark, type PdfView, type Rgb, type TextFace } from '../pdf/types';
 import { el } from './dom';
 import { check, choices, field, note, select as selectField } from './fields';
 import { PATTERN_NAMES, detectBlanks, findOnPage, segmentsOf, splitWords, type Pattern } from '../pdf/find-text';
@@ -43,7 +43,7 @@ type Item =
   /** A fillable field to add, for Create form. */
   | { kind: 'field'; area: MutableArea; field: FieldKind; name: string; options: string[]; el: HTMLElement }
   /** A line of the page's own text, rewritten: painted over in `paper`, written again in `color`. */
-  | { kind: 'edit'; area: MutableArea; original: string; text: string; size: number; color: Rgb; paper: Rgb; baseline: number; align: 'left' | 'right'; el: HTMLElement }
+  | { kind: 'edit'; area: MutableArea; original: string; text: string; size: number; color: Rgb; paper: Rgb; baseline: number; align: 'left' | 'right'; face: TextFace; el: HTMLElement }
   | { kind: 'ink'; page: number; points: number[]; width: number; color: Rgb; el: SVGPolylineElement }
   | {
       kind: 'line';
@@ -72,6 +72,8 @@ const FIELD_NAMES: Record<FieldKind, string> = { text: 'Text', multiline: 'Parag
 const RECT_TOOLS = new Set<MarkTool>(['highlight', 'underline', 'strike', 'rect', 'ellipse', 'link']);
 const LINE_TOOLS = new Set<MarkTool>(['arrow', 'line', 'measure']);
 const STAMPS = ['APPROVED', 'PAID', 'RECEIVED', 'DRAFT', 'CONFIDENTIAL', 'URGENT', 'COPY', 'VOID'] as const;
+/** A ready stamp, or one with the person's own words. */
+type StampChoice = (typeof STAMPS)[number] | 'custom';
 /** Readers open a link only to these. */
 const LINKABLE = /^(https?:\/\/|mailto:|tel:)\S+$/i;
 
@@ -82,6 +84,8 @@ interface EditableLine {
   readonly area: MutableArea;
   readonly size: number;
   readonly baseline: number;
+  /** Bold, italic, serif or fixed-width, as the page's own font is: the new words are written the same way. */
+  readonly face: TextFace;
 }
 
 interface MutableArea {
@@ -159,7 +163,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   // Mark up.
   let toolChoice: ReturnType<typeof choices<MarkTool>> | null = null;
   let markerChoice: ReturnType<typeof choices<'yellow' | 'green' | 'pink'>> | null = null;
-  let stampChoice: ReturnType<typeof selectField<(typeof STAMPS)[number]>> | null = null;
+  let stampChoice: ReturnType<typeof selectField<StampChoice>> | null = null;
+  let stampWords: ReturnType<typeof field> | null = null;
   let linkField: ReturnType<typeof field> | null = null;
   let wordsRow: HTMLElement | null = null;
   // Add image: the picture chosen, ready to place.
@@ -285,16 +290,36 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         { value: 'link', title: 'Link' },
       ],
       'highlight',
-      () => sync(),
+      () => {
+        // A new tool starts a new mark: the words typed next are for it, not for the note or box still selected.
+        select(null);
+        if (textBox) textBox.value = '';
+        sync();
+      },
       'pills',
     );
     markerChoice = choices<'yellow' | 'green' | 'pink'>('marker', 'Highlighter colour', [{ value: 'yellow', title: 'Yellow' }, { value: 'green', title: 'Green' }, { value: 'pink', title: 'Pink' }], 'yellow', () => undefined, 'pills');
     penChoice = choices<'black' | 'blue' | 'red'>('pen', 'Colour', [{ value: 'black', title: 'Black' }, { value: 'blue', title: 'Blue' }, { value: 'red', title: 'Red' }], 'blue', () => restyleSelected(), 'pills');
     textBox = el('textarea', { class: 'input', testid: 'opt-words', attrs: { id: 'opt-words', rows: '2', spellcheck: 'true', placeholder: 'What the note or box says' } });
     wordsRow = el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'Words' }), textBox]);
-    stampChoice = selectField<(typeof STAMPS)[number]>('stamp', 'Stamp', STAMPS.map((v) => ({ value: v, title: v.charAt(0) + v.slice(1).toLowerCase() })), 'APPROVED', () => undefined);
+    stampChoice = selectField<StampChoice>(
+      'stamp',
+      'Stamp',
+      [...STAMPS.map((v) => ({ value: v, title: v.charAt(0) + v.slice(1).toLowerCase() })), { value: 'custom' as const, title: 'Your own words…' }],
+      'APPROVED',
+      () => sync(),
+    );
+    // Typing here changes the selected stamp, as the words box does for a note.
+    stampWords = field('stamp-words', { label: 'The stamp’s words', placeholder: 'e.g. PAID ON 12 OCT', spellcheck: true }, () => {
+      if (selected?.kind !== 'stamp' || !stampWords) return;
+      const words = stampWords.value().trim().toUpperCase().slice(0, 40);
+      if (words === '') return;
+      selected.text = words;
+      paintStamp(selected);
+      onChange();
+    });
     linkField = field('link', { label: 'Web address, email or phone', placeholder: 'https://… or mailto:… or tel:…' }, () => sync());
-    tools.append(toolChoice.root, el('div', { class: 'field-row' }, [markerChoice.root, penChoice.root]), wordsRow, stampChoice.root, linkField.root);
+    tools.append(toolChoice.root, el('div', { class: 'field-row' }, [markerChoice.root, penChoice.root]), wordsRow, stampChoice.root, stampWords.root, linkField.root);
     textBox.addEventListener('input', () => {
       if (!textBox) return;
       if (selected?.kind === 'text') {
@@ -435,6 +460,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       if (penChoice) penChoice.root.hidden = tool === 'highlight' || tool === 'link';
       if (wordsRow) wordsRow.hidden = tool !== 'note' && tool !== 'textbox' && selected?.kind !== 'note' && selected?.kind !== 'text';
       if (stampChoice) stampChoice.root.hidden = tool !== 'stamp';
+      if (stampWords) stampWords.root.hidden = tool !== 'stamp' || stampChoice?.value() !== 'custom';
       if (linkField) linkField.root.hidden = tool !== 'link';
     }
   }
@@ -595,6 +621,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
             baseline: seg.baseline / layout.height,
             // Amounts line up on their right edge; a changed amount keeps to it.
             align: NUMERIC.test(seg.text) ? 'right' : 'left',
+            face: { ...(seg.bold ? { bold: true } : {}), ...(seg.italic ? { italic: true } : {}), ...(seg.family ? { family: seg.family } : {}) },
             area: { page: index, x: seg.x0 / layout.width, y: top / layout.height, w: (seg.x1 - seg.x0) / layout.width, h: (bottom - top) / layout.height },
           };
         });
@@ -659,7 +686,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     const box = boxElement('edit', 'Changed line');
     box.prepend(el('span', { class: 'editor__words' }));
     box.classList.toggle('editor__item--edit-right', line.align === 'right');
-    return { kind: 'edit', area, original: line.text, text, size: line.size, color: ink, paper, baseline: line.baseline, align: line.align, el: box };
+    return { kind: 'edit', area, original: line.text, text, size: line.size, color: ink, paper, baseline: line.baseline, align: line.align, face: line.face, el: box };
   }
 
   function paintEdit(item: Extract<Item, { kind: 'edit' }>): void {
@@ -668,6 +695,10 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     item.el.style.setProperty('--size', String(item.size));
     item.el.style.setProperty('color', css(item.color));
     item.el.style.setProperty('background-color', css(item.paper));
+    // Shown as it will be written: the nearest of Helvetica, Times and Courier, in the line's own weight.
+    item.el.style.setProperty('font-weight', item.face.bold ? '700' : '400');
+    item.el.style.setProperty('font-style', item.face.italic ? 'italic' : 'normal');
+    item.el.style.setProperty('font-family', item.face.family === 'serif' ? '"Times New Roman", Times, serif' : item.face.family === 'mono' ? '"Courier New", Courier, monospace' : 'Helvetica, Arial, sans-serif');
   }
 
   async function replaceEverywhere(find: string, replacement: string, say: HTMLElement, button: HTMLButtonElement): Promise<void> {
@@ -754,6 +785,15 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       item.area.w = own.width / box.width;
       item.area.h = own.height / box.height;
     }
+  }
+
+  /** A stamp's words, sized to fit inside its frame however long they are. */
+  function paintStamp(item: Extract<Item, { kind: 'stamp' }>): void {
+    const words = item.el.querySelector<HTMLElement>('.editor__stamp-words');
+    if (words) words.textContent = item.text;
+    // As the surgeon sizes them: up to half the frame's height, and no wider than the frame.
+    const tall = item.area.h * (aspects.get(item.area.page) ?? pageAspect);
+    item.el.style.setProperty('--stamp-size', String(Math.min(tall * 0.55, (item.area.w * 0.86) / Math.max(1, item.text.length * 0.75))));
   }
 
   function restyleSelected(): void {
@@ -861,6 +901,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
           const w = clamp(start.w + dx, 0.05, 1 - item.area.x);
           item.area.w = w;
           item.area.h = (w * start.h) / start.w;
+          if (item.kind === 'stamp') paintStamp(item);
         } else {
           item.area.x = clamp(start.x + dx, 0, 1 - item.area.w);
           item.area.y = clamp(start.y + dy, 0, 1 - item.area.h);
@@ -954,7 +995,13 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       return true;
     }
     if (tool === 'stamp') {
-      const text = stampChoice?.value() ?? 'APPROVED';
+      const choice = stampChoice?.value() ?? 'APPROVED';
+      const text = choice === 'custom' ? (stampWords?.value().trim().toUpperCase().slice(0, 40) ?? '') : choice;
+      if (text === '') {
+        hint.textContent = 'Type the stamp’s words first.';
+        stampWords?.input.focus();
+        return false;
+      }
       const w = Math.min(0.5, 0.06 + text.length * 0.026);
       const h = (w * 0.3) / pageAspect;
       const color = PENS[penChoice?.value() ?? 'red'];
@@ -962,7 +1009,9 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       box.prepend(el('span', { class: 'editor__stamp-words', text }));
       box.append(el('span', { class: 'editor__resize', attrs: { 'aria-hidden': 'true' } }));
       box.style.setProperty('--ink', css(color));
-      addItem({ kind: 'stamp', area: { page: current, x: clamp(px - w / 2, 0, 1 - w), y: clamp(py - h / 2, 0, 1 - h), w, h }, text, color, el: box });
+      const item: Extract<Item, { kind: 'stamp' }> = { kind: 'stamp', area: { page: current, x: clamp(px - w / 2, 0, 1 - w), y: clamp(py - h / 2, 0, 1 - h), w, h }, text, color, el: box };
+      paintStamp(item);
+      addItem(item);
       return true;
     }
     return false;
@@ -1412,7 +1461,12 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
           if (item.text.trim()) out.push({ kind: 'note', area: { ...item.area }, text: item.text, color: item.color });
           break;
         case 'stamp':
-          out.push({ kind: 'stamp', area: { ...item.area }, text: item.text, color: item.color });
+          if (WIN_ANSI.test(item.text)) out.push({ kind: 'stamp', area: { ...item.area }, text: item.text, color: item.color });
+          else {
+            // Words the PDF font cannot draw: the whole stamp, frame and all, drawn by the browser.
+            const png = stampPicture(item.text, item.color, item.area.w * pageWidthPx() * 3, item.area.h * pageWidthPx() * (aspects.get(item.area.page) ?? pageAspect) * 3);
+            if (png) out.push({ kind: 'image', area: { ...item.area }, png, stands: 'stamp' });
+          }
           break;
         case 'link':
           out.push({ kind: 'link', area: { ...item.area }, url: item.url });
@@ -1425,7 +1479,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
           } else {
             // Malayalam, Hindi, Arabic, emoji: the browser shapes them, and they go in as a picture of the words.
             const picture = textPicture(item.text, item.size, item.color, pageWidthPx(), aspects.get(item.area.page) ?? pageAspect, item.boxed);
-            if (picture) out.push({ kind: 'image', area: { ...item.area, w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png });
+            if (picture) out.push({ kind: 'image', area: { ...item.area, w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png, stands: item.boxed ? 'text-box' : 'text' });
           }
           break;
         }
@@ -1444,7 +1498,15 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
           // The old words' own width, so a right-aligned amount keeps its right edge.
           const w = Math.max(0.01, item.area.w - 0.008);
           if (WIN_ANSI.test(item.text)) {
-            out.push({ kind: 'text', area: { page: item.area.page, x, y: Math.max(0, top), w, h: Math.max(0.01, item.area.h) }, text: item.text, size, color: item.color, ...(item.align === 'right' ? { align: 'right' as const } : {}) });
+            out.push({
+              kind: 'text',
+              area: { page: item.area.page, x, y: Math.max(0, top), w, h: Math.max(0.01, item.area.h) },
+              text: item.text,
+              size,
+              color: item.color,
+              ...(item.align === 'right' ? { align: 'right' as const } : {}),
+              ...(Object.keys(item.face).length > 0 ? { face: { ...item.face } } : {}),
+            });
           } else {
             const picture = textPicture(item.text, size, item.color, pageWidthPx(), aspect);
             if (picture) {
@@ -1643,6 +1705,31 @@ function textPicture(text: string, size: number, color: Rgb, pageWidthPx: number
   lines.forEach((line, i) => context.fillText(line, 1, lineHeight * (i + 0.5)));
   const total = pageWidthPx * scale;
   return { png: fromDataUrl(out.toDataURL('image/png')), w: out.width / total, h: out.height / (total * aspect) };
+}
+
+/** A stamp drawn by the browser, for words the PDF font cannot draw: a frame, and the words filling it, as the surgeon draws one. */
+function stampPicture(text: string, color: Rgb, width: number, height: number): Uint8Array | null {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(8, Math.round(width));
+  canvas.height = Math.max(4, Math.round(height));
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+  const frame = Math.max(2, canvas.height * 0.07);
+  context.globalAlpha = 0.9;
+  context.strokeStyle = css(color);
+  context.lineWidth = frame;
+  context.strokeRect(frame / 2, frame / 2, canvas.width - frame, canvas.height - frame);
+  let size = canvas.height * 0.55;
+  context.font = `bold ${size}px ${TEXT_FONT}`;
+  const room = (canvas.width - 4 * frame) * 0.92;
+  const across = context.measureText(text).width;
+  if (across > room) size = Math.max(4, (size * room) / across);
+  context.font = `bold ${size}px ${TEXT_FONT}`;
+  context.fillStyle = css(color);
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+  return fromDataUrl(canvas.toDataURL('image/png'));
 }
 
 function fromDataUrl(url: string): Uint8Array {

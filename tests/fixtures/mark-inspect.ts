@@ -57,6 +57,8 @@ export interface Opened {
   /** The page drawn `scale` pixels per point, annotations included. */
   render(index: number, scale?: number): Promise<Picture>;
   annotations(index: number): Promise<Array<Record<string, unknown>>>;
+  /** Each run of words on the page with the real name of the font it is drawn in ("Helvetica-Bold"). */
+  fonts(index: number): Promise<Array<{ text: string; font: string }>>;
   /** Field values by name, as pdf.js reads them. */
   fields(): Promise<Record<string, Array<Record<string, unknown>>>>;
   close(): Promise<void>;
@@ -73,6 +75,7 @@ export async function openPdf(bytes: Uint8Array, password?: string): Promise<Ope
     cMapUrl: join(root, 'cmaps') + '/',
     useWorkerFetch: false,
     isOffscreenCanvasSupported: false,
+    fontExtraProperties: true,
   });
   const doc = await task.promise;
   return {
@@ -113,6 +116,20 @@ export async function openPdf(bytes: Uint8Array, password?: string): Promise<Ope
       await page.render({ canvasContext: context as unknown as CanvasRenderingContext2D, canvas: canvas as unknown as HTMLCanvasElement, viewport }).promise;
       const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
       return { width: canvas.width, height: canvas.height, data: new Uint8ClampedArray(data) };
+    },
+    async fonts(index) {
+      const page = await doc.getPage(index + 1);
+      const content = await page.getTextContent();
+      await page.getOperatorList();
+      // Fonts arrive in commonObjs once the drawing instructions have been read; give them a moment.
+      for (const item of content.items) if ('fontName' in item) await new Promise<void>((resolve) => (page.commonObjs.has(item.fontName) ? resolve() : page.commonObjs.get(item.fontName, () => resolve())));
+      return content.items
+        .filter((item): item is Extract<typeof item, { str: string }> => 'str' in item && item.str.trim().length > 0)
+        .map((item) => {
+          const font: unknown = page.commonObjs.has(item.fontName) ? page.commonObjs.get(item.fontName) : null;
+          const name = font !== null && typeof font === 'object' && 'name' in font && typeof font.name === 'string' ? font.name : item.fontName;
+          return { text: item.str, font: name };
+        });
     },
     async annotations(index) {
       const page = await doc.getPage(index + 1);

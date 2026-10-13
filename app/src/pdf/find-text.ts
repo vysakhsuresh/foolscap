@@ -9,7 +9,7 @@
  * out by character count, which is exact for the fixed-width figures that
  * make up most of what people hide, and close enough for the rest.
  */
-import type { Area, PageLayout } from './types';
+import type { Area, LayoutItem, PageLayout } from './types';
 
 /** A kind of private detail people are asked to hide, Indian ones first. */
 export type Pattern = 'aadhaar' | 'pan' | 'phone' | 'email' | 'card';
@@ -79,7 +79,7 @@ export function splitWords(typed: string): string[] {
 }
 
 interface Placed {
-  readonly item: { readonly str: string; readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  readonly item: Pick<LayoutItem, 'str' | 'x' | 'y' | 'width' | 'height' | 'bold' | 'italic' | 'family'>;
   /** Where this piece starts in the joined line. */
   readonly start: number;
 }
@@ -253,6 +253,10 @@ export interface TextSegment {
   readonly x1: number;
   readonly baseline: number;
   readonly size: number;
+  /** The look of its first piece, so a changed line can be written again in the same weight and family. */
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly family?: 'sans' | 'serif' | 'mono';
 }
 
 /**
@@ -263,7 +267,7 @@ export interface TextSegment {
 export function segmentsOf(layout: PageLayout): TextSegment[] {
   const out: TextSegment[] = [];
   for (const line of linesOf(layout)) {
-    let current: { text: string; x0: number; x1: number; baseline: number; size: number } | null = null;
+    let current: { text: string; x0: number; x1: number; baseline: number; size: number; bold?: boolean; italic?: boolean; family?: 'sans' | 'serif' | 'mono' } | null = null;
     for (const { item } of line.pieces) {
       const size = Math.max(item.height, 1);
       const gap = current ? item.x - current.x1 : Infinity;
@@ -275,7 +279,16 @@ export function segmentsOf(layout: PageLayout): TextSegment[] {
         continue;
       }
       if (current && current.text.trim() !== '') out.push({ ...current, text: current.text.trim() });
-      current = { text: item.str, x0: item.x, x1: item.x + item.width, baseline: item.y, size };
+      current = {
+        text: item.str,
+        x0: item.x,
+        x1: item.x + item.width,
+        baseline: item.y,
+        size,
+        ...(item.bold ? { bold: true } : {}),
+        ...(item.italic ? { italic: true } : {}),
+        ...(item.family && item.family !== 'sans' ? { family: item.family } : {}),
+      };
     }
     if (current && current.text.trim() !== '') out.push({ ...current, text: current.text.trim() });
   }
