@@ -495,3 +495,15 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   dropped), bold is judged by ink, and a change repaints only the words that
   changed (`ui/scan-lines.ts`). A changed line cannot be dragged off the words
   it covers.
+- **2026-10-14** Zoom wherever a page is worked on (`ui/zoom.ts`, one kit):
+  − 100% + buttons (tap the size to fit again), two fingers to pinch and to
+  move about, Ctrl or ⌘ with the wheel (a trackpad pinch), and + − 0 on the
+  keyboard. The page editor (all eight drawing tools) zooms to 400% inside its
+  own scrolling frame and draws the page again sharp once zooming stops,
+  capped at 3200 pixels across for a phone's memory; everything placed is in
+  fractions of the page, so a mark made zoomed lands where it was put. The
+  pinch is read in the capture phase, and a second finger undoes whatever the
+  first one started (a mark put down, a box moved). Read stretches its pages
+  as the fingers move and redraws on release. Organise's − and + size the
+  thumbnails (wheel only: two fingers there move pages). Scan shows a
+  magnifier with cross hairs over the corner being dragged.

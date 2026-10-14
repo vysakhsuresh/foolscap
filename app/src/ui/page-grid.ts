@@ -17,6 +17,7 @@
 import type { OrganiseParams } from '../ops/op';
 import type { PdfView, Rotation } from '../pdf/types';
 import { ICONS, clear, el, icon } from './dom';
+import { stepZoom, watchZoomGestures, zoomButtons } from './zoom';
 
 interface Tile {
   readonly source: number;
@@ -47,6 +48,8 @@ export interface PageGrid {
 }
 
 const MAX_DPR = 2;
+/** How much bigger than 100% the − and + make a tile (its narrowest width is in the CSS). */
+const SIZES = [1, 1.5, 2, 3];
 const RENDER_CONCURRENCY = 2;
 /** How long a finger rests on a page before it lifts to be dragged; a swipe sooner than this scrolls. */
 const HOLD_MS = 350;
@@ -103,7 +106,27 @@ export function createPageGrid(onChange: () => void): PageGrid {
     selEnd,
   ]);
   selectBar.hidden = true;
-  const toolbar = el('div', { class: 'grid-tools' }, [el('div', { class: 'grid-tools__row' }, [turnAll, selectToggle]), selectBar, help]);
+  // Bigger pages, to read them before moving them: the − and + of every page view, sizing the tiles.
+  let size = 1;
+  const setSize = (next: number) => {
+    const target = Math.min(SIZES[SIZES.length - 1] ?? 3, Math.max(1, next));
+    if (Math.abs(target - size) < 0.001) return;
+    size = target;
+    list.style.setProperty('--thumb-scale', String(size));
+    sizer.show(size, 1, SIZES[SIZES.length - 1] ?? 3);
+    // Drawn again at the new size as each comes into view.
+    for (const tile of tiles) {
+      tile.rendered = false;
+      observer?.observe(tile.root);
+    }
+  };
+  const sizer = zoomButtons('grid', {
+    out: () => setSize(stepZoom(SIZES, size, -1)),
+    fit: () => setSize(1),
+    in: () => setSize(stepZoom(SIZES, size, 1)),
+  });
+  sizer.show(1, 1, SIZES[SIZES.length - 1] ?? 3);
+  const toolbar = el('div', { class: 'grid-tools' }, [el('div', { class: 'grid-tools__row' }, [turnAll, selectToggle, sizer.root]), selectBar, help]);
   const root = el('div', { class: 'page-grid-wrap' }, [toolbar, status, list]);
   root.hidden = true;
 
@@ -112,6 +135,28 @@ export function createPageGrid(onChange: () => void): PageGrid {
   let abort = new AbortController();
   let observer: IntersectionObserver | null = null;
   const pending: Tile[] = [];
+  // Ctrl-wheel sizes the tiles too; two fingers stay the grid's, for moving pages.
+  let wheelSize = 1;
+  let wheelTimer: ReturnType<typeof setTimeout> | null = null;
+  // The list lives as long as the grid, so it is watched for the grid's whole life.
+  watchZoomGestures(
+    list,
+    {
+      begin: () => undefined,
+      move: () => undefined,
+      end: () => undefined,
+      wheel: (factor) => {
+        wheelSize = (wheelTimer === null ? size : wheelSize) * factor;
+        if (wheelTimer !== null) clearTimeout(wheelTimer);
+        wheelTimer = setTimeout(() => {
+          wheelTimer = null;
+          // To the nearest step, so the size reads as one of the buttons' sizes.
+          setSize(SIZES.reduce((best, z) => (Math.abs(z - wheelSize) < Math.abs(best - wheelSize) ? z : best), size));
+        }, 150);
+      },
+    },
+    { pinch: false },
+  );
   let inFlight = 0;
   let selecting = false;
 
@@ -508,7 +553,8 @@ export function createPageGrid(onChange: () => void): PageGrid {
             }
           }
         },
-        { rootMargin: '200px' },
+        // Drawn a screen's height ahead, so a page is ready before it is scrolled to.
+        { rootMargin: '480px' },
       );
       for (const tile of tiles) observer.observe(tile.root);
       sync();

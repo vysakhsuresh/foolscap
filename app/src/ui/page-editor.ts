@@ -12,6 +12,7 @@ import { measureLabel, type Area, type Mark, type PdfView, type Rgb, type TextFa
 import { el } from './dom';
 import { check, choices, field, note, select as selectField } from './fields';
 import { fitLine } from '../pdf/fit-line';
+import { holdPoint, stepZoom, watchZoomGestures, zoomButtons } from './zoom';
 import { boldWords, findRules, planScanEdit, pngSize, scanLines, type ScanPlan, type ScanRule, type ScanWord } from './scan-lines';
 import { PATTERN_NAMES, detectBlanks, findOnPage, segmentsOf, splitWords, type Pattern } from '../pdf/find-text';
 import { SCAN_COVER } from '../pdf/page-cover';
@@ -107,6 +108,11 @@ interface MutableArea {
 
 const SVG = 'http://www.w3.org/2000/svg';
 const MAX_DPR = 2;
+/** How far the page zooms, as steps of the fitted size. */
+const ZOOMS = [1, 1.25, 1.5, 2, 2.5, 3, 4];
+const MAX_ZOOM = 4;
+/** The most pixels a page is drawn with across, however far it is zoomed: a phone's memory sets it. */
+const MAX_RENDER = 3200;
 /** The tallest the page may be drawn, as a share of the window: room is left to scroll past it on a phone. */
 const MAX_HEIGHT = 0.68;
 
@@ -136,6 +142,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
   let selected: Item | null = null;
   let renderToken = 0;
   let dragging = false;
+  /** A phone or tablet, where one finger marks the page and two move it. */
+  const touchFirst = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
 
   // ---- The page ----
   const canvas = el('canvas', { class: 'editor__canvas', attrs: { 'aria-hidden': 'true' } });
@@ -157,7 +165,12 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
   const next = el('button', { class: 'button button--ghost button--small editor__step', testid: 'editor-next', text: '›', attrs: { type: 'button', 'aria-label': 'Next page' } });
   const where = el('span', { class: 'editor__where', testid: 'editor-where', attrs: { 'aria-live': 'polite' } });
   const undo = el('button', { class: 'button button--ghost button--small', testid: 'editor-undo', text: 'Undo', attrs: { type: 'button' } });
-  const bar = el('div', { class: 'editor__bar' }, [prev, where, next, undo]);
+  const zoomer = zoomButtons('editor', {
+    out: () => setZoom(stepZoom(ZOOMS, zoom, -1)),
+    fit: () => setZoom(1),
+    in: () => setZoom(stepZoom(ZOOMS, zoom, 1)),
+  });
+  const bar = el('div', { class: 'editor__bar' }, [prev, where, next, zoomer.root, undo]);
   const hint = el('p', { class: 'editor__hint', testid: 'editor-hint' });
 
   // ---- The tools above the page, by mode ----
@@ -484,6 +497,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
     undo.disabled = items.length === 0;
     undo.hidden = mode === 'edit-images';
     hint.textContent = hintText();
+    // Zoomed in on a phone, one finger still marks the page: say how to move about it.
+    if (zoom > 1.001 && touchFirst) hint.textContent += ' Two fingers move the page and zoom it.';
     if (readButton) {
       readButton.hidden = !scanned.has(current) || readPages.has(current);
       readButton.disabled = reading;
@@ -563,10 +578,50 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
 
   // ---- Drawing the current page ----
 
-  /** The width the page is drawn at, in CSS pixels, for a page of this shape. */
+  /** The width the whole page fits in, in CSS pixels, for a page of this shape: what 100% is. */
   const layoutWidth = (aspect: number): number =>
     Math.floor(Math.min(Math.max(240, stage.clientWidth || root.clientWidth || 320), 760, (window.innerHeight * MAX_HEIGHT) / aspect));
-  let drawnWidth = 0;
+  let fitWidth = 0;
+  let zoom = 1;
+  let redraw: ReturnType<typeof setTimeout> | null = null;
+
+  /** Sizes the page for the current zoom without drawing it again: what a pinch does as it goes. */
+  function applySize(): void {
+    const cssW = Math.round(fitWidth * zoom);
+    sheet.style.setProperty('width', `${cssW}px`);
+    sheet.style.setProperty('height', `${Math.round(cssW * pageAspect)}px`);
+    sheet.style.setProperty('--page-w', `${cssW}px`);
+    const was = root.dataset['zoomed'];
+    root.dataset['zoomed'] = zoom > 1.001 ? 'true' : 'false';
+    zoomer.show(zoom, 1, MAX_ZOOM);
+    if (was !== root.dataset['zoomed']) sync();
+  }
+
+  /**
+   * Zooms to `next` about a point on screen (the middle of what shows, unless
+   * fingers or the pointer say otherwise), then draws the page again sharp at
+   * that size once the zooming stops.
+   */
+  function setZoom(next: number, at?: { x: number; y: number }, to?: { x: number; y: number }): void {
+    const target = clamp(next, 1, MAX_ZOOM);
+    // Two fingers that only moved: the page follows them, at the same size.
+    const moved = to !== undefined && at !== undefined && Math.hypot(to.x - at.x, to.y - at.y) >= 0.5;
+    if ((Math.abs(target - zoom) < 0.001 && !moved) || fitWidth === 0) return;
+    const before = sheet.getBoundingClientRect();
+    const frame = stage.getBoundingClientRect();
+    const x = at?.x ?? clamp(frame.left + frame.width / 2, before.left, before.right);
+    const y = at?.y ?? clamp(Math.max(frame.top, 0) + Math.min(frame.height, window.innerHeight) / 2, before.top, before.bottom);
+    const resized = Math.abs(target - zoom) >= 0.001;
+    zoom = target;
+    applySize();
+    holdPoint([stage, window], sheet, before, { x, y }, to ?? { x, y });
+    if (!resized) return;
+    if (redraw !== null) clearTimeout(redraw);
+    redraw = setTimeout(() => {
+      redraw = null;
+      if (!dragging) void show(current, true);
+    }, 180);
+  }
 
   /**
    * Draws page `index`. `keep` holds on to the selection: a re-draw because
@@ -589,14 +644,14 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
     pageAspect = h / w;
     aspects.set(target, pageAspect);
     pagePoints.set(target, { w, h });
-    const cssW = layoutWidth(pageAspect);
-    drawnWidth = cssW;
-    sheet.style.setProperty('width', `${cssW}px`);
-    sheet.style.setProperty('height', `${Math.round(cssW * pageAspect)}px`);
-    sheet.style.setProperty('--page-w', `${cssW}px`);
+    fitWidth = layoutWidth(pageAspect);
+    applySize();
+    const cssW = Math.round(fitWidth * zoom);
     const dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
+    // Zoomed far in, the drawing stops getting sharper before it runs a phone out of memory.
+    const across = Math.min(Math.round(cssW * dpr), MAX_RENDER, Math.round((MAX_RENDER * 1.5) / pageAspect));
     try {
-      const bitmap = await view.render(target, { width: Math.round(cssW * dpr) });
+      const bitmap = await view.render(target, { width: across });
       if (token !== renderToken) {
         bitmap.close();
         return;
@@ -867,7 +922,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
         item.area.x = item.line.x;
         item.area.w = item.line.w;
       }
-      item.el.style.setProperty('padding-left', plan ? `${(plan.start - item.area.x) * pageWidthPx()}px` : '0px');
+      item.el.style.setProperty('padding-left', plan ? `calc(var(--page-w) * ${plan.start - item.area.x})` : '0px');
       if (body) body.textContent = plan ? plan.text || ' ' : item.text || ' ';
       if (plan) item.el.style.setProperty('font-weight', plan.bold ? '700' : '400');
       position(item);
@@ -1105,19 +1160,61 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
       if (e.pointerId !== ev.pointerId) return;
       move((e.clientX - x0) / box.width, (e.clientY - y0) / box.height, start);
     };
-    const onUp = (e: PointerEvent) => {
-      if (e.pointerId !== ev.pointerId) return;
+    const stop = () => {
       target.removeEventListener('pointermove', onMove as EventListener);
       target.removeEventListener('pointerup', onUp as EventListener);
       target.removeEventListener('pointercancel', onUp as EventListener);
       dragging = false;
+      if (stopDrag === stop) stopDrag = null;
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId !== ev.pointerId) return;
+      stop();
       end?.();
       onChange();
     };
+    stopDrag = stop;
     target.addEventListener('pointermove', onMove as EventListener);
     target.addEventListener('pointerup', onUp as EventListener);
     target.addEventListener('pointercancel', onUp as EventListener);
   }
+
+  /** Ends the drag under way without finishing it: a second finger made it a pinch. */
+  let stopDrag: (() => void) | null = null;
+
+  // Two fingers zoom, and a second finger takes back whatever the first one just started:
+  // a mark it put down, or a box it was moving.
+  let before: { count: number; areas: Map<Boxed, MutableArea> } | null = null;
+  let pinchFrom = 1;
+  let lastMid: { x: number; y: number } | null = null;
+  const unwatchZoom = watchZoomGestures(stage, {
+    touch: () => {
+      before = { count: items.length, areas: new Map(items.filter((i): i is Boxed => !isVector(i)).map((i) => [i, { ...i.area }])) };
+    },
+    begin: () => {
+      stopDrag?.();
+      if (before) {
+        for (const item of items.slice(before.count).reverse()) remove(item);
+        for (const [item, area] of before.areas) {
+          if (!items.includes(item) || (item.area.x === area.x && item.area.y === area.y && item.area.w === area.w && item.area.h === area.h)) continue;
+          Object.assign(item.area, area);
+          position(item);
+        }
+      }
+      before = null;
+      pinchFrom = zoom;
+      lastMid = null;
+    },
+    // Each step zooms about where the fingers were and carries that point to where they are now.
+    move: (scale, x, y) => {
+      setZoom(pinchFrom * scale, lastMid ?? { x, y }, { x, y });
+      lastMid = { x, y };
+    },
+    end: () => {
+      lastMid = null;
+    },
+    wheel: (factor, x, y) => setZoom(zoom * factor, { x, y }),
+  });
 
   const pointAt = (ev: PointerEvent): [number, number] => {
     const box = sheet.getBoundingClientRect();
@@ -1375,6 +1472,11 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
   // The keyboard: Enter on the page puts something in its middle; the arrow
   // keys then move whatever is selected (Shift for bigger steps).
   layer.addEventListener('keydown', (ev) => {
+    if (view && !ev.ctrlKey && !ev.metaKey && !ev.altKey && (ev.key === '+' || ev.key === '=' || ev.key === '-' || ev.key === '0')) {
+      ev.preventDefault();
+      setZoom(ev.key === '0' ? 1 : stepZoom(ZOOMS, zoom, ev.key === '-' ? -1 : 1));
+      return;
+    }
     if (!view || (ev.key !== 'Enter' && ev.key !== ' ')) return;
     ev.preventDefault();
     select(null);
@@ -1569,7 +1671,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
     if (resizeTimer !== null) clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       // Only when the page would really be drawn at a new size, and never mid-drag.
-      if (dragging || layoutWidth(pageAspect) === drawnWidth) return;
+      if (dragging || layoutWidth(pageAspect) === fitWidth) return;
       void show(current, true);
     }, 200);
   };
@@ -1741,6 +1843,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
       await view?.close();
       view = next;
       items = [];
+      // A new document starts fitted to the screen.
+      zoom = 1;
       pageLines.clear();
       pagePics.clear();
       bare.clear();
@@ -1801,6 +1905,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
     },
     async destroy() {
       window.removeEventListener('resize', onResize);
+      unwatchZoom();
+      if (redraw !== null) clearTimeout(redraw);
       root.hidden = true;
       items = [];
       layer.replaceChildren();

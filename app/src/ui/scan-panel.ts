@@ -28,6 +28,9 @@ interface Card {
 }
 
 const SVG = 'http://www.w3.org/2000/svg';
+/** The magnifier over a dragged corner: its size on screen, and how much it enlarges. */
+const LOUPE = 112;
+const ZOOM = 3;
 /** The finder works on a copy this wide: big enough to see a sheet, small enough to be instant. */
 const PROBE = 200;
 
@@ -65,13 +68,54 @@ export function createScanPanel(onChange: () => void): ScanPanel {
     const handles = ['top left', 'top right', 'bottom right', 'bottom left'].map((name, i) =>
       el('button', { class: 'scan-card__handle', testid: `scan-handle-${i}`, attrs: { type: 'button', 'aria-label': `Move the ${name} corner (arrow keys)` } }),
     );
-    const stage = el('div', { class: 'scan-card__stage' }, [canvas, svg, ...handles]);
+    // A magnifier over the corner being dragged: a finger covers the very spot it is placing.
+    const lens = el('canvas', { class: 'scan-card__loupe', testid: 'scan-loupe', attrs: { 'aria-hidden': 'true' } });
+    lens.hidden = true;
+    const stage = el('div', { class: 'scan-card__stage' }, [canvas, svg, ...handles, lens]);
     const number = el('span', { class: 'scan-card__number' });
     const turn = el('button', { class: 'button button--ghost button--small', testid: 'scan-turn', text: 'Turn', attrs: { type: 'button', 'aria-label': 'Turn this page a quarter' } });
     const reset = el('button', { class: 'button button--ghost button--small', testid: 'scan-reset', text: 'Find the page again', attrs: { type: 'button' } });
     const rootEl = el('li', { class: 'scan-card', testid: 'scan-card', attrs: { 'data-id': file.id } }, [stage, el('div', { class: 'scan-card__bar' }, [number, turn, reset])]);
     const c: Card = { id: file.id, root: rootEl, corners: [...DEFAULT_CORNERS], turn: 0, ready: false };
     let found: Corners | null = null;
+
+    /** Shows the photo round (fx, fy) three times larger, with cross hairs, just above it (below near the top). */
+    const magnify = (fx: number, fy: number) => {
+      if (canvas.width <= 1) return;
+      const box = canvas.getBoundingClientRect();
+      const side = LOUPE;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      lens.width = Math.round(side * dpr);
+      lens.height = Math.round(side * dpr);
+      const ctx = lens.getContext('2d');
+      if (!ctx) return;
+      // What one CSS pixel of the photo on screen is in the photo's own pixels.
+      const per = canvas.width / Math.max(1, box.width);
+      const span = (side / ZOOM) * per;
+      ctx.fillStyle = '#0a0c10';
+      ctx.fillRect(0, 0, lens.width, lens.height);
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(canvas, fx * canvas.width - span / 2, fy * canvas.height - span / 2, span, span, 0, 0, lens.width, lens.height);
+      // Cross hairs on the exact point: light under dark, so they show on any paper or table.
+      const mid = lens.width / 2;
+      const arm = lens.width * 0.18;
+      for (const [colour, weight] of [['rgb(255 255 255 / 0.9)', 3], ['#0a0c10', 1.25]] as const) {
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = weight * dpr;
+        ctx.beginPath();
+        ctx.moveTo(mid - arm, mid);
+        ctx.lineTo(mid + arm, mid);
+        ctx.moveTo(mid, mid - arm);
+        ctx.lineTo(mid, mid + arm);
+        ctx.stroke();
+      }
+      lens.hidden = false;
+      const x = fx * box.width;
+      const y = fy * box.height;
+      const above = y - side - 36 >= -box.top + 8;
+      lens.style.setProperty('left', `${Math.min(Math.max(x - side / 2, -side / 3), box.width - (side * 2) / 3)}px`);
+      lens.style.setProperty('top', `${above ? y - side - 36 : y + 36}px`);
+    };
 
     const paint = () => {
       shape.setAttribute('points', [0, 1, 2, 3].map((i) => `${(c.corners[i * 2] ?? 0) * 1000},${(c.corners[i * 2 + 1] ?? 0) * 1000}`).join(' '));
@@ -92,8 +136,11 @@ export function createScanPanel(onChange: () => void): ScanPanel {
           c.corners[i * 2] = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width));
           c.corners[i * 2 + 1] = Math.min(1, Math.max(0, (e.clientY - box.top) / box.height));
           paint();
+          magnify(c.corners[i * 2] ?? 0, c.corners[i * 2 + 1] ?? 0);
         };
+        magnify(c.corners[i * 2] ?? 0, c.corners[i * 2 + 1] ?? 0);
         const up = () => {
+          lens.hidden = true;
           handle.removeEventListener('pointermove', move);
           handle.removeEventListener('pointerup', up);
           handle.removeEventListener('pointercancel', up);

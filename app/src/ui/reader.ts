@@ -9,6 +9,7 @@
 import { LIVE_TOOLS, type ToolId } from '../ops/tools';
 import type { OutlineItem, PdfView } from '../pdf/types';
 import { el } from './dom';
+import { holdPoint, watchZoomGestures } from './zoom';
 
 export interface Reader {
   readonly root: HTMLElement;
@@ -339,6 +340,51 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   zoomIn.addEventListener('click', () => setZoom(ZOOMS.find((z) => z > zoom + 0.001) ?? zoom));
   zoomOut.addEventListener('click', () => setZoom([...ZOOMS].reverse().find((z) => z < zoom - 0.001) ?? zoom));
   zoomLabel.addEventListener('click', () => setZoom(1));
+
+  // Two fingers or Ctrl-wheel: the pages are stretched as the fingers move (cheap), then
+  // drawn again sharp at the new size once they stop, with the point under the fingers kept.
+  let pinch: { from: { x: number; y: number }; to: { x: number; y: number }; page: HTMLElement; rect: DOMRect; scale: number } | null = null;
+  let pinchFrom = 1;
+  let settle: ReturnType<typeof setTimeout> | null = null;
+  const lo = ZOOMS[0] ?? 0.5;
+  const hi = ZOOMS[ZOOMS.length - 1] ?? 3;
+  function stretch(scale: number, x: number, y: number): void {
+    if (!pinch) {
+      const under = document.elementFromPoint(x, y)?.closest<HTMLElement>('.reader__page') ?? slots[currentPage()]?.root ?? null;
+      if (!under) return;
+      const box = pages.getBoundingClientRect();
+      pages.style.setProperty('transform-origin', `${x - box.left}px ${y - box.top}px`);
+      pinch = { from: { x, y }, to: { x, y }, page: under, rect: under.getBoundingClientRect(), scale: 1 };
+    }
+    const target = Math.min(hi, Math.max(lo, pinchFrom * scale));
+    pinch.scale = target / zoom;
+    pinch.to = { x, y };
+    pages.style.setProperty('transform', `translate(${x - pinch.from.x}px, ${y - pinch.from.y}px) scale(${pinch.scale})`);
+  }
+  function commit(): void {
+    if (settle !== null) clearTimeout(settle);
+    settle = null;
+    const done = pinch;
+    pinch = null;
+    pages.style.removeProperty('transform');
+    pages.style.removeProperty('transform-origin');
+    if (!done || Math.abs(done.scale - 1) < 0.01) return;
+    setZoom(zoom * done.scale);
+    holdPoint([pages, window], done.page, done.rect, done.from, done.to);
+  }
+  const unwatchZoom = watchZoomGestures(pages, {
+    begin: () => {
+      pinchFrom = zoom;
+    },
+    move: (scale, x, y) => stretch(scale, x, y),
+    end: () => commit(),
+    wheel: (factor, x, y) => {
+      if (!pinch) pinchFrom = zoom;
+      stretch((pinch ? pinch.scale * zoom : zoom) * factor / pinchFrom, x, y);
+      if (settle !== null) clearTimeout(settle);
+      settle = setTimeout(commit, 220);
+    },
+  });
   night.addEventListener('click', () => {
     const on = !root.classList.contains('reader--night');
     root.classList.toggle('reader--night', on);
@@ -564,6 +610,8 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
     problem: () => null,
     destroy: () => {
       root.hidden = true;
+      unwatchZoom();
+      if (settle !== null) clearTimeout(settle);
       return teardown();
     },
   };
