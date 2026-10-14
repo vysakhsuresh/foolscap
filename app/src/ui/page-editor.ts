@@ -7,10 +7,12 @@
  * Gestures, kept to the two anybody already knows: tap to put something
  * down, drag to draw or move. Whatever is selected gets a × to take it off.
  */
-import type { CreateFormParams, EditImagesParams, MarksParams, RemoveAreasParams } from '../ops/op';
+import type { CreateFormParams, EditImagesParams, MarksParams, OcrWord, RemoveAreasParams } from '../ops/op';
 import { measureLabel, type Area, type Mark, type PdfView, type Rgb, type TextFace } from '../pdf/types';
 import { el } from './dom';
 import { check, choices, field, note, select as selectField } from './fields';
+import { fitLine } from '../pdf/fit-line';
+import { boldWords, findRules, planScanEdit, pngSize, scanLines, type ScanPlan, type ScanRule, type ScanWord } from './scan-lines';
 import { PATTERN_NAMES, detectBlanks, findOnPage, segmentsOf, splitWords, type Pattern } from '../pdf/find-text';
 import { SCAN_COVER } from '../pdf/page-cover';
 
@@ -44,7 +46,7 @@ type Item =
   /** A fillable field to add, for Create form. */
   | { kind: 'field'; area: MutableArea; field: FieldKind; name: string; options: string[]; el: HTMLElement }
   /** A line of the page's own text, rewritten: painted over in `paper`, written again in `color`. */
-  | { kind: 'edit'; area: MutableArea; original: string; text: string; size: number; color: Rgb; paper: Rgb; baseline: number; align: 'left' | 'right'; face: TextFace; el: HTMLElement }
+  | { kind: 'edit'; area: MutableArea; original: string; text: string; size: number; color: Rgb; paper: Rgb; baseline: number; align: 'left' | 'right'; face: TextFace; room: EditableLine['room']; own?: EditableLine['own']; words: { x0: number; x1: number }; scan?: readonly ScanWord[]; line?: MutableArea; plan?: ScanPlan | null; el: HTMLElement }
   | { kind: 'ink'; page: number; points: number[]; width: number; color: Rgb; el: SVGPolylineElement }
   | {
       kind: 'line';
@@ -87,6 +89,12 @@ interface EditableLine {
   readonly baseline: number;
   /** Bold, italic, serif or fixed-width, as the page's own font is: the new words are written the same way. */
   readonly face: TextFace;
+  /** How far new words may run, in fractions of the page width: to the cell's border or the next words. */
+  readonly room: { readonly left: number; readonly right: number };
+  /** The font the line is drawn in, and the characters the page shows in it, to write the new words in the same. */
+  readonly own?: { readonly name: string; readonly chars: string };
+  /** On a scan: the line's words as the reader found them, so a change repaints only what changed. */
+  readonly scan?: readonly ScanWord[];
 }
 
 interface MutableArea {
@@ -116,7 +124,10 @@ const css = (rgbValue: Rgb, alpha = 1): string =>
 
 const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n));
 
-export function createPageEditor(mode: EditorMode, onChange: () => void): PageEditor {
+/** Reads the words in a picture of a page: the tool page passes the job runner's reader. */
+export type ReadScan = (png: Uint8Array, width: number, height: number) => Promise<OcrWord[]>;
+
+export function createPageEditor(mode: EditorMode, onChange: () => void, opts: { readonly readScan?: ReadScan } = {}): PageEditor {
   let view: PdfView | null = null;
   let current = 0;
   let pageAspect = 1; // height / width, as seen
@@ -179,6 +190,12 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
   const pagePics = new Set<number>();
   /** Pages found to have nothing this mode can change (no pictures, or no text): the hint says so. */
   const bare = new Set<number>();
+  /** Edit text: pages that are a picture of paper, and those whose words the reader has read. */
+  const scanned = new Set<number>();
+  const readPages = new Set<number>();
+  const readFailed = new Set<number>();
+  let reading = false;
+  let readButton: HTMLButtonElement | null = null;
   // Create form.
   let fieldKind: ReturnType<typeof choices<FieldKind>> | null = null;
   let fieldName: ReturnType<typeof field> | null = null;
@@ -336,6 +353,13 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       }
     });
   } else if (mode === 'edit-text') {
+    if (opts.readScan) {
+      const button = el('button', { class: 'button button--small', testid: 'read-scan', text: 'Read the words on this page', attrs: { type: 'button' } });
+      button.hidden = true;
+      button.addEventListener('click', () => void readScanned(current));
+      tools.append(button);
+      readButton = button;
+    }
     textBox = el('textarea', { class: 'input', testid: 'opt-words', attrs: { id: 'opt-words', rows: '2', spellcheck: 'true', placeholder: 'Tap a line on the page, then change it here' } });
     tools.append(el('label', { class: 'field' }, [el('span', { class: 'field__label', text: 'The line you tapped' }), textBox]));
     textBox.addEventListener('input', () => {
@@ -353,7 +377,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         el('summary', { class: 'finder__summary', text: 'Find and replace' }),
         el('div', { class: 'finder__body' }, [el('div', { class: 'field-row' }, [find.root, replaceWith.root]), go, said]),
       ]),
-      note('The old words are painted over in the page’s own colour and the new ones written in their place, in the nearest built-in font. The old words stay inside the file underneath, so anyone who copies the text can still find them: to take words out for good, use Remove areas.'),
+      note('The old words are painted over in the page’s own colour and the new ones written in their place: in the document’s own font where it can be, otherwise the nearest built-in one, and squeezed a little to stay inside a table cell. On a scan, only the words you change are repainted. The old words stay inside the file underneath, so anyone who copies the text can still find them: to take words out for good, use Remove areas.'),
     );
     go.addEventListener('click', () => void replaceEverywhere(find.value(), replaceWith.value(), said, go));
   } else if (mode === 'edit-images') {
@@ -460,6 +484,10 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     undo.disabled = items.length === 0;
     undo.hidden = mode === 'edit-images';
     hint.textContent = hintText();
+    if (readButton) {
+      readButton.hidden = !scanned.has(current) || readPages.has(current);
+      readButton.disabled = reading;
+    }
     if (fieldOptions) fieldOptions.root.hidden = (selected?.kind === 'field' ? selected.field : fieldKind?.value()) !== 'choice';
     if (mode === 'mark-up') {
       const tool = toolChoice?.value() ?? 'highlight';
@@ -511,6 +539,16 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       case 'add-image':
         return chosen === null ? 'Choose a picture above, then tap the page where it goes.' : 'Tap the page to put the picture there. Drag it to move it; drag its corner to resize.';
       case 'edit-text':
+        if (scanned.has(current) && !readPages.has(current)) {
+          if (reading) return 'Reading the words on this page… The first time, the reader is fetched from this site.';
+          if (readFailed.has(current)) return 'The words could not be read. The first time, the reader has to be fetched from this site: check the connection, then tap “Read the words on this page” again.';
+          if (opts.readScan) return 'This page is a picture of paper, from a scanner or a camera. Tap “Read the words on this page”, then tap a line to change it.';
+        }
+        if (readPages.has(current)) {
+          return bare.has(current)
+            ? 'No words could be read on this page: it may be handwritten, or too faint. Write on it with Add text instead.'
+            : 'Tap a line to change it. Only the words you change are painted over; the rest stays as scanned. They were read from a picture, so check names and numbers.';
+        }
         if (bare.has(current)) return 'This page has no text to change: it is a scanned picture, or its words are drawn as shapes. Write on it with Add text, or take something out with Remove areas.';
         return 'Tap any words on the page to change them. Everything you can change is outlined, cell by cell in a table.';
       case 'create-form':
@@ -612,6 +650,9 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     }
   }
 
+  /** For measuring a changed line's words, as the page's own text would be. */
+  let measurer: CanvasRenderingContext2D | null = null;
+
   /** Edit text: reads a page's lines once, with where each sits, its size, and the page's colours round it. */
   function linesFor(index: number): Promise<EditableLine[]> {
     let found = pageLines.get(index);
@@ -621,9 +662,19 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         if (!v) return [];
         const layout = await v.layout(index).catch(() => null);
         if (!layout) return [];
-        // A scanned page's words are a hidden layer the scanner guessed: "changing" one would
-        // paint a box over the photo of the page. Such a page has no text to change.
-        if ((layout.pictureCover ?? 0) >= SCAN_COVER && (layout.hiddenText ?? 0) >= 0.8) return [];
+        // A picture of paper: its words are pixels (and any hidden layer is a scanner's guess,
+        // never what the page shows). They become editable once the reader has read them.
+        if ((layout.pictureCover ?? 0) >= SCAN_COVER && (layout.items.length === 0 || (layout.hiddenText ?? 0) >= 0.8)) {
+          scanned.add(index);
+          return [];
+        }
+        // What each font already draws on the page: a subset font can write those again, and nothing else for sure.
+        const shown = new Map<string, Set<string>>();
+        for (const item of layout.items) {
+          const set = shown.get(item.fontName) ?? new Set<string>();
+          for (const ch of item.str) set.add(ch);
+          shown.set(item.fontName, set);
+        }
         // One editable piece per cell: a row of a table is never rewritten as one run of words.
         return segmentsOf(layout).map((seg): EditableLine => {
           const top = seg.baseline - seg.size * 0.95;
@@ -636,6 +687,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
             align: NUMERIC.test(seg.text) ? 'right' : 'left',
             face: { ...(seg.bold ? { bold: true } : {}), ...(seg.italic ? { italic: true } : {}), ...(seg.family ? { family: seg.family } : {}) },
             area: { page: index, x: seg.x0 / layout.width, y: top / layout.height, w: (seg.x1 - seg.x0) / layout.width, h: (bottom - top) / layout.height },
+            room: { left: seg.room.left / layout.width, right: seg.room.right / layout.width },
+            ...(seg.font ? { own: { name: seg.font, chars: [...(shown.get(seg.font) ?? [])].join('') } } : {}),
           };
         });
       })();
@@ -664,45 +717,125 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     if (!sheet.contains(lineHints)) sheet.insertBefore(lineHints, layer);
   }
 
-  /** The colour just left of a line (the paper), and the darkest inside it (the ink), from the drawn page. */
+  /** Edit text on a scan: draws the page sharp enough to read, has the reader read it, and outlines its lines. */
+  async function readScanned(index: number): Promise<void> {
+    const v = view;
+    const read = opts.readScan;
+    if (!v || !read || reading) return;
+    reading = true;
+    readFailed.delete(index);
+    sync();
+    try {
+      // About 300 dots an inch across an A4 page: what the reader reads best.
+      const png = await v.encode(index, { width: 2480, format: 'png' });
+      const size = pngSize(png) ?? { width: 2480, height: Math.round(2480 * (aspects.get(index) ?? pageAspect)) };
+      const aspect = size.height / size.width;
+      const words = await read(png, size.width, size.height);
+      // The table lines printed on the paper, from a half-size picture: they split a row into its cells.
+      let rules: ScanRule[] = [];
+      let picture: ImageData | null = null;
+      try {
+        const bitmap = await createImageBitmap(new Blob([png as Uint8Array<ArrayBuffer>], { type: 'image/png' }), { resizeWidth: 1240, resizeQuality: 'medium' });
+        const board = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const ink = board.getContext('2d', { willReadFrequently: true });
+        if (ink) {
+          ink.drawImage(bitmap, 0, 0);
+          picture = ink.getImageData(0, 0, bitmap.width, bitmap.height);
+          rules = findRules(picture, Math.round(bitmap.height * 0.012));
+        }
+        bitmap.close();
+      } catch {
+        // Without the lines, wide gaps still split the cells.
+      }
+      const raw = scanLines(words, aspect, rules);
+      // Bold where a word carries clearly more ink than the page's usual.
+      const heavy = picture ? boldWords(picture, raw.flatMap((line) => line.words.map((w) => ({ x0: w.x0, x1: w.x1, top: line.baseline - (line.size * 0.72) / aspect, bottom: line.baseline })))) : [];
+      let n = 0;
+      const found = raw.map((line) => ({ ...line, words: line.words.map((w) => (heavy[n++] ? { ...w, bold: true } : w)) }));
+      const lines = found.map(
+        (line): EditableLine => ({
+          text: line.text,
+          size: line.size,
+          baseline: line.baseline,
+          align: 'left',
+          face: line.words.filter((w) => w.bold).length * 2 > line.words.length ? { bold: true } : {},
+          area: { page: index, x: line.x0, y: Math.max(0, line.baseline - (line.size * 0.95) / aspect), w: line.x1 - line.x0, h: (line.size * 1.23) / aspect },
+          room: line.room,
+          scan: line.words,
+        }),
+      );
+      pageLines.set(index, Promise.resolve(lines));
+      readPages.add(index);
+      if (lines.length > 0) bare.delete(index);
+      if (index === current) await outlineLines(index, renderToken);
+    } catch {
+      readFailed.add(index);
+    } finally {
+      reading = false;
+      sync();
+    }
+  }
+
+  /**
+   * The paper round a line and the ink of its words, from the drawn page: the
+   * paper is the colour most of the line's box is (a cell's shading, a tinted
+   * form), the ink the darkest colour in it.
+   */
   function coloursAt(area: MutableArea): { paper: Rgb; ink: Rgb } {
     const fallback = { paper: [1, 1, 1] as Rgb, ink: [0.08, 0.08, 0.1] as Rgb };
     const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context || canvas.width === 0 || area.page !== current) return fallback;
     const px = (fx: number) => clamp(Math.round(fx * canvas.width), 0, canvas.width - 1);
     const py = (fy: number) => clamp(Math.round(fy * canvas.height), 0, canvas.height - 1);
-    const sx = px(area.x) - 3;
-    const paperAt = context.getImageData(Math.max(0, sx), py(area.y + area.h / 2), 1, 1).data;
-    const paper: Rgb = [(paperAt[0] ?? 255) / 255, (paperAt[1] ?? 255) / 255, (paperAt[2] ?? 255) / 255];
     const x0 = px(area.x);
     const y0 = py(area.y);
     const w = Math.max(1, px(area.x + area.w) - x0);
     const h = Math.max(1, py(area.y + area.h) - y0);
     const data = context.getImageData(x0, y0, w, h).data;
+    // Per colour step: how many pixels, and their sum, so the paper is their true average.
+    const counts = new Map<number, [number, number, number, number]>();
     let best = 765;
-    let ink: Rgb = fallback.ink;
+    let seen: Rgb = fallback.ink;
     for (let i = 0; i < data.length; i += 4) {
-      const sum = (data[i] ?? 255) + (data[i + 1] ?? 255) + (data[i + 2] ?? 255);
-      if (sum < best) {
-        best = sum;
-        ink = [(data[i] ?? 0) / 255, (data[i + 1] ?? 0) / 255, (data[i + 2] ?? 0) / 255];
+      const r = data[i] ?? 255;
+      const g = data[i + 1] ?? 255;
+      const b = data[i + 2] ?? 255;
+      // Counted in steps of 8, so the faint speckle of a scan or a gradient still reads as one colour.
+      const key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+      const bin = counts.get(key) ?? [0, 0, 0, 0];
+      bin[0]++;
+      bin[1] += r;
+      bin[2] += g;
+      bin[3] += b;
+      counts.set(key, bin);
+      if (r + g + b < best) {
+        best = r + g + b;
+        seen = [r / 255, g / 255, b / 255];
       }
     }
-    return { paper, ink: trueInk(ink, paper) };
+    let top: [number, number, number, number] | null = null;
+    for (const bin of counts.values()) if (top === null || bin[0] > top[0]) top = bin;
+    if (top === null) return fallback;
+    const [n, r, g, b] = top;
+    const paper: Rgb = [r / n / 255, g / n / 255, b / n / 255];
+    return { paper, ink: trueInk(seen, paper) };
   }
 
   /** Whether an edit already made is of this piece of text: the same line, the same place on it. */
   const sameSpot = (item: Extract<Item, { kind: 'edit' }>, line: EditableLine) =>
-    Math.abs(item.baseline - line.baseline) < 0.002 && Math.abs(item.area.x + 0.004 - line.area.x) < 0.006;
+    Math.abs(item.baseline - line.baseline) < 0.002 && Math.abs(item.words.x0 - line.area.x) < 0.006;
 
   function makeEdit(line: EditableLine, text: string): Extract<Item, { kind: 'edit' }> {
+    // A little wider than the words, but never over the cell's own border lines.
     const pad = 0.004;
-    const area: MutableArea = { page: line.area.page, x: Math.max(0, line.area.x - pad), y: line.area.y, w: Math.min(1, line.area.w + 2 * pad), h: line.area.h };
+    const x0 = Math.max(0, line.room.left, line.area.x - pad);
+    const x1 = Math.min(1, line.room.right, line.area.x + line.area.w + pad);
+    const area: MutableArea = { page: line.area.page, x: x0, y: line.area.y, w: Math.max(0.002, x1 - x0), h: line.area.h };
     const { paper, ink } = coloursAt(area);
     const box = boxElement('edit', 'Changed line');
     box.prepend(el('span', { class: 'editor__words' }));
     box.classList.toggle('editor__item--edit-right', line.align === 'right');
-    return { kind: 'edit', area, original: line.text, text, size: line.size, color: ink, paper, baseline: line.baseline, align: line.align, face: line.face, el: box };
+    return { kind: 'edit', area, original: line.text, text, size: line.size, color: ink, paper, baseline: line.baseline, align: line.align, face: line.face, room: line.room, ...(line.own ? { own: line.own } : {}), words: { x0: line.area.x, x1: line.area.x + line.area.w }, ...(line.scan ? { scan: line.scan, line: { ...area } } : {}), el: box };
   }
 
   function paintEdit(item: Extract<Item, { kind: 'edit' }>): void {
@@ -714,7 +847,37 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     // Shown as it will be written: the nearest of Helvetica, Times and Courier, in the line's own weight.
     item.el.style.setProperty('font-weight', item.face.bold ? '700' : '400');
     item.el.style.setProperty('font-style', item.face.italic ? 'italic' : 'normal');
-    item.el.style.setProperty('font-family', item.face.family === 'serif' ? '"Times New Roman", Times, serif' : item.face.family === 'mono' ? '"Courier New", Courier, monospace' : 'Helvetica, Arial, sans-serif');
+    const family = item.face.family === 'serif' ? '"Times New Roman", Times, serif' : item.face.family === 'mono' ? '"Courier New", Courier, monospace' : 'Helvetica, Arial, sans-serif';
+    item.el.style.setProperty('font-family', family);
+    // Kept inside its cell as it will be written: squeezed a little, then smaller.
+    const px = item.size * pageWidthPx();
+    const measure = (measurer ??= document.createElement('canvas').getContext('2d'));
+    let fit = { squeeze: 100, scale: 1 };
+    if (measure && px > 0) measure.font = `${item.face.italic ? 'italic ' : ''}${item.face.bold ? '700' : '400'} ${px}px ${family}`;
+    const width = (words: string) => (measure && px > 0 ? measure.measureText(words).width / pageWidthPx() : words.length * item.size * 0.5);
+    if (item.scan && item.line) {
+      // On a scan only the changed words are painted over and written; the rest stays the picture.
+      const plan = planScanEdit({ words: item.scan, room: item.room, size: item.size }, item.text, width);
+      item.plan = plan;
+      const pad = 0.003;
+      if (plan) {
+        item.area.x = Math.max(0, plan.paint.x0 - pad);
+        item.area.w = Math.max(0.004, Math.min(1, plan.paint.x1 + pad) - item.area.x);
+      } else {
+        item.area.x = item.line.x;
+        item.area.w = item.line.w;
+      }
+      item.el.style.setProperty('padding-left', plan ? `${(plan.start - item.area.x) * pageWidthPx()}px` : '0px');
+      if (body) body.textContent = plan ? plan.text || ' ' : item.text || ' ';
+      if (plan) item.el.style.setProperty('font-weight', plan.bold ? '700' : '400');
+      position(item);
+      if (plan) fit = fitLine(width(plan.text), plan.right - plan.start);
+    } else if (px > 0) {
+      const room = item.align === 'right' ? item.words.x1 - item.room.left : item.room.right - item.words.x0;
+      fit = fitLine(width(item.text), room);
+    }
+    item.el.style.setProperty('--fit-x', String(fit.squeeze / 100));
+    item.el.style.setProperty('--fit-scale', String(fit.scale));
   }
 
   async function replaceEverywhere(find: string, replacement: string, say: HTMLElement, button: HTMLButtonElement): Promise<void> {
@@ -898,7 +1061,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       const step = ev.shiftKey ? 0.05 : 0.01;
       const dx = ev.key === 'ArrowLeft' ? -step : ev.key === 'ArrowRight' ? step : 0;
       const dy = ev.key === 'ArrowUp' ? -step : ev.key === 'ArrowDown' ? step : 0;
-      if (dx === 0 && dy === 0) return;
+      // A changed line stays over the words it replaces.
+      if ((dx === 0 && dy === 0) || item.kind === 'edit') return;
       ev.preventDefault();
       item.area.x = clamp(item.area.x + dx, 0, Math.max(0, 1 - item.area.w));
       item.area.y = clamp(item.area.y + dy, 0, Math.max(0, 1 - item.area.h));
@@ -912,6 +1076,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       select(item);
       if (item.kind === 'text' || item.kind === 'note' || item.kind === 'edit') textBox?.focus({ preventScroll: true });
       const resizing = handle !== null && ev.target === handle;
+      if (item.kind === 'edit') return;
       drag(ev, item.el, (dx, dy, start) => {
         if (resizing && (item.kind === 'image' || item.kind === 'picture' || item.kind === 'stamp' || item.kind === 'pic')) {
           const w = clamp(start.w + dx, 0.05, 1 - item.area.x);
@@ -1187,7 +1352,12 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     const lines = await linesFor(page);
     const line = lines.find((l) => px >= l.area.x - 0.01 && px <= l.area.x + l.area.w + 0.01 && py >= l.area.y && py <= l.area.y + l.area.h);
     if (!line) {
-      hint.textContent = lines.length === 0 ? 'This page has no text to change: it is a scanned picture, or its words are drawn as shapes.' : 'Tap right on a line of text: the outlined ones can be changed.';
+      hint.textContent =
+        scanned.has(page) && !readPages.has(page) && opts.readScan
+          ? 'Tap “Read the words on this page” first: this page is a picture, and its words have to be read before they can be changed.'
+          : lines.length === 0
+            ? 'This page has no text to change: it is a scanned picture, or its words are drawn as shapes.'
+            : 'Tap right on a line of text: the outlined ones can be changed.';
       return;
     }
     const existing = items.find((i) => i.kind === 'edit' && i.area.page === page && sameSpot(i, line));
@@ -1503,6 +1673,30 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
           break;
         case 'edit': {
           if (item.text === item.original) break;
+          if (item.scan) {
+            // A scan: the changed words' span painted out, the new words written from where they began.
+            const plan = item.plan;
+            if (!plan) break;
+            out.push({ kind: 'fill', area: { ...item.area }, color: item.paper });
+            if (plan.text.trim() === '' || !WIN_ANSI.test(plan.text)) {
+              if (plan.text.trim() !== '') {
+                const picture = textPicture(plan.text, item.size, item.color, pageWidthPx(), aspects.get(item.area.page) ?? pageAspect);
+                if (picture) out.push({ kind: 'image', area: { page: item.area.page, x: plan.start, y: Math.max(0, item.area.y), w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png });
+              }
+              break;
+            }
+            const aspect = aspects.get(item.area.page) ?? pageAspect;
+            out.push({
+              kind: 'text',
+              area: { page: item.area.page, x: plan.start, y: Math.max(0, item.baseline - (0.97 * item.size) / aspect), w: Math.max(0.01, plan.right - plan.start), h: Math.max(0.01, item.area.h) },
+              text: plan.text,
+              size: item.size,
+              color: item.color,
+              ...(plan.bold ? { face: { bold: true } } : {}),
+              fit: { left: plan.start, right: plan.right },
+            });
+            break;
+          }
           const paper = item.paper;
           out.push({ kind: 'fill', area: { ...item.area }, color: paper });
           if (item.text.trim() === '') break;
@@ -1510,9 +1704,9 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
           const size = item.size;
           const aspect = aspects.get(item.area.page) ?? pageAspect;
           const top = item.baseline - (0.97 * size) / aspect;
-          const x = item.area.x + 0.004;
+          const x = item.words.x0;
           // The old words' own width, so a right-aligned amount keeps its right edge.
-          const w = Math.max(0.01, item.area.w - 0.008);
+          const w = Math.max(0.01, item.words.x1 - item.words.x0);
           if (WIN_ANSI.test(item.text)) {
             out.push({
               kind: 'text',
@@ -1522,6 +1716,8 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
               color: item.color,
               ...(item.align === 'right' ? { align: 'right' as const } : {}),
               ...(Object.keys(item.face).length > 0 ? { face: { ...item.face } } : {}),
+              ...(item.own ? { own: { ...item.own } } : {}),
+              fit: { ...item.room },
             });
           } else {
             const picture = textPicture(item.text, size, item.color, pageWidthPx(), aspect);
@@ -1548,6 +1744,9 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       pageLines.clear();
       pagePics.clear();
       bare.clear();
+      scanned.clear();
+      readPages.clear();
+      readFailed.clear();
       lineHints.replaceChildren();
       selected = null;
       root.hidden = false;

@@ -306,28 +306,49 @@ export interface TextSegment {
   readonly bold?: boolean;
   readonly italic?: boolean;
   readonly family?: 'sans' | 'serif' | 'mono';
+  /** The real name of the font every piece of it is drawn in; absent when it mixes fonts. */
+  readonly font?: string;
+  /**
+   * How far the words may run, in points from the page's left: from the cell
+   * border or the neighbouring words on its left to those on its right, or the
+   * page's margins. A longer replacement is fitted inside it.
+   */
+  readonly room: { readonly left: number; readonly right: number };
+}
+
+/** Whether a drawn upright line stands between x0 and x1 at the height of words on `baseline`. */
+function ruleBetween(rules: PageLayout['rules'], x0: number, x1: number, baseline: number, size: number): boolean {
+  const mid = baseline - size * 0.35;
+  return (rules ?? []).some((r) => r.x > x0 && r.x < x1 && r.top <= mid && r.bottom >= mid);
 }
 
 /**
- * A page's lines cut at the wide gaps between columns, so a statement row is
- * its date, description, reference and amounts, each on its own, and a line
- * of prose stays whole.
+ * A page's lines cut at the wide gaps between columns, and at the lines a
+ * table draws between its cells, so a statement row is its date,
+ * description, reference and amounts, each on its own, and a line of prose
+ * stays whole.
  */
 export function segmentsOf(layout: PageLayout): TextSegment[] {
+  type Open = { text: string; x0: number; x1: number; baseline: number; size: number; bold?: boolean; italic?: boolean; family?: 'sans' | 'serif' | 'mono'; font: string | undefined };
+  const rules = layout.rules ?? [];
+  // The page's margin, as its text shows it: the nearest any words come to the left edge, and as much on the right.
+  const margin = Math.max(12, Math.min(layout.width * 0.1, ...layout.items.map((i) => i.x)));
   const out: TextSegment[] = [];
   for (const line of linesOf(layout)) {
-    let current: { text: string; x0: number; x1: number; baseline: number; size: number; bold?: boolean; italic?: boolean; family?: 'sans' | 'serif' | 'mono' } | null = null;
+    const row: Open[] = [];
+    let current: Open | null = null;
     for (const { item } of line.pieces) {
       const size = Math.max(item.height, 1);
       const gap = current ? item.x - current.x1 : Infinity;
-      if (current && gap <= Math.max(current.size, size) * 0.9) {
+      if (current && gap <= Math.max(current.size, size) * 0.9 && !ruleBetween(rules, current.x1 - 0.5, item.x + 0.5, item.y, size)) {
         if (gap > size * 0.15 && !current.text.endsWith(' ') && !item.str.startsWith(' ')) current.text += ' ';
         current.text += item.str;
         current.x1 = Math.max(current.x1, item.x + item.width);
         current.size = Math.max(current.size, size);
+        if (current.font !== item.fontName) current.font = undefined;
         continue;
       }
-      if (current && current.text.trim() !== '') out.push({ ...current, text: current.text.trim() });
+      if (current && current.text.trim() !== '') row.push(current);
       current = {
         text: item.str,
         x0: item.x,
@@ -337,9 +358,28 @@ export function segmentsOf(layout: PageLayout): TextSegment[] {
         ...(item.bold ? { bold: true } : {}),
         ...(item.italic ? { italic: true } : {}),
         ...(item.family && item.family !== 'sans' ? { family: item.family } : {}),
+        font: item.fontName || undefined,
       };
     }
-    if (current && current.text.trim() !== '') out.push({ ...current, text: current.text.trim() });
+    if (current && current.text.trim() !== '') row.push(current);
+    row.forEach((seg, k) => {
+      const mid = seg.baseline - seg.size * 0.35;
+      const across = rules.filter((r) => r.top <= mid && r.bottom >= mid);
+      const pad = seg.size * 0.25;
+      // The nearest border or neighbour on each side; the page's margins when there is neither.
+      let left = Math.min(seg.x0, margin);
+      let right = Math.max(seg.x1, layout.width - margin);
+      for (const r of across) {
+        if (r.x <= seg.x0 + 0.5) left = Math.max(left, r.x + pad);
+        if (r.x >= seg.x1 - 0.5) right = Math.min(right, r.x - pad);
+      }
+      const before = row[k - 1];
+      const after = row[k + 1];
+      if (before) left = Math.max(left, before.x1 + pad * 2);
+      if (after) right = Math.min(right, after.x0 - pad * 2);
+      const { font, ...rest } = seg;
+      out.push({ ...rest, text: seg.text.trim(), ...(font ? { font } : {}), room: { left: Math.min(left, seg.x0), right: Math.max(right, seg.x1) } });
+    });
   }
   return out;
 }

@@ -424,6 +424,18 @@ export type Mark =
       readonly align?: 'left' | 'right';
       /** The nearest built-in face: Helvetica unless told, bold or italic, or Times or Courier for serif and fixed-width text. */
       readonly face?: TextFace;
+      /**
+       * Edit text: the font the old words were drawn in (pdf.js's name for it)
+       * and the characters the page already shows in it. The new words are
+       * written in that same font when it can draw every one; else in `face`.
+       */
+      readonly own?: { readonly name: string; readonly chars: string };
+      /**
+       * Edit text: how far the line may run, in fractions of the page width.
+       * Longer words are squeezed a little, then made smaller, to stay inside
+       * it, so a changed cell never runs into the next.
+       */
+      readonly fit?: { readonly left: number; readonly right: number };
     }
   /**
    * A see-through marker over `area`, multiplied so the words under it stay
@@ -485,6 +497,13 @@ export interface LayoutItem {
   readonly family?: 'sans' | 'serif' | 'mono';
 }
 
+/** A vertical line drawn on the page, as the words are read (points, top-left origin): a table cell's border. */
+export interface LayoutRule {
+  readonly x: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
 export interface PageLayout {
   readonly width: number;
   readonly height: number;
@@ -495,6 +514,8 @@ export interface PageLayout {
   readonly hiddenText?: number;
   /** Set when the page was read turned (layout's `upright`): how far clockwise the words were turned to run left to right. */
   readonly turned?: 90 | 180 | 270;
+  /** The upright lines drawn on the page, where there are any: a table's column borders. */
+  readonly rules?: readonly LayoutRule[];
 }
 
 /** A change to a picture already on a page, found by where it is drawn. */

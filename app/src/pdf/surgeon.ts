@@ -50,6 +50,8 @@ import {
   PDFNumber,
   PDFObjectCopier,
   PDFObjectParser,
+  PDFOperator,
+  PDFOperatorNames,
   PDFPage,
   PDFPageLeaf,
   PDFPageTree,
@@ -72,6 +74,8 @@ import { signDetached } from '../sign/cms';
 import { readIdentity } from '../sign/identity';
 import { hasSignatures, signPdf } from './sign-pdf';
 import { layoutFlow } from './surgeon-flow';
+import { ownFont } from './surgeon-fonts';
+import { fitLine } from './fit-line';
 import { srgbProfile } from './icc';
 import { drawCalls, invert, markedContent, multiply, paperFills, unitBox, withoutText, type Matrix } from './content-stream';
 import { appendCopies, carryLabels, carryOutline, finishCopies, fitToPaper, formDefaults, rewriteOutline, type PendingLink } from './surgeon-pages';
@@ -1206,6 +1210,31 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
               const [x1, y1] = view.toPage(vx - pad, top - bh + pad * 0.6);
               const [x2, y2] = view.toPage(vx - pad + bw, top + pad * 0.6);
               page.drawRectangle({ x: Math.min(x1, x2), y: Math.min(y1, y2), width: Math.abs(x2 - x1), height: Math.abs(y2 - y1), color: rgb(1, 0.995, 0.97), borderColor: rgb(r, g, b), borderWidth: Math.max(0.6, size * 0.06) });
+            }
+            if ((mark.own !== undefined || mark.fit !== undefined) && lines.length === 1 && mark.boxed !== true) {
+              // A changed line: in the document's own font where it can be, and kept inside its cell.
+              const line = lines[0] ?? '';
+              const own = mark.own ? ownFont(page, d.context, mark.own.name, mark.own.chars, line) : null;
+              const pieces = own?.pieces(line) ?? null;
+              const natural = own && pieces ? own.width(line) * size : f.widthOfTextAtSize(line, size);
+              const room = mark.align === 'right' ? vx + w - (mark.fit ? mark.fit.left * W : -Infinity) : (mark.fit ? mark.fit.right * W : Infinity) - vx;
+              const fitted = fitLine(natural, room);
+              const drawn = natural * (fitted.squeeze / 100) * fitted.scale;
+              const lx = mark.align === 'right' ? vx + w - drawn : vx;
+              const [px, py] = view.toPage(lx, top - size * 0.97);
+              const key = own && pieces ? page.node.newFontDictionary('Own', own.ref) : page.node.newFontDictionary(f.name, f.ref);
+              page.pushOperators(
+                pushGraphicsState(),
+                beginText(),
+                setFillingRgbColor(r, g, b),
+                setFontAndSize(key, size * fitted.scale),
+                ...(fitted.squeeze < 100 ? [setCharacterSqueeze(fitted.squeeze)] : []),
+                rotateAndSkewTextDegreesAndTranslate(view.rotation, 0, 0, px, py),
+                own && pieces ? PDFOperator.of(PDFOperatorNames.ShowTextAdjusted, [d.context.obj(pieces)]) : showText(f.encodeText(line)),
+                endText(),
+                popGraphicsState(),
+              );
+              break;
             }
             lines.forEach((line, i) => {
               if (line.trim().length === 0) return;

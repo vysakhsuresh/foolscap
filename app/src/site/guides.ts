@@ -1430,7 +1430,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'When to use something else',
         paragraphs: [
-          'Edit text changes words already on the page. To write something new, such as a name on a blank line, use [Add text](/tools/add-text/). For a long rewrite, [PDF to Word](/tools/pdf-to-word/) gives you an editable document to work on. A scanned page has no words to edit, only a picture of them.',
+          'Edit text changes words already on the page. To write something new, such as a name on a blank line, use [Add text](/tools/add-text/). For a long rewrite, [PDF to Word](/tools/pdf-to-word/) gives you an editable document to work on. A scanned page is a picture of words: tap Read the words on this page and they become editable, and only the words you change are repainted.',
         ],
       },
       {

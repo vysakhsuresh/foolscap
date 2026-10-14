@@ -24,7 +24,7 @@
  * the UI says "Keep this tab open until it's done" while one runs.
  */
 import type { FoolscapFile } from '../files/types';
-import type { Outcome, Progress } from '../ops/op';
+import type { OcrWord, Outcome, Progress } from '../ops/op';
 import type { ToolId } from '../ops/tools';
 
 export interface JobHandle {
@@ -49,6 +49,12 @@ export interface JobRunner {
   readonly ready: Promise<void>;
   /** Checks `arity` before posting; throws `ArityError` if the inputs do not fit. */
   run<P>(tool: ToolId, inputs: readonly FoolscapFile[], params: P, opts?: RunOptions): JobHandle;
+  /**
+   * The words in a picture of a page, with where each sits (fractions of the
+   * picture). The reader and its English model are fetched from this site the
+   * first time, unless the tool already loaded them. Rejects when they cannot be had.
+   */
+  read(png: Uint8Array, width: number, height: number): Promise<OcrWord[]>;
 }
 
 /**

@@ -29,7 +29,7 @@ import { PDFJS_ASSETS } from './pdfjs-version';
 import { multiply, unitBox, type Matrix } from './content-stream';
 import { pageCover, type PageCover } from './page-cover';
 import { hasMarkedProps, withActualText, type ContentItem } from './actual-text';
-import { PdfError, type Area, type FormField, type LayoutItem, type MarkedSource, type OutlineItem, type PdfComment, type PageInfo, type PdfEngine, type PdfView } from './types';
+import { PdfError, type Area, type FormField, type LayoutItem, type LayoutRule, type MarkedSource, type OutlineItem, type PdfComment, type PageInfo, type PdfEngine, type PdfView } from './types';
 
 interface RawOutline {
   readonly title?: unknown;
@@ -297,7 +297,7 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
         // both are known once the page's drawing instructions have been read.
         const names = new Map<string, string>();
         const weights = new Map<string, { bold: boolean; italic: boolean }>();
-        let cover: PageCover = { pictureCover: 0, hiddenText: 0 };
+        let cover: PageCover = { pictureCover: 0, hiddenText: 0, rules: [] };
         try {
           const list = await page.getOperatorList();
           const [bx0 = 0, by0 = 0, bx1 = 0, by1 = 0] = page.view;
@@ -344,11 +344,18 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
             fontName: real || item.fontName,
             bold: weights.get(item.fontName)?.bold === true || /bold|black|heavy|semibold|demi/i.test(real),
             italic: weights.get(item.fontName)?.italic === true || /italic|oblique/i.test(real),
-            family: style === 'monospace' || /mono|courier|consol/i.test(real) ? 'mono' : style === 'serif' || /times|serif|georgia|garamond|cambria/i.test(real) ? 'serif' : 'sans',
+            family: familyOf(real, style),
           });
         }
         const sideways = quarter === 1 || quarter === 3;
-        return { width: sideways ? height : width, height: sideways ? width : height, items, ...cover, ...(quarter === 0 ? {} : { turned: (quarter * 90) as 90 | 180 | 270 }) };
+        // The table's column lines, where the words are read: a cell ends at its border.
+        const [sa = 1, sb = 0, sc = 0, sd = 1, se = 0, sf = 0] = Util.transform(turn, viewport.transform);
+        const rules: LayoutRule[] = [];
+        for (const [rx, ry0, ry1] of cover.rules) {
+          const [ax, ay, bx, by] = [sa * rx + sc * ry0 + se, sb * rx + sd * ry0 + sf, sa * rx + sc * ry1 + se, sb * rx + sd * ry1 + sf];
+          if (Math.abs(ax - bx) <= 0.75) rules.push({ x: (ax + bx) / 2, top: Math.min(ay, by), bottom: Math.max(ay, by) });
+        }
+        return { width: sideways ? height : width, height: sideways ? width : height, items, pictureCover: cover.pictureCover, hiddenText: cover.hiddenText, ...(rules.length > 0 ? { rules } : {}), ...(quarter === 0 ? {} : { turned: (quarter * 90) as 90 | 180 | 270 }) };
       } catch (error) {
         throw toRenderError(error);
       } finally {
@@ -661,4 +668,17 @@ async function pictureToPng(host: Host, image: unknown): Promise<{ width: number
     canvas.width = 0;
     canvas.height = 0;
   }
+}
+
+/**
+ * Sans, serif or fixed-width, from the font's real name first (so
+ * "MicrosoftSansSerif" and "Arial" are sans whatever pdf.js guessed), then
+ * from pdf.js's own reading of it.
+ */
+export function familyOf(real: string, style: string | undefined): 'sans' | 'serif' | 'mono' {
+  const name = real.replace(/^[A-Z]{6}\+/, '');
+  if (/mono|courier|consol|menlo|typewriter/i.test(name)) return 'mono';
+  if (/sans|arial|helvet|calibri|verdana|tahoma|segoe|roboto|grotesk|gothic|futura|frutiger|univers|lato|open ?sans|noto ?sans|dejavu ?sans|liberation ?sans|trebuchet|century ?gothic|myriad|candara|corbel|aptos/i.test(name)) return 'sans';
+  if (/times|serif|georgia|garamond|cambria|roman|book ?antiqua|palatino|constantia|baskerville|bodoni|minion/i.test(name)) return 'serif';
+  return style === 'monospace' ? 'mono' : style === 'serif' ? 'serif' : 'sans';
 }

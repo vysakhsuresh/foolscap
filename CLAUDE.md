@@ -475,4 +475,23 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   and replace matches whole words and numbers ("5,000.00" is not inside
   "15,000.00"), and the ink colour is read back from the blend small print
   makes with the paper, so a black amount is not rewritten in grey.
-
+- **2026-10-14** Edit text, after a real purchase order and a scanned letter
+  broke it. A table's cells are cut at the lines drawn between them
+  (`page-cover.ts` reads upright lines from pdf.js's path data; `segmentsOf`
+  splits at them and gives each cell its room), so a brand a few points from
+  the description beside it is its own cell. A font's family comes from its
+  real name first ("MicrosoftSansSerif" is sans). New words are written in the
+  document's own font when it can draw every letter for certain
+  (`surgeon-fonts.ts`: codes from its ToUnicode map or WinAnsi, widths from its
+  own Widths or W; a subset only writes characters the page already shows in
+  it), else in the nearest built-in one, and are squeezed to 85% then made
+  smaller to stay inside the cell (`fit-line.ts`, shared by preview and
+  writer). The patch over the old words stops at the cell's lines, and the
+  paper colour is the one most of the line's box is. Scanned pages are
+  editable: "Read the words on this page" sends a picture of the page to the
+  op worker's OCR reader (the one message that carries pixels; the model is
+  fetched on first use, so this needs the connection once), the printed column
+  lines are found in the picture (and the "|" the reader makes of them
+  dropped), bold is judged by ink, and a change repaints only the words that
+  changed (`ui/scan-lines.ts`). A changed line cannot be dragged off the words
+  it covers.

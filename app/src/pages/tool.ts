@@ -103,7 +103,10 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     // here rather than carried in every tool page's first script. Still before
     // the page says it is ready, so the offline proof holds.
     const { createPageEditor } = await import('../ui/page-editor');
-    panel = createPageEditor(id as EditorMode, () => refresh());
+    panel = createPageEditor(id as EditorMode, () => refresh(), {
+      // Edit text on a scan: the page's picture is read by the worker's OCR reader.
+      readScan: (png, width, height) => (runner ? runner.read(png, width, height) : Promise.reject(new Error('Not ready yet.'))),
+    });
     optionsSlot.append(panel.root);
   } else if (id === 'read') {
     const { createReader } = await import('../ui/reader');

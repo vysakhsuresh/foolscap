@@ -7,7 +7,7 @@
 import { serveWorkspace } from '../files/workspace-protocol';
 import type { FoolscapFile, Workspace } from '../files/types';
 import { opMeta } from '../ops/meta';
-import { ArityError, OpCancelled, type Outcome, type Progress } from '../ops/op';
+import { ArityError, OpCancelled, type OcrWord, type Outcome, type Progress } from '../ops/op';
 import { toolById, type ToolId } from '../ops/tools';
 import { arityProblem, type FromWorker, type ToWorker } from './protocol';
 import { JobCrashed, type JobHandle, type JobRunner, type RunOptions } from './types';
@@ -42,6 +42,8 @@ export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean
   let cancelTimer: ReturnType<typeof setTimeout> | null = null;
   let unansweredCrashes = 0;
   let broken = false;
+  /** Pictures being read, by id: answered beside the job queue. */
+  const reads = new Map<string, { resolve: (words: OcrWord[]) => void; reject: (error: Error) => void }>();
 
   let settleReady: { resolve: () => void; reject: (error: Error) => void } | null = null;
   const ready = new Promise<void>((resolve, reject) => {
@@ -57,6 +59,13 @@ export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean
       w.addEventListener('message', (ev: MessageEvent) => {
         if (w !== worker) return;
         const message = ev.data as FromWorker;
+        if (message.type === 'read-done' || message.type === 'read-failed') {
+          const pending = reads.get(message.readId);
+          reads.delete(message.readId);
+          if (message.type === 'read-done') pending?.resolve(message.words);
+          else pending?.reject(new Error('The words could not be read.'));
+          return;
+        }
         if (message.type === 'inited') {
           unansweredCrashes = 0;
           settleReady?.resolve();
@@ -105,7 +114,7 @@ export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean
   }
 
   function onMessage(message: FromWorker): void {
-    if (message.type === 'inited') return;
+    if (message.type === 'inited' || message.type === 'read-done' || message.type === 'read-failed') return;
     const job = running;
     if (!job || job.id !== message.jobId) return;
     switch (message.type) {
@@ -140,6 +149,9 @@ export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean
   function replaceWorker(): void {
     worker?.terminate();
     worker = null;
+    // A picture being read goes with the worker: say so, rather than leave it waiting.
+    for (const pending of reads.values()) pending.reject(new JobCrashed());
+    reads.clear();
     if (broken) return;
     spawn();
   }
@@ -209,6 +221,14 @@ export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean
 
   return {
     ready,
+    async read(png, width, height) {
+      await inited;
+      if (broken || !worker) throw new JobCrashed();
+      const readId = crypto.randomUUID();
+      const answer = new Promise<OcrWord[]>((resolve, reject) => reads.set(readId, { resolve, reject }));
+      post({ type: 'read', readId, png, width, height });
+      return answer;
+    },
     run<P>(tool: ToolId, inputs: readonly FoolscapFile[], params: P, opts?: RunOptions): JobHandle {
       const problem = arityProblem(opMeta(tool).arity, toolById(tool).title, inputs.length);
       if (problem !== null) throw new ArityError(problem);

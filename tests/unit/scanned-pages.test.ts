@@ -68,10 +68,10 @@ describe('a page that is a scan', () => {
     const box = [0, 0, 100, 100] as const;
     const page = [1, 3, 9, 2];
     const pageArgs = [null, [100, 0, 0, 100, 0, 0], null, null];
-    expect(pageCover([...page, 5], [...pageArgs, null], ops, box)).toEqual({ pictureCover: 1, hiddenText: 0 });
-    expect(pageCover([4, 5, ...page], [[3], null, ...pageArgs], ops, box)).toEqual({ pictureCover: 1, hiddenText: 1 });
-    expect(pageCover([5, ...page], [null, ...pageArgs], ops, box)).toEqual({ pictureCover: 1, hiddenText: 1 });
-    expect(pageCover([4, 5, 4, 5], [[7], null, [0], null], ops, box)).toEqual({ pictureCover: 0, hiddenText: 0.5 });
+    expect(pageCover([...page, 5], [...pageArgs, null], ops, box)).toEqual({ pictureCover: 1, hiddenText: 0, rules: [] });
+    expect(pageCover([4, 5, ...page], [[3], null, ...pageArgs], ops, box)).toEqual({ pictureCover: 1, hiddenText: 1, rules: [] });
+    expect(pageCover([5, ...page], [null, ...pageArgs], ops, box)).toEqual({ pictureCover: 1, hiddenText: 1, rules: [] });
+    expect(pageCover([4, 5, 4, 5], [[7], null, [0], null], ops, box)).toEqual({ pictureCover: 0, hiddenText: 0.5, rules: [] });
     // A small photo is not the page.
     expect(pageCover([1, 3, 9, 2, 5], [null, [30, 0, 0, 30, 0, 0], null, null, null], ops, box).pictureCover).toBeCloseTo(0.09, 2);
   });

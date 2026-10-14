@@ -532,21 +532,22 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   'edit-text': {
-    about: 'Tap words already on the page and change them, or find and replace a word everywhere. The old words are painted over in the page’s colour and the new ones written in the nearest built-in font; in a table, one cell at a time. The old words stay underneath, so to hide something for good, use [Remove areas](/tools/remove-areas/).',
+    about: 'Tap words already on the page and change them, or find and replace a word everywhere. The old words are painted over in the page’s colour and the new ones written in the document’s own font where it can be; in a table, one cell at a time, kept inside its lines. Scanned pages work too: their words are read first. The old words stay underneath, so to hide something for good, use [Remove areas](/tools/remove-areas/).',
     steps: [
       'Add the PDF, typing its password if it asks.',
-      'Tap any outlined words on the page; tables are outlined cell by cell.',
+      'Tap any outlined words on the page; tables are outlined cell by cell. On a scanned page, tap Read the words on this page first.',
       'Change the words in the box above the page.',
       'Open Find and replace to change a word or number everywhere at once.',
       'Press Save the changes and save the new copy.',
     ],
     notes: [
-      'Each change paints over the old words in the colour behind them and writes the new words in the same place and size, in the closest of the PDF’s built-in fonts. Amounts and dates keep their right edge, so a changed figure still lines up in its column, and the ink colour is read from the print, so black stays black.',
+      'Each change paints over the old words in the colour behind them and writes the new words in the same place and size, in the font the document already uses when it can draw every letter, and otherwise in the closest built-in one. Longer words are squeezed a little, then made smaller, so a changed cell never runs into the next. Amounts and dates keep their right edge, so a changed figure still lines up in its column, and the ink colour is read from the print, so black stays black.',
       'The old words are not deleted. They sit under the paint, and anyone who copies or searches the text can find them. That is fine for correcting a typo or updating a date, and wrong for hiding anything: for that, Remove areas takes the words out of the file.',
-      'New words in English letters keep the line’s weight and style, bold or plain, serif or not; words in Malayalam, Hindi or another script go in as a picture of the words. A decorative font is replaced by a plainer one, which can show when you change one word in the middle of a line, so changing the whole line often looks better. For a long rewrite, [PDF to Word](/tools/pdf-to-word/) is the better route.',
+      'A scanned page is a picture, so its words are read first, on this device, by the same reader as [Make searchable](/tools/ocr/) (fetched from this site the first time). Then only the words you change are painted over and written again, bold where they were bold, and the rest stays exactly as scanned; check names and numbers, as they were read from a picture. Words in Malayalam, Hindi or another script go in as a picture of the words. For a long rewrite, [PDF to Word](/tools/pdf-to-word/) is the better route.',
     ],
     faq: [
-      { q: 'Can I edit a scanned PDF?', a: 'No. A scan has no words in it, only a picture of them. Write over it with [Add text](/tools/add-text/).' },
+      { q: 'Can I edit a scanned PDF?', a: 'Yes. Tap Read the words on this page, then tap a line. Only the words you change are repainted, in a plain font close to the original; the rest stays as scanned.' },
+      { q: 'Why does a longer word look a little narrower?', a: 'So it stays inside its table cell. It is squeezed by up to 15% first, which the eye barely sees, and only made smaller if it still does not fit.' },
       { q: 'Does find and replace change parts of words?', a: 'No. It matches whole words and numbers, so 5,000.00 is not found inside 15,000.00.' },
       { q: 'Can people tell it was edited?', a: 'Often not at a glance, but a close look at the font, or copying the text, can show it. Edit only documents you have the right to change.' },
       { q: 'More help?', a: 'See [edit text in a PDF](/guides/edit-text-in-pdf/).' },

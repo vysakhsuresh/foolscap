@@ -2489,9 +2489,20 @@ select.input option {
   justify-content: flex-end;
 }
 
+/* A changed line kept inside its cell, as it will be written: squeezed, then smaller. */
+.editor__item--edit .editor__words {
+  display: inline-block;
+  transform: scaleX(var(--fit-x, 1));
+  transform-origin: left bottom;
+}
+
+.editor__item--edit-right .editor__words {
+  transform-origin: right bottom;
+}
+
 .editor__item--edit {
   font-family: Helvetica, Arial, sans-serif;
-  font-size: calc(var(--size) * var(--page-w));
+  font-size: calc(var(--size) * var(--page-w) * var(--fit-scale, 1));
   line-height: 1.15;
   white-space: pre;
   display: flex;

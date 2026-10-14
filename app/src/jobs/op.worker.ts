@@ -90,6 +90,17 @@ async function run(message: Extract<ToWorker, { type: 'run' }>): Promise<void> {
   }
 }
 
+/** Reads the words in a page picture, beside any job: the reader is fetched from this site the first time. */
+async function read(message: Extract<ToWorker, { type: 'read' }>): Promise<void> {
+  try {
+    const reader = await ocr();
+    const words = await reader.read(message.png, message.width, message.height);
+    post({ type: 'read-done', readId: message.readId, words });
+  } catch {
+    post({ type: 'read-failed', readId: message.readId });
+  }
+}
+
 scope.addEventListener('message', (ev: MessageEvent) => {
   const message = ev.data as ToWorker;
   switch (message.type) {
@@ -101,6 +112,9 @@ scope.addEventListener('message', (ev: MessageEvent) => {
       break;
     case 'cancel':
       if (current?.jobId === message.jobId) current.controller.abort();
+      break;
+    case 'read':
+      void read(message);
       break;
   }
 });

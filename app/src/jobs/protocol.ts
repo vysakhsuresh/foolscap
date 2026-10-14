@@ -1,11 +1,11 @@
 /**
  * What crosses between the page and the op worker. Plain data, Blobs and
  * MessagePorts only: FoolscapFiles, params, outcomes. Document bytes never
- * ride in these messages — on OPFS both sides share the store, on memory the
+ * ride in these messages (a picture of one page to read is the one exception) — on OPFS both sides share the store, on memory the
  * worker's Workspace fetches Blobs over its own port.
  */
 import type { FoolscapFile } from '../files/types';
-import type { Arity, Outcome, Progress } from '../ops/op';
+import type { Arity, OcrWord, Outcome, Progress } from '../ops/op';
 import type { ToolId } from '../ops/tools';
 import { PdfError, type PdfErrorCode } from '../pdf/types';
 
@@ -28,7 +28,13 @@ export type ToWorker =
       /** Entries of the RunOptions map; a Map would clone, but a list is plainer to inspect. */
       readonly passwords: ReadonlyArray<readonly [string, string]>;
     }
-  | { readonly type: 'cancel'; readonly jobId: string };
+  | { readonly type: 'cancel'; readonly jobId: string }
+  /**
+   * Read the words in a picture of a page (Edit text on a scan). The one
+   * message that carries pixels: the page drew the picture, the worker holds
+   * the reader, and only the words come back.
+   */
+  | { readonly type: 'read'; readonly readId: string; readonly png: Uint8Array; readonly width: number; readonly height: number };
 
 export type FromWorker =
   | { readonly type: 'inited' }
@@ -37,7 +43,9 @@ export type FromWorker =
   | { readonly type: 'produced'; readonly jobId: string; readonly file: FoolscapFile }
   | { readonly type: 'done'; readonly jobId: string; readonly outcomes: Outcome[] }
   | { readonly type: 'failed'; readonly jobId: string; readonly reason: string; readonly code?: PdfErrorCode }
-  | { readonly type: 'cancelled'; readonly jobId: string };
+  | { readonly type: 'cancelled'; readonly jobId: string }
+  | { readonly type: 'read-done'; readonly readId: string; readonly words: OcrWord[] }
+  | { readonly type: 'read-failed'; readonly readId: string };
 
 /** Null when `count` inputs fit `arity`; otherwise what to tell the user. */
 export function arityProblem(arity: Arity, title: string, count: number): string | null {
