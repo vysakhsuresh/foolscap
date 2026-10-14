@@ -312,7 +312,9 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   GitHub Pages preview is noindex.
 - **2026-10-13** Hosting is GitHub Pages with the domain pointed from GoDaddy,
   as for layerbit.co.in, at the owner's choice. The publish workflow finds the
-  custom domain from the Pages settings and builds for it (root base, CNAME);
+  custom domain from the Pages settings, or else from `SITE_ORIGIN`, and
+  builds for it (root base, CNAME — which on the gh-pages branch is what claims
+  the domain);
   each page carries its policy as a meta tag from `_headers`. Cloudflare
   would add frame-ancestors and the workers' own policy, which only headers
   can carry; `_headers` stays so that move needs no code. The privacy page

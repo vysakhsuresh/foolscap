@@ -1,9 +1,11 @@
 # Publishes the site with GitHub Pages on every push to main.
 #
-# Once the repository's Pages settings name a custom domain (foolscap.co.in,
-# pointed there from GoDaddy), the site is built for that domain at its root,
-# with a CNAME file so each publish keeps the domain. Until then it is built
-# as the preview at https://vysakhsuresh.github.io/foolscap/, marked noindex.
+# The site is built for its own domain (SITE_ORIGIN in app/src/site/config.ts,
+# foolscap.co.in, pointed there from GoDaddy) at its root, with a CNAME file:
+# on a branch-published Pages site that file is what claims the domain, so no
+# one has to type it into the settings. A domain typed into the settings wins.
+# With SITE_ORIGIN null it is built as the preview at
+# https://vysakhsuresh.github.io/foolscap/, marked noindex.
 #
 # GitHub Pages cannot send headers, so every page carries its own policy as
 # a <meta> tag (scripts/vite-rebase-html.ts): the strict policy on the tool
@@ -48,6 +50,9 @@ jobs:
           cname=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages" \
             | node -e 'let s="";process.stdin.on("data",(d)=>(s+=d)).on("end",()=>{try{process.stdout.write(JSON.parse(s).cname||"")}catch{}})' || true)
+          if [ -z "$cname" ]; then
+            cname=$(sed -n "s|^export const SITE_ORIGIN: string \| null = 'https://\([^'/]*\)'.*|\1|p" app/src/site/config.ts)
+          fi
           echo "cname=${cname}" >> "$GITHUB_OUTPUT"
           if [ -n "$cname" ]; then echo "Building for https://${cname}/"; else echo "No custom domain yet: building the /foolscap/ preview"; fi
 
