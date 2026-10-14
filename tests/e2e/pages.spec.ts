@@ -316,3 +316,17 @@ test('the search box opens above a phone keyboard, not behind it', async ({ page
   const list = (await page.getByTestId('pill-results').boundingBox())!;
   expect(list.y).toBeGreaterThanOrEqual(0);
 });
+
+test('a tap flashes no box over the control: the browser’s tap highlight is off everywhere', async ({ page }) => {
+  for (const path of ['/', '/tools/merge/', '/guides/', '/private/']) {
+    await page.goto(path);
+    const colours = await page.evaluate(() =>
+      ['html', '[data-testid="support"]', '[data-testid="help-orb"]', '[data-testid="home-fab"]', 'a', 'button']
+        .map((sel) => document.querySelector(sel))
+        .filter((el): el is Element => el !== null)
+        .map((el) => getComputedStyle(el).getPropertyValue('-webkit-tap-highlight-color')),
+    );
+    expect(colours.length, path).toBeGreaterThan(2);
+    for (const c of colours) expect(c, path).toBe('rgba(0, 0, 0, 0)');
+  }
+});

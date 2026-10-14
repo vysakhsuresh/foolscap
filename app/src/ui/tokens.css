@@ -140,6 +140,10 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* No grey or blue box flashed over whatever is tapped (Android Chrome's
+     default): every control gives its own press feedback instead, and the
+     keyboard still gets its focus ring. */
+  -webkit-tap-highlight-color: transparent;
   overflow-x: clip;
   background: var(--bg);
   scroll-behavior: smooth;

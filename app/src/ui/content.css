@@ -546,3 +546,39 @@
 .guides .family-jumps__wrap {
   margin-top: var(--space-2);
 }
+
+/* ---- Pressed: a tap is felt as the control sinking a little, not as a
+   box flashed over it. Keyboard focus keeps its ring. ---- */
+
+.home-fab:active,
+.support:active,
+.search-pill__open:active,
+.family-jumps__more:active,
+.tool-card:active,
+.guide-card:active,
+.related__item:active,
+.family-jump:active {
+  transform: scale(0.95);
+  transition-duration: 80ms;
+}
+
+.home-fab:focus:not(:focus-visible),
+.support:focus:not(:focus-visible),
+.help-orb:focus:not(:focus-visible),
+.search-pill__open:focus:not(:focus-visible) {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-fab:active,
+  .support:active,
+  .search-pill__open:active,
+  .family-jumps__more:active,
+  .tool-card:active,
+  .guide-card:active,
+  .related__item:active,
+  .family-jump:active {
+    transform: none;
+    opacity: 0.85;
+  }
+}
