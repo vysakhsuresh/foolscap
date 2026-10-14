@@ -114,6 +114,17 @@ function numberText(format: PageNumbersParams['format'], n: number, total: numbe
   }
 }
 
+/**
+ * How much bigger than on A4 a page's numbers and headers are set: 1 on A4
+ * and smaller paper, more on a page that says it is bigger. A phone photo
+ * made into a PDF at 72 dpi has a page 42 inches wide, and a 10-point number
+ * on it is a speck nobody sees once the page is fitted to a screen.
+ */
+function paperScale(doc: PdfDoc, index: number): number {
+  const { width, height } = doc.visibleBox(index);
+  return Math.max(1, Math.min(width, height) / 595);
+}
+
 export const pageNumbersOp: Op<PageNumbersParams> = {
   tool: 'page-numbers',
   arity: { kind: 'each' },
@@ -128,7 +139,8 @@ export const pageNumbersOp: Op<PageNumbersParams> = {
       const last = start + numbered - 1;
       for (let i = skip; i < doc.pageCount; i++) {
         checkCancelled(ctx.signal);
-        doc.stampText(i, { text: numberText(params.format, start + i - skip, last), anchor: params.position as Anchor, size: 10, color: INK, margin: 28 });
+        const k = paperScale(doc, i);
+        doc.stampText(i, { text: numberText(params.format, start + i - skip, last), anchor: params.position as Anchor, size: 10 * k, color: INK, margin: 28 * k });
       }
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
       const numbers = start === last ? `numbered ${start}` : `numbered ${start} to ${last}`;
@@ -153,7 +165,8 @@ async function batesNumbers(inputs: readonly FoolscapFile[], params: PageNumbers
     const first = next;
     for (let i = 0; i < doc.pageCount; i++) {
       checkCancelled(ctx.signal);
-      await stampWords(doc, i, { text: `${prefix}${String(next).padStart(digits, '0')}`, anchor: params.position as Anchor, size: 9, color: INK, margin: 22 }, pictures);
+      const k = paperScale(doc, i);
+      await stampWords(doc, i, { text: `${prefix}${String(next).padStart(digits, '0')}`, anchor: params.position as Anchor, size: 9 * k, color: INK, margin: 22 * k }, pictures);
       next++;
     }
     const from = `${prefix}${String(first).padStart(digits, '0')}`;
@@ -198,8 +211,9 @@ export const headerFooterOp: Op<HeaderFooterParams> = {
       for (let i = from; i < doc.pageCount; i++) {
         checkCancelled(ctx.signal);
         const values = { page: i + 1, total: doc.pageCount, date, name };
-        if (header) await stampWords(doc, i, { text: fillTokens(header, values), anchor: `top-${params.align}` as Anchor, size: 9, color: INK, margin: 24 }, pictures);
-        if (footer) await stampWords(doc, i, { text: fillTokens(footer, values), anchor: `bottom-${footerAlign}` as Anchor, size: 9, color: INK, margin: 24 }, pictures);
+        const k = paperScale(doc, i);
+        if (header) await stampWords(doc, i, { text: fillTokens(header, values), anchor: `top-${params.align}` as Anchor, size: 9 * k, color: INK, margin: 24 * k }, pictures);
+        if (footer) await stampWords(doc, i, { text: fillTokens(footer, values), anchor: `bottom-${footerAlign}` as Anchor, size: 9 * k, color: INK, margin: 24 * k }, pictures);
       }
       const which = header && footer ? 'Header and footer' : header ? 'Header' : 'Footer';
       const suffix = header && footer ? 'with header and footer' : header ? 'with header' : 'with footer';

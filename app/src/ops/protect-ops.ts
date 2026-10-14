@@ -29,8 +29,10 @@ export const addPasswordOp: Op<AddPasswordParams> = {
         params.allowCopying ? 'copying allowed' : 'copying blocked',
         editing ? 'editing allowed' : 'editing blocked',
       ];
-      if (restrict) return store(ctx, 'add-password', [input], `${baseName(input.name)} restricted.pdf`, bytes, `Opens without a password; ${allowed.join(', ')}${signedNote(doc)}`);
-      return store(ctx, 'add-password', [input], `${baseName(input.name)} locked.pdf`, bytes, `Locked with AES-256; ${allowed.join(', ')}${signedNote(doc)}`);
+      // PDF/A forbids encryption: the copy is no longer an archive copy, and says so.
+      const archival = doc.archival ? '. It was an archive copy (PDF/A); a locked file cannot be one, so this copy no longer claims to be' : '';
+      if (restrict) return store(ctx, 'add-password', [input], `${baseName(input.name)} restricted.pdf`, bytes, `Opens without a password; ${allowed.join(', ')}${archival}${signedNote(doc)}`);
+      return store(ctx, 'add-password', [input], `${baseName(input.name)} locked.pdf`, bytes, `Locked with AES-256; ${allowed.join(', ')}${archival}${signedNote(doc)}`);
     });
   },
 };

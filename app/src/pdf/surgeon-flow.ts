@@ -9,7 +9,7 @@
  * in as a picture of that line. Nothing is ever drawn as an empty box.
  */
 import { PDFDocument, PDFString, StandardFonts, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
-import { PAGE_COUNT, PAGE_NUMBER, type Block, type FlowDocument, type PageFurniture, type Paragraph, type Run, type Table } from '../convert/model';
+import { PAGE_COUNT, PAGE_NUMBER, type Block, type FlowDocument, type PageFurniture, type Paragraph, type Picture, type Run, type Table } from '../convert/model';
 import type { LinePainter } from './types';
 
 const A4 = { width: 595.28, height: 841.89, margin: 56 };
@@ -40,6 +40,8 @@ interface Line {
   readonly ascent: number;
   /** A line the PDF fonts cannot draw, drawn by the browser instead. */
   readonly picture?: { png: Uint8Array; width: number; height: number };
+  /** A picture standing on a line of its own, in a table cell. */
+  readonly image?: Picture;
 }
 
 function hexColor(value: string | undefined): readonly [number, number, number] {
@@ -204,6 +206,12 @@ async function build(flow: FlowDocument, picture: LinePainter | null, knownTotal
         y -= line.height;
         continue;
       }
+      if (line.image) {
+        const embedded = line.image.format === 'png' ? await doc.embedPng(line.image.bytes) : await doc.embedJpg(line.image.bytes);
+        page.drawImage(embedded, { x: x + Math.max(0, offset), y: y - line.height + 2, width: line.width, height: line.height - 4 });
+        y -= line.height;
+        continue;
+      }
       if (line.picture) {
         const image = await doc.embedPng(line.picture.png);
         const h = line.picture.height * (line.width / line.picture.width);
@@ -282,6 +290,12 @@ async function build(flow: FlowDocument, picture: LinePainter | null, knownTotal
           const ls = await linesOf(p, width - 2 * CELL_PAD, '');
           lines.push(...ls);
           aligns.push(...ls.map(() => p.align));
+        }
+        for (const image of cell.images ?? []) {
+          // Kept to the cell's width and to a third of the page's height, in its own shape.
+          const scale = Math.min(1, (width - 2 * CELL_PAD) / Math.max(1, image.width), (geometry.height - 2 * geometry.margin) / 3 / Math.max(1, image.height));
+          lines.push({ words: [], width: image.width * scale, height: image.height * scale + 4, ascent: 0, image });
+          aligns.push(undefined);
         }
         cells.push({ x, width, lines, paragraphs: aligns });
         x += width;

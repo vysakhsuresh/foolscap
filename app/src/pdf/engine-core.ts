@@ -28,7 +28,8 @@ import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './com
 import { PDFJS_ASSETS } from './pdfjs-version';
 import { multiply, unitBox, type Matrix } from './content-stream';
 import { pageCover, type PageCover } from './page-cover';
-import { PdfError, type Area, type FormField, type LayoutItem, type OutlineItem, type PdfComment, type PageInfo, type PdfEngine, type PdfView } from './types';
+import { hasMarkedProps, withActualText, type ContentItem } from './actual-text';
+import { PdfError, type Area, type FormField, type LayoutItem, type MarkedSource, type OutlineItem, type PdfComment, type PageInfo, type PdfEngine, type PdfView } from './types';
 
 interface RawOutline {
   readonly title?: unknown;
@@ -101,7 +102,7 @@ export function createEngineOn(host: Host): PdfEngine {
       signal?.addEventListener('abort', onAbort, { once: true });
       try {
         const doc = await task.promise;
-        return view(host, task, doc);
+        return view(host, task, doc, opts?.marked);
       } catch (error) {
         if (signal?.aborted) throw cancelled(error);
         throw toOpenError(error, header, byteLength);
@@ -112,8 +113,55 @@ export function createEngineOn(host: Host): PdfEngine {
   };
 }
 
-function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProxy): PdfView {
+/**
+ * Which way most of a page's letters run as the page is shown: 0 left to
+ * right, 1 down, 2 right to left (upside down), 3 up. 0 unless one other way
+ * holds most of them.
+ */
+function dominantQuarter(words: ReadonlyArray<{ readonly str: string; readonly transform: readonly number[] }>, view: readonly number[]): number {
+  const counts = [0, 0, 0, 0];
+  for (const w of words) {
+    const letters = w.str.replace(/\s+/g, '').length;
+    if (letters === 0) continue;
+    const m = Util.transform(view as number[], w.transform as number[]);
+    const angle = Math.atan2(m[1] ?? 0, m[0] ?? 0);
+    const q = ((Math.round(angle / (Math.PI / 2)) % 4) + 4) % 4;
+    counts[q] = (counts[q] ?? 0) + letters;
+  }
+  const total = counts.reduce((a, b) => a + b, 0);
+  let best = 0;
+  for (let q = 1; q < 4; q++) if ((counts[q] ?? 0) > (counts[best] ?? 0)) best = q;
+  return best !== 0 && (counts[best] ?? 0) >= total * 0.6 ? best : 0;
+}
+
+/** C0 control characters other than tab and the line ends: never text anybody wrote. */
+const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/;
+const CONTROLS = new RegExp(CONTROL.source, 'g');
+
+function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProxy, marked: MarkedSource | undefined): PdfView {
   let doc: PDFDocumentProxy | null = initial;
+
+  /**
+   * A page's words as pdf.js reads them, with /ActualText put back where the
+   * caller can read it (see actual-text.ts): Malayalam and Hindi from Chrome,
+   * LibreOffice and Word come out as the words, not as their shapes.
+   */
+  const wordsOn = async (page: PDFPageProxy, index: number) => {
+    type Item = Awaited<ReturnType<PDFPageProxy['getTextContent']>>['items'][number];
+    type Word = Extract<Item, { str: string }>;
+    const content = await page.getTextContent({ includeMarkedContent: marked !== undefined });
+    const items = content.items as ReadonlyArray<ContentItem<Word>>;
+    const plain = items.filter((item): item is Word => 'str' in item);
+    let words: Word[] = plain;
+    if (marked !== undefined && hasMarkedProps(items)) {
+      const sections = await marked(index).catch(() => null);
+      if (sections) words = withActualText(items, sections) ?? plain;
+    }
+    // A glyph whose ToUnicode says U+0000 or another control character (the
+    // pieces of a conjunct, in Chrome's and LibreOffice's fonts) says nothing.
+    if (words.some((w) => CONTROL.test(w.str))) words = words.map((w) => (CONTROL.test(w.str) ? { ...w, str: w.str.replace(CONTROLS, '') } : w));
+    return { content, words };
+  };
 
   const live = (): PDFDocumentProxy => {
     if (doc === null) throw new Error('This document has been closed.');
@@ -225,10 +273,9 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
     async text(index) {
       const page = await pageAt(index);
       try {
-        const content = await page.getTextContent();
+        const { words } = await wordsOn(page, index);
         let out = '';
-        for (const item of content.items) {
-          if (!('str' in item)) continue;
+        for (const item of words) {
           out += item.str;
           if (item.hasEOL) out += '\n';
         }
@@ -240,11 +287,11 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
       }
     },
 
-    async layout(index) {
+    async layout(index, opts) {
       const page = await pageAt(index);
       try {
         const viewport = page.getViewport({ scale: 1 });
-        const content = await page.getTextContent();
+        const { content, words } = await wordsOn(page, index);
         // The fonts say bold and italic, by pdf.js's own reading of them (which
         // knows Helvetica-Bold is bold) or by their real names ("ABCDEF+Arial-BoldMT");
         // both are known once the page's drawing instructions have been read.
@@ -255,8 +302,8 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
           const list = await page.getOperatorList();
           const [bx0 = 0, by0 = 0, bx1 = 0, by1 = 0] = page.view;
           cover = pageCover(list.fnArray, list.argsArray, OPS, [bx0, by0, bx1, by1]);
-          for (const item of content.items) {
-            if (!('fontName' in item) || names.has(item.fontName)) continue;
+          for (const item of words) {
+            if (names.has(item.fontName)) continue;
             const font: unknown = page.commonObjs.has(item.fontName) ? page.commonObjs.get(item.fontName) : null;
             const flag = (key: string) => font !== null && typeof font === 'object' && Reflect.get(font, key) === true;
             const name = font !== null && typeof font === 'object' && 'name' in font && typeof font.name === 'string' ? font.name : '';
@@ -266,12 +313,23 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
         } catch {
           // Without the names, everything reads as regular weight. The words are what matter.
         }
+        // Turned upright, when asked and most of the words run down, up or upside
+        // down as the page is shown: a table printed sideways, or a page given the
+        // wrong /Rotate. The words are then read as a person turning the paper would.
+        const { width, height } = viewport;
+        const quarter = opts?.upright === true ? dominantQuarter(words, viewport.transform) : 0;
+        const turn: number[] = [
+          [1, 0, 0, 1, 0, 0],
+          [0, -1, 1, 0, 0, width],
+          [-1, 0, 0, -1, width, height],
+          [0, 1, -1, 0, height, 0],
+        ][quarter]!;
         const items: LayoutItem[] = [];
-        for (const item of content.items) {
+        for (const item of words) {
           // pdf.js reports the gap between columns as a blank item stretched across
           // it; dropped, so a gap stays a gap and a table row splits into its cells.
-          if (!('str' in item) || item.str.trim().length === 0) continue;
-          const m = Util.transform(viewport.transform, item.transform);
+          if (item.str.trim().length === 0) continue;
+          const m = Util.transform(turn, Util.transform(viewport.transform, item.transform));
           const [a = 0, b = 0, c = 0, d = 0, x = 0, y = 0] = m;
           // Left to right only: rotated and vertical text would scramble the lines.
           if (a <= 0 || Math.abs(b) > a * 0.1) continue;
@@ -289,7 +347,8 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
             family: style === 'monospace' || /mono|courier|consol/i.test(real) ? 'mono' : style === 'serif' || /times|serif|georgia|garamond|cambria/i.test(real) ? 'serif' : 'sans',
           });
         }
-        return { width: viewport.width, height: viewport.height, items, ...cover };
+        const sideways = quarter === 1 || quarter === 3;
+        return { width: sideways ? height : width, height: sideways ? width : height, items, ...cover, ...(quarter === 0 ? {} : { turned: (quarter * 90) as 90 | 180 | 270 }) };
       } catch (error) {
         throw toRenderError(error);
       } finally {

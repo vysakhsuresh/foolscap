@@ -8,6 +8,7 @@
  */
 import { PDFDocument } from '@cantoo/pdf-lib';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { pdfjsWorkerModule } from './pdfjs-worker';
 
 type PdfJs = typeof import('pdfjs-dist');
 let loading: Promise<PdfJs> | null = null;
@@ -15,8 +16,7 @@ let loading: Promise<PdfJs> | null = null;
 function pdfjs(): Promise<PdfJs> {
   loading ??= (async () => {
     await import('../../app/src/pdf/shims');
-    const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-    (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+    (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
     return import('pdfjs-dist');
   })();
   return loading;

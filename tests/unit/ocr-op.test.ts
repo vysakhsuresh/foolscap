@@ -33,6 +33,7 @@ const scanEngine = {
       pageCount: 1,
       page: async () => ({ width: 595, height: 842, rotation: 0 }),
       text: async () => '',
+      layout: async () => ({ width: 595, height: 842, items: [], pictureCover: 1, hiddenText: 0 }),
       encode: async () => fakePng(2480, 3508),
       close: async () => undefined,
     };

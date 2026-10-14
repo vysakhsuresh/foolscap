@@ -7,6 +7,7 @@
  */
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { strFromU8, unzipSync } from 'fflate';
+import { pdfjsWorkerModule } from './pdfjs-worker';
 
 /** What the specs read a PDF through: its words, where they sit, and a drawing of a page. */
 export interface InspectView {
@@ -26,8 +27,7 @@ export interface InspectView {
  */
 export async function openPdf(bytes: Uint8Array, password?: string): Promise<InspectView> {
   await import('../../app/src/pdf/shims');
-  const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-  (globalThis as Record<string, unknown>)['pdfjsWorker'] ??= await import(/* @vite-ignore */ workerModule);
+  (globalThis as Record<string, unknown>)['pdfjsWorker'] ??= await pdfjsWorkerModule();
   const pdfjs = await import('pdfjs-dist');
   const task = pdfjs.getDocument({ data: bytes.slice(), verbosity: 0, ...(password === undefined ? {} : { password }) });
   const doc = await task.promise;

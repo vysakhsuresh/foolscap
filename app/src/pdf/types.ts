@@ -105,8 +105,23 @@ export interface PdfEngine {
    * buffer detached. An op that needs both a render and a restructure reads
    * the Workspace twice rather than sharing one array.
    */
-  open(data: Blob | Uint8Array, opts?: { password?: string; signal?: AbortSignal }): Promise<PdfView>;
+  open(data: Blob | Uint8Array, opts?: { password?: string; signal?: AbortSignal; marked?: MarkedSource }): Promise<PdfView>;
 }
+
+/** One marked-content section (`BMC` or `BDC`) a page opens, in the order a reader meets them. */
+export interface MarkedSection {
+  readonly tag: string;
+  /** What the section's glyphs say, when the file records it (/ActualText). */
+  readonly actualText?: string;
+}
+
+/**
+ * Where a view finds a page's marked-content sections, when the caller can
+ * read them (the op worker, through the surgeon). pdf.js reads the glyphs but
+ * not /ActualText, so without this a Malayalam conjunct drawn as one shape
+ * comes out as its pieces, or not at all. Null: not known, the glyphs stand.
+ */
+export type MarkedSource = (index: number) => Promise<readonly MarkedSection[] | null>;
 
 export interface PdfView {
   readonly pageCount: number;
@@ -150,8 +165,13 @@ export interface PdfView {
    * size and, where the font's name says so, bold or italic. What converting
    * to Word and Excel works from. Text that does not run left to right
    * (rotated or vertical) is left out.
+   *
+   * `upright`: when most of the page's words run down, up or upside down
+   * (a table printed sideways), read the page turned so they run left to
+   * right, as a person would turn the paper; the layout's width, height and
+   * positions are then of the turned page, and `turned` says by how much.
    */
-  layout(index: number): Promise<PageLayout>;
+  layout(index: number, opts?: { readonly upright?: boolean }): Promise<PageLayout>;
   /** The title, author, subject and keywords the document gives itself, where it gives them. */
   details(): Promise<Readonly<Partial<Record<'title' | 'author' | 'subject' | 'keywords', string>>>>;
   /** The document's own table of contents (bookmarks), with the page each entry opens. Empty when it has none. */
@@ -473,6 +493,8 @@ export interface PageLayout {
   readonly pictureCover?: number;
   /** The share of its text nobody sees: a scan's invisible word layer, or words under a picture. 0 to 1. */
   readonly hiddenText?: number;
+  /** Set when the page was read turned (layout's `upright`): how far clockwise the words were turned to run left to right. */
+  readonly turned?: 90 | 180 | 270;
 }
 
 /** A change to a picture already on a page, found by where it is drawn. */
@@ -571,6 +593,18 @@ export interface PdfDoc {
    * out in the copy; a tool says so rather than let it be found out later.
    */
   readonly signed: boolean;
+  /**
+   * Whether the file says it is an archive copy (PDF/A). A PDF/A file may not
+   * be encrypted, so locking one takes that claim out of it.
+   */
+  readonly archival: boolean;
+  /**
+   * The marked-content sections a page opens, in drawing order, with the
+   * /ActualText each carries: how Chrome, LibreOffice and Word record what a
+   * Malayalam or Hindi cluster drawn as one shape actually says. The engine
+   * puts that text back in place of the shapes' own (see PdfEngine.open).
+   */
+  markedSections(index: number): readonly MarkedSection[];
   pages(): readonly PageInfo[];
   /** The visible area of a page: its CropBox, or its MediaBox when it has none. */
   visibleBox(index: number): Box;

@@ -11,6 +11,7 @@ import { createCanvas, DOMMatrix as NodeDOMMatrix, ImageData as NodeImageData, P
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import type { PdfEngine } from '../../app/src/pdf/types';
+import { pdfjsWorkerModule } from './pdfjs-worker';
 
 type BlobOptions = { type?: string; quality?: number };
 
@@ -52,8 +53,7 @@ export function installNodeCanvas(): void {
 /** The real engine over real pdf.js, drawing on @napi-rs/canvas, with pdf.js parsing in this thread. */
 export async function createNodeEngine(): Promise<PdfEngine> {
   await import('../../app/src/pdf/shims');
-  const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-  (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+  (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
   const { PDFWorker, VerbosityLevel } = await import('pdfjs-dist');
   const { createEngineOn } = await import('../../app/src/pdf/engine-core');
   const root = dirname(createRequire(import.meta.url).resolve('pdfjs-dist/package.json'));

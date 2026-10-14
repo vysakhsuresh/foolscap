@@ -96,6 +96,17 @@ npm test           # typecheck, unit tests, then e2e against the built site
   hangs, never changes an input, and makes files that reopen.
   `GAUNTLET_FULL=1` adds a 300-page file and the pdf.js corpus;
   `GAUNTLET_PERF=1` prints the timings in `tests/PERFORMANCE.md`.
+- `tests/unit/realworld.test.ts` and `tests/e2e/realworld.spec.ts`: what
+  testing with files from real producers found (Chromium print-to-PDF,
+  LibreOffice, ReportLab, ImageMagick, scanner software), each kept as a
+  small synthetic file in `tests/fixtures/real-producers.ts`: Malayalam and
+  Hindi written with /ActualText, glyphs that carry a vowel sign, PDF/A,
+  ASCII85-wrapped JPEGs, phone photos with their EXIF flag inside, sideways
+  tables, LibreOffice's Word files.
+  `tests/unit/realworld-sweep.test.ts` runs every tool over a corpus of such
+  files built on this machine and writes every output for checking against
+  the input; it is skipped unless `REALWORLD=1` (and `REALWORLD_DIR` says
+  where the corpus is).
 - `tests/e2e/` (Playwright, Chromium, phone 360×780 and laptop 1280×860):
   each tool end to end with downloads inspected, the offline proof, the CSP
   on every path, tap targets, overflow, the display font, awkward files
@@ -113,6 +124,15 @@ images that pdf.js would fetch lazily.
   under 60 KB gzipped and contain no PDF library. Measured on this build:
   about 25 KB. pdf.js (≈130 KB gz) and the op worker with pdf-lib (≈1.1 MB
   raw) load after first paint and before the page reports itself ready.
+
+## pdf.js, corrected in one place
+
+`scripts/pdfjs-patch.ts` makes one change to pdf.js's worker as it is
+bundled (and as the tests load it): a glyph that carries a nonspacing mark
+but has a width in its font is no longer read as taking no room. Without it,
+Malayalam and Hindi from Chrome and LibreOffice came out with spaces inside
+words. The build stops if pdf.js changes the code the patch corrects, and
+`tests/unit/size.test.ts` checks the built worker carries it.
 
 ## Browser floor
 

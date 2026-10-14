@@ -43,6 +43,8 @@ export interface Paragraph {
 export interface TableCell {
   readonly paragraphs: readonly Paragraph[];
   readonly colSpan?: number;
+  /** Pictures in the cell, after its words: a photo on a résumé, a logo in a letterhead table. */
+  readonly images?: readonly Picture[];
 }
 
 export interface Table {

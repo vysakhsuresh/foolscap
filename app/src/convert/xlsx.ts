@@ -279,8 +279,10 @@ function cellFormats(styles: XmlElement | undefined): string[] {
 
 function readSheet(sheet: XmlElement, shared: readonly string[], formats: readonly string[], date1904: boolean): string[][] {
   const grid = new Map<number, Map<number, string>>();
+  // Every cell by place, for formulas saved without their results (see Formulas).
+  const placed = new Map<string, XmlElement>();
+  const at: Array<[number, number, XmlElement]> = [];
   let rowIndex = -1;
-  let maxColumn = -1;
   for (const row of elements(child(sheet, 'sheetData'), 'row')) {
     const r = Number(attr(row, 'r'));
     rowIndex = r >= 1 ? r - 1 : rowIndex + 1;
@@ -290,13 +292,19 @@ function readSheet(sheet: XmlElement, shared: readonly string[], formats: readon
       const ref = parseRef(attr(c, 'r'));
       column = ref ? ref.column : column + 1;
       if (column >= MAX_COLUMNS) continue;
-      const text = cellText(c, shared, formats, date1904);
-      if (text === '') continue;
-      let cells = grid.get(rowIndex);
-      if (!cells) grid.set(rowIndex, (cells = new Map()));
-      cells.set(column, text);
-      maxColumn = Math.max(maxColumn, column);
+      placed.set(`${rowIndex},${column}`, c);
+      at.push([rowIndex, column, c]);
     }
+  }
+  const formulas = new Formulas(placed);
+  let maxColumn = -1;
+  for (const [row, column, c] of at) {
+    const text = formulas.uncached(c) !== undefined ? formulas.show(c, row, column, formats, date1904) : cellText(c, shared, formats, date1904);
+    if (text === '') continue;
+    let cells = grid.get(row);
+    if (!cells) grid.set(row, (cells = new Map()));
+    cells.set(column, text);
+    maxColumn = Math.max(maxColumn, column);
   }
   const lastRow = Math.max(-1, ...grid.keys());
   const rows: string[][] = [];
@@ -310,6 +318,197 @@ function readSheet(sheet: XmlElement, shared: readonly string[], formats: readon
     rows.push(row);
   }
   return rows;
+}
+
+/**
+ * Formulas saved without their results. Excel, LibreOffice and Google Sheets
+ * save each formula's last value beside it, and that is what is shown. Files
+ * made by programs (Python's openpyxl, many web reports) often save the
+ * formula alone, so a total would print as an empty cell. The common ones are
+ * worked out here: arithmetic, and SUM, AVERAGE, MIN, MAX, COUNT, COUNTA,
+ * ROUND and ABS over cells and ranges of the same sheet. Anything else (another
+ * sheet, a lookup, a condition) stays empty rather than wrong.
+ */
+class Formulas {
+  private readonly memo = new Map<string, number | null>();
+  private readonly busy = new Set<string>();
+
+  constructor(private readonly cells: ReadonlyMap<string, XmlElement>) {}
+
+  /** The formula of a cell saved without a value, or undefined. */
+  uncached(c: XmlElement): string | undefined {
+    const f = child(c, 'f');
+    if (!f || textOf(f).trim() === '') return undefined;
+    const v = child(c, 'v');
+    return v && textOf(v).trim() !== '' ? undefined : textOf(f);
+  }
+
+  show(c: XmlElement, row: number, column: number, formats: readonly string[], date1904: boolean): string {
+    const n = this.number(row, column);
+    return n === null ? '' : formatNumber(n, formats[Number(attr(c, 's') ?? 0)] ?? 'General', date1904);
+  }
+
+  /** A cell as a number: its value, its formula's result, 0 when empty; null when it cannot be had. */
+  private number(row: number, column: number): number | null {
+    const key = `${row},${column}`;
+    const known = this.memo.get(key);
+    if (known !== undefined) return known;
+    const c = this.cells.get(key);
+    if (!c) return 0;
+    const formula = this.uncached(c);
+    if (formula === undefined) {
+      const type = attr(c, 't') ?? 'n';
+      const raw = textOf(child(c, 'v'));
+      if (type === 's' || type === 'str' || type === 'inlineStr' || type === 'e') return null;
+      if (type === 'b') return raw === '1' ? 1 : 0;
+      const n = raw.trim() === '' ? 0 : Number(raw);
+      return Number.isFinite(n) ? n : null;
+    }
+    if (this.busy.has(key) || this.busy.size > 200) return null;
+    this.busy.add(key);
+    let out: number | null;
+    try {
+      out = this.evaluate(formula);
+    } catch {
+      out = null;
+    }
+    this.busy.delete(key);
+    this.memo.set(key, out);
+    return out;
+  }
+
+  /** Whether a cell holds something COUNTA counts. */
+  private present(row: number, column: number): boolean {
+    const c = this.cells.get(`${row},${column}`);
+    return c !== undefined && (this.uncached(c) !== undefined || textOf(child(c, 'v')).trim() !== '' || child(c, 'is') !== undefined);
+  }
+
+  private evaluate(formula: string): number | null {
+    const tokens = formula.trim().replace(/^=/, '').match(/\$?[A-Za-z]{1,3}\$?\d+(?::\$?[A-Za-z]{1,3}\$?\d+)?|\d+(?:\.\d+)?(?:[eE][-+]?\d+)?%?|[A-Za-z_][A-Za-z0-9_.]*(?=\()|[-+*/^(),]|\S/g) ?? [];
+    let i = 0;
+    const fail = (): never => {
+      throw new Error('unsupported');
+    };
+    const peek = () => tokens[i];
+    const take = () => tokens[i++] ?? fail();
+    const range = (token: string): number[][] => {
+      const [a, b] = token.split(':');
+      const from = parseRef(a);
+      const to = parseRef(b ?? a);
+      if (!from || !to) return fail();
+      const out: number[][] = [];
+      for (let r = Math.min(from.row, to.row); r <= Math.max(from.row, to.row); r++)
+        for (let k = Math.min(from.column, to.column); k <= Math.max(from.column, to.column); k++) out.push([r, k]);
+      if (out.length > 100_000) fail();
+      return out;
+    };
+    const args = (): Array<{ cells?: number[][]; value?: number }> => {
+      const list: Array<{ cells?: number[][]; value?: number }> = [];
+      if (take() !== '(') fail();
+      if (peek() === ')') {
+        i++;
+        return list;
+      }
+      for (;;) {
+        const token = peek() ?? fail();
+        const next = tokens[i + 1];
+        if (/^\$?[A-Za-z]{1,3}\$?\d+(:|$)/.test(token) && (next === ',' || next === ')')) {
+          i++;
+          list.push({ cells: range(token) });
+        } else list.push({ value: expression() });
+        const sep = take();
+        if (sep === ')') return list;
+        if (sep !== ',') fail();
+      }
+    };
+    const numbersIn = (list: ReturnType<typeof args>): number[] =>
+      list.flatMap((a) => (a.cells ? a.cells.map(([r, k]) => this.numberOrSkip(r ?? 0, k ?? 0)).filter((n): n is number => n !== null) : [a.value ?? 0]));
+    const primary = (): number => {
+      const token = take();
+      if (token === '(') {
+        const v = expression();
+        if (take() !== ')') fail();
+        return v;
+      }
+      if (token === '-') return -primary();
+      if (token === '+') return primary();
+      if (/^\d/.test(token)) return token.endsWith('%') ? Number(token.slice(0, -1)) / 100 : Number(token);
+      if (/^\$?[A-Za-z]{1,3}\$?\d+$/.test(token)) {
+        const ref = parseRef(token) ?? fail();
+        return this.number(ref.row, ref.column) ?? fail();
+      }
+      const name = token.toUpperCase();
+      const list = args();
+      const nums = numbersIn(list);
+      switch (name) {
+        case 'SUM':
+          return nums.reduce((a, b) => a + b, 0);
+        case 'AVERAGE':
+          return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) / nums.length : fail();
+        case 'MIN':
+          return nums.length > 0 ? Math.min(...nums) : 0;
+        case 'MAX':
+          return nums.length > 0 ? Math.max(...nums) : 0;
+        case 'COUNT':
+          return nums.length;
+        case 'COUNTA':
+          return list.reduce((n, a) => n + (a.cells ? a.cells.filter(([r, k]) => this.present(r ?? 0, k ?? 0)).length : 1), 0);
+        case 'ABS':
+          return Math.abs(nums[0] ?? fail());
+        case 'ROUND': {
+          const digits = nums[1] ?? 0;
+          const f = 10 ** digits;
+          return Math.round((nums[0] ?? fail()) * f) / f;
+        }
+        default:
+          return fail();
+      }
+    };
+    const power = (): number => {
+      let v = primary();
+      while (peek() === '^') {
+        i++;
+        v = v ** primary();
+      }
+      return v;
+    };
+    const term = (): number => {
+      let v = power();
+      for (let op = peek(); op === '*' || op === '/'; op = peek()) {
+        i++;
+        const r = power();
+        if (op === '/' && r === 0) fail();
+        v = op === '*' ? v * r : v / r;
+      }
+      return v;
+    };
+    const expression = (): number => {
+      let v = term();
+      for (let op = peek(); op === '+' || op === '-'; op = peek()) {
+        i++;
+        v = op === '+' ? v + term() : v - term();
+      }
+      return v;
+    };
+    const result = expression();
+    if (i !== tokens.length || !Number.isFinite(result)) fail();
+    return result;
+  }
+
+  /** In a range, text and errors are skipped (as SUM skips them), but a formula that cannot be worked out spoils the result. */
+  private numberOrSkip(row: number, column: number): number | null {
+    const c = this.cells.get(`${row},${column}`);
+    if (!c) return null;
+    if (this.uncached(c) !== undefined) {
+      const n = this.number(row, column);
+      if (n === null) throw new Error('unsupported');
+      return n;
+    }
+    const type = attr(c, 't') ?? 'n';
+    if (type !== 'n') return null;
+    const raw = textOf(child(c, 'v')).trim();
+    return raw === '' ? null : Number(raw);
+  }
 }
 
 function cellText(c: XmlElement, shared: readonly string[], formats: readonly string[], date1904: boolean): string {
