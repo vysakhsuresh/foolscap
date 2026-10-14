@@ -12,6 +12,7 @@ import { measureLabel, type Area, type Mark, type PdfView, type Rgb, type TextFa
 import { el } from './dom';
 import { check, choices, field, note, select as selectField } from './fields';
 import { PATTERN_NAMES, detectBlanks, findOnPage, segmentsOf, splitWords, type Pattern } from '../pdf/find-text';
+import { SCAN_COVER } from '../pdf/page-cover';
 
 export type EditorMode = 'sign' | 'add-text' | 'mark-up' | 'remove-areas' | 'add-image' | 'edit-text' | 'create-form' | 'edit-images';
 
@@ -510,7 +511,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
       case 'add-image':
         return chosen === null ? 'Choose a picture above, then tap the page where it goes.' : 'Tap the page to put the picture there. Drag it to move it; drag its corner to resize.';
       case 'edit-text':
-        if (bare.has(current)) return 'This page has no text to change: it may be a scanned picture. Make it searchable first, or use Add text.';
+        if (bare.has(current)) return 'This page has no text to change: it is a scanned picture, or its words are drawn as shapes. Write on it with Add text, or take something out with Remove areas.';
         return 'Tap any words on the page to change them. Everything you can change is outlined, cell by cell in a table.';
       case 'create-form':
         return fieldKind?.value() === 'check' ? 'Tap the page where a tick box goes.' : 'Drag across the space where the answer goes.';
@@ -620,6 +621,9 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
         if (!v) return [];
         const layout = await v.layout(index).catch(() => null);
         if (!layout) return [];
+        // A scanned page's words are a hidden layer the scanner guessed: "changing" one would
+        // paint a box over the photo of the page. Such a page has no text to change.
+        if ((layout.pictureCover ?? 0) >= SCAN_COVER && (layout.hiddenText ?? 0) >= 0.8) return [];
         // One editable piece per cell: a row of a table is never rewritten as one run of words.
         return segmentsOf(layout).map((seg): EditableLine => {
           const top = seg.baseline - seg.size * 0.95;
@@ -1183,7 +1187,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void): PageEd
     const lines = await linesFor(page);
     const line = lines.find((l) => px >= l.area.x - 0.01 && px <= l.area.x + l.area.w + 0.01 && py >= l.area.y && py <= l.area.y + l.area.h);
     if (!line) {
-      hint.textContent = lines.length === 0 ? 'This page has no text to change: it may be a scanned picture.' : 'Tap right on a line of text: the outlined ones can be changed.';
+      hint.textContent = lines.length === 0 ? 'This page has no text to change: it is a scanned picture, or its words are drawn as shapes.' : 'Tap right on a line of text: the outlined ones can be changed.';
       return;
     }
     const existing = items.find((i) => i.kind === 'edit' && i.area.page === page && sameSpot(i, line));

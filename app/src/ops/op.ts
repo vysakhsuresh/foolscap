@@ -419,9 +419,19 @@ export interface BookmarksParams {
   readonly items: readonly import('../pdf/types').OutlineItem[];
 }
 
+/**
+ * What a scanned page (one picture filling the page) becomes: the picture of
+ * the page, as it looks; its words, to edit; or the picture and then its
+ * words. Words come from the text the scanner hid in the page when it has
+ * some, otherwise from reading the picture.
+ */
+export type ScanPages = 'picture' | 'words' | 'both';
+
 export interface PdfToWordParams {
   /** Read the words in scanned pages too (slower; the text reader is fetched from this site once). */
   readonly scans: boolean;
+  /** Word and EPUB: what a scanned page becomes. Without it, words when `scans`, else the picture. */
+  readonly scanPages?: ScanPages;
 }
 
 export interface PdfToPowerPointParams {

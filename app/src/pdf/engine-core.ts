@@ -27,6 +27,7 @@ import {
 import { isMemoryFailure, normaliseRotation, notReadable, tooLarge } from './common';
 import { PDFJS_ASSETS } from './pdfjs-version';
 import { multiply, unitBox, type Matrix } from './content-stream';
+import { pageCover, type PageCover } from './page-cover';
 import { PdfError, type Area, type FormField, type LayoutItem, type OutlineItem, type PdfComment, type PageInfo, type PdfEngine, type PdfView } from './types';
 
 interface RawOutline {
@@ -249,8 +250,11 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
         // both are known once the page's drawing instructions have been read.
         const names = new Map<string, string>();
         const weights = new Map<string, { bold: boolean; italic: boolean }>();
+        let cover: PageCover = { pictureCover: 0, hiddenText: 0 };
         try {
-          await page.getOperatorList();
+          const list = await page.getOperatorList();
+          const [bx0 = 0, by0 = 0, bx1 = 0, by1 = 0] = page.view;
+          cover = pageCover(list.fnArray, list.argsArray, OPS, [bx0, by0, bx1, by1]);
           for (const item of content.items) {
             if (!('fontName' in item) || names.has(item.fontName)) continue;
             const font: unknown = page.commonObjs.has(item.fontName) ? page.commonObjs.get(item.fontName) : null;
@@ -285,7 +289,7 @@ function view(host: Host, task: PDFDocumentLoadingTask, initial: PDFDocumentProx
             family: style === 'monospace' || /mono|courier|consol/i.test(real) ? 'mono' : style === 'serif' || /times|serif|georgia|garamond|cambria/i.test(real) ? 'serif' : 'sans',
           });
         }
-        return { width: viewport.width, height: viewport.height, items };
+        return { width: viewport.width, height: viewport.height, items, ...cover };
       } catch (error) {
         throw toRenderError(error);
       } finally {

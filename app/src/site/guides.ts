@@ -1848,7 +1848,7 @@ export const GUIDES: readonly Guide[] = [
     intro: 'Open PDF to Word, add the PDF and press Make a Word file. You get a .docx you can edit in Word, Google Docs or any office app.',
     steps: [
       'Open PDF to Word and add the PDF, or several.',
-      'Leave Read scanned pages too ticked if any pages are scans.',
+      'If any pages are scans, choose under Scanned pages: as a picture, as editable words, or both.',
       'Press Make a Word file.',
       'Save the .docx and open it in your word processor.',
     ],
@@ -1862,7 +1862,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Scanned pages',
         paragraphs: [
-          'A scan is a picture of words. With Read scanned pages too ticked, those pages are read by a text reader before converting, which is slower and best with clear, straight scans. The reader is fetched from this site the first time it is needed.',
+          'A scan is a picture of words. By default a scanned page goes into Word as that picture, exactly as it looks, which is right for passports, ID cards and certificates. Choose Editable words and its words are used instead: the ones a scanner already hid in the file, or else read from the picture by a text reader fetched from this site the first time, which is slower and best with clear, straight scans.',
         ],
       },
       {
@@ -1887,14 +1887,14 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Common mistakes',
         paragraphs: [
-          'Converting a scan with Read scanned pages too unticked, which gives an empty document: tick it and run it again. Expecting exact fonts: Word gets the nearest match, so check the headings and spacing. And converting just to fix a typo, when Edit text changes the PDF itself and keeps every font and position as it was.',
+          'Expecting editable text from a scan while Scanned pages is set to Keep as a picture: choose Editable words and run it again. Expecting exact fonts: Word gets the nearest match, so check the headings and spacing. And converting just to fix a typo, when Edit text changes the PDF itself and keeps every font and position as it was.',
         ],
       },
     ],
     faq: [
       { q: 'Is my PDF uploaded to convert it?', a: 'No. It is read and converted in your browser, on your device.' },
       { q: 'Will it look exactly like the PDF?', a: 'Close, not identical. A PDF fixes every word’s position; a Word file flows text. Complex layouts may need tidying.' },
-      { q: 'Can I convert a scanned PDF to Word?', a: 'Yes. Leave Read scanned pages too ticked; it reads English text in the scan.' },
+      { q: 'Can I convert a scanned PDF to Word?', a: 'Yes. Each scanned page goes in as a picture by default; choose Editable words to get its text, and check names and numbers.' },
       { q: 'Can it convert Malayalam or Hindi PDFs?', a: 'Where the PDF holds real text in those scripts, the words come across as they are stored, which for some older files is garbled. Scanned pages are read in English only, so a scanned Malayalam page will not convert properly.' },
       { q: 'Does it work on a phone?', a: 'Yes. The .docx opens in the Word or Google Docs app on the phone.' },
       { q: 'Can I convert several PDFs at once?', a: 'Yes. Add them all; each becomes its own .docx, and Save all saves them together.' },
@@ -2284,7 +2284,7 @@ export const GUIDES: readonly Guide[] = [
     steps: [
       'Open PDF to EPUB or web page and add the PDF.',
       'Choose EPUB e-book, or A web page for one .html file.',
-      'Tick Read scanned pages too if the PDF is a scan.',
+      'If the PDF is a scan, choose Editable words under Scanned pages.',
       'Press Make the e-book.',
       'Open the EPUB in Apple Books, Google Play Books or another reader, or send it to a Kindle.',
     ],
@@ -2304,7 +2304,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Reading the PDF as it is',
         paragraphs: [
-          'If the layout matters, [Read](/tools/read/) opens the PDF itself with zoom, find and a night mode. For a scan, Read scanned pages too reads the words first; for a better reading, [Make searchable](/tools/ocr/) offers more languages.',
+          'If the layout matters, [Read](/tools/read/) opens the PDF itself with zoom, find and a night mode. For a scan, Editable words reads the words first; for a better reading, [Make searchable](/tools/ocr/) offers more languages.',
         ],
       },
       {
@@ -2323,7 +2323,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Common mistakes',
         paragraphs: [
-          'Converting a form, a slide deck or a page of wide tables, which loses its layout; read those as PDFs. Converting a scan without ticking Read scanned pages too, which gives an empty book. And converting a picture book or a comic: its pictures come along, but cut from the pages and set between the words, so it reads better kept as a PDF.',
+          'Converting a form, a slide deck or a page of wide tables, which loses its layout; read those as PDFs. Converting a scan with Scanned pages left as pictures, which gives a book of page pictures with no text to reflow. And converting a picture book or a comic: its pictures come along, but cut from the pages and set between the words, so it reads better kept as a PDF.',
         ],
       },
     ],

@@ -17,7 +17,8 @@ import { unzipSync } from 'fflate';
 import type { FoolscapFile } from '../files/types';
 import type { LinePainter, PdfView } from '../pdf';
 import { baseName, failed, ordinal, passwordFor, plural, readInput, refused, stem, store } from './common';
-import { checkCancelled, type Op, type OpContext, type Outcome, type PdfToEpubParams, type PdfToPowerPointParams, type PdfToWordParams } from './op';
+import { checkCancelled, type Op, type OpContext, type Outcome, type PdfToEpubParams, type PdfToPowerPointParams, type PdfToWordParams, type ScanPages } from './op';
+import { SCAN_COVER } from '../pdf/page-cover';
 import { canDecode } from './images';
 import { openView, pngHeight, pngWidth } from './render-ops';
 
@@ -33,8 +34,35 @@ interface Read {
   readonly pages: PageText[];
   readonly scanned: number;
   readonly read: number;
+  /** Scanned pages whose words came from the text the scanner hid in them. */
+  readonly layered: number;
+  /** Scanned pages carried over as a picture of the whole page. */
+  readonly kept: number;
   /** Pictures carried over from the pages. */
   readonly pictures: number;
+}
+
+/** How a converter treats scanned pages: what they become, and whether their pictures may be read for words. */
+interface Scanning {
+  readonly mode: ScanPages;
+  readonly ocr: boolean;
+}
+
+/** Most of a page's text hidden (invisible, or under the picture) and the page one picture: a scan with the scanner's own word layer. */
+const HIDDEN_LAYER = 0.8;
+
+/** Word and EPUB: scanned pages as the person chose, the picture by default. */
+const scanningOf = (p: PdfToWordParams): Scanning => {
+  const mode = p.scanPages ?? (p.scans ? 'words' : 'picture');
+  return { mode, ocr: mode !== 'picture' };
+};
+
+/** A whole page drawn as one JPEG at 150 dpi: a scanned page as it looks. */
+async function wholePage(ctx: OpContext, view: PdfView, index: number, width: number, height: number): Promise<PageImage | null> {
+  if (!canDecode()) return null;
+  const pixels = Math.min(PICTURE_PIXELS, Math.max(1, Math.round((width / 72) * PICTURE_DPI)));
+  const bytes = await view.encode(index, { width: pixels, format: 'jpeg', quality: 0.88, signal: ctx.signal });
+  return { bytes, format: 'jpeg', x: 0, y: 0, width, height };
 }
 
 /**
@@ -75,11 +103,21 @@ async function picturesOn(ctx: OpContext, view: PdfView, index: number, width: n
   }
 }
 
-/** Every page's words and where they sit; with `scans`, the words in pictures of pages too; with `pictures`, the pictures. */
-async function readPages(ctx: OpContext, view: PdfView, which: string, scans: boolean, pictures: boolean): Promise<Read> {
+/**
+ * Every page's words and where they sit, and with `pictures`, the pictures.
+ * A scanned page — one picture filling it, its text (if any) hidden — becomes
+ * what `scanning.mode` says, never the picture with its hidden words dumped
+ * underneath as if they were visible text. Those hidden words are a
+ * scanner's guess (a barcode read as "1111111", Hindi read as Latin letters)
+ * and are only used when words are asked for.
+ */
+async function readPages(ctx: OpContext, view: PdfView, which: string, scanning: Scanning, pictures: boolean): Promise<Read> {
+  const scans = scanning.ocr;
   const pages: PageText[] = [];
   let scanned = 0;
   let read = 0;
+  let layered = 0;
+  let kept = 0;
   let found = 0;
   const withPictures = async (index: number, page: PageText, scanRead: boolean): Promise<PageText> => {
     if (!pictures) return page;
@@ -98,6 +136,32 @@ async function readPages(ctx: OpContext, view: PdfView, which: string, scans: bo
     ctx.progress({ done: index, total: view.pageCount, label: `Reading page ${index + 1} of ${view.pageCount}${which}` });
     const layout = await view.layout(index);
     const letters = layout.items.reduce((n, i) => n + i.str.replace(/\s+/g, '').length, 0);
+    const scan = (layout.pictureCover ?? 0) >= SCAN_COVER && (letters < HAS_TEXT || (layout.hiddenText ?? 0) >= HIDDEN_LAYER);
+    if (scan && pictures) {
+      scanned++;
+      let items: PageText['items'] = [];
+      if (scanning.mode !== 'picture') {
+        if (letters >= HAS_TEXT) {
+          items = layout.items;
+          layered++;
+        } else if (scans && ctx.ocr) {
+          ctx.progress({ done: index, total: view.pageCount, label: `Reading the words in page ${index + 1}${which} (a scan, so this is slower)` });
+          items = await ocrPage(ctx, view, index, layout.width, layout.height);
+          read++;
+        }
+      }
+      const images: PageImage[] = [];
+      if (scanning.mode !== 'words') {
+        const picture = await wholePage(ctx, view, index, layout.width, layout.height);
+        if (picture) {
+          images.push(picture);
+          kept++;
+          found++;
+        }
+      }
+      pages.push({ width: layout.width, height: layout.height, items, ...(images.length > 0 ? { images } : {}) });
+      continue;
+    }
     if (letters >= HAS_TEXT || !scans || !ctx.ocr) {
       if (letters < HAS_TEXT) scanned++;
       pages.push(await withPictures(index, { width: layout.width, height: layout.height, items: layout.items }, false));
@@ -105,33 +169,40 @@ async function readPages(ctx: OpContext, view: PdfView, which: string, scans: bo
     }
     // A scan: read the picture of the page, then treat its words like any other.
     ctx.progress({ done: index, total: view.pageCount, label: `Reading the words in page ${index + 1}${which} (a scan, so this is slower)` });
-    const reader = await ctx.ocr();
-    const width = Math.round((layout.width / 72) * OCR_DPI);
-    const png = await view.encode(index, { width, format: 'png', signal: ctx.signal });
-    const pw = pngWidth(png) ?? width;
-    const ph = pngHeight(png) ?? Math.round((width * layout.height) / layout.width);
-    const words = await reader.read(png, pw, ph);
+    const items = await ocrPage(ctx, view, index, layout.width, layout.height);
     read++;
-    const items: TextItem[] = words.map((w) => ({
-      str: w.text,
-      x: w.x * layout.width,
-      // The box's bottom sits on the descenders; the baseline is a little above it.
-      y: (w.y + w.h * 0.82) * layout.height,
-      width: w.w * layout.width,
-      height: w.h * layout.height * 1.1,
-      fontName: 'scan',
-    }));
-    // The reader gives words; a space between neighbours keeps them words.
-    pages.push(await withPictures(index, { width: layout.width, height: layout.height, items: items.map((i, k) => (k < items.length - 1 ? { ...i, str: `${i.str} ` } : i)) }, true));
+    pages.push(await withPictures(index, { width: layout.width, height: layout.height, items }, true));
   }
-  return { pages, scanned, read, pictures: found };
+  return { pages, scanned, read, layered, kept, pictures: found };
+}
+
+/** The words in a picture of a page, read with the text reader, placed where they sit. */
+async function ocrPage(ctx: OpContext, view: PdfView, index: number, pageWidth: number, pageHeight: number): Promise<TextItem[]> {
+  if (!ctx.ocr) return [];
+  const reader = await ctx.ocr();
+  const width = Math.round((pageWidth / 72) * OCR_DPI);
+  const png = await view.encode(index, { width, format: 'png', signal: ctx.signal });
+  const pw = pngWidth(png) ?? width;
+  const ph = pngHeight(png) ?? Math.round((width * pageHeight) / pageWidth);
+  const words = await reader.read(png, pw, ph);
+  const items: TextItem[] = words.map((w) => ({
+    str: w.text,
+    x: w.x * pageWidth,
+    // The box's bottom sits on the descenders; the baseline is a little above it.
+    y: (w.y + w.h * 0.82) * pageHeight,
+    width: w.w * pageWidth,
+    height: w.h * pageHeight * 1.1,
+    fontName: 'scan',
+  }));
+  // The reader gives words; a space between neighbours keeps them words.
+  return items.map((i, k) => (k < items.length - 1 ? { ...i, str: `${i.str} ` } : i));
 }
 
 /** The shape of every converter: open each PDF, read it, write one file. */
 function converter<P>(
   tool: 'pdf-to-word' | 'pdf-to-excel' | 'pdf-to-epub' | 'pdf-to-powerpoint',
   title: (p: P) => string,
-  scans: (p: P) => boolean,
+  scanning: (p: P) => Scanning,
   pictures: boolean,
   write: (read: Read, input: FoolscapFile, params: P, view: PdfView, ctx: OpContext, which: string) => Promise<{ name: string; bytes: Uint8Array; detail: string } | Outcome>,
 ): Op<P> {
@@ -148,7 +219,7 @@ function converter<P>(
         try {
           const view = await openView(ctx, input);
           try {
-            const read = tool === 'pdf-to-powerpoint' ? { pages: [], scanned: 0, read: 0, pictures: 0 } : await readPages(ctx, view, which, scans(params), pictures);
+            const read = tool === 'pdf-to-powerpoint' ? { pages: [], scanned: 0, read: 0, layered: 0, kept: 0, pictures: 0 } : await readPages(ctx, view, which, scanning(params), pictures);
             ctx.progress({ done: 0, total: 0, label: 'Writing the file…' });
             const made = await write(read, input, params, view, ctx, which);
             if ('kind' in made) outcomes.push(made);
@@ -177,6 +248,11 @@ const hasWords = (read: Read): boolean => read.pages.some((p) => p.items.some((i
 const hasContent = (read: Read): boolean => hasWords(read) || read.pictures > 0;
 
 function scanNote(read: Read, scans: boolean): string {
+  const notes: string[] = [];
+  if (read.kept > 0) notes.push(`${plural(read.kept, 'scanned page')} kept as ${read.kept === 1 ? 'a picture' : 'pictures'} of the page${read.layered + read.read === 0 ? ' (choose “Editable words” for their text)' : ''}`);
+  if (read.layered > 0) notes.push(`the words of ${plural(read.layered, 'scanned page')} taken from the text the scanner hid in ${read.layered === 1 ? 'it' : 'them'}: check names and numbers`);
+  if (read.read > 0 && read.kept + read.layered > 0) notes.push(`${plural(read.read, 'scanned page')} read from the picture`);
+  if (notes.length > 0) return `; ${notes.join('; ')}`;
   if (read.read > 0) return `; ${plural(read.read, 'scanned page')} read from the picture`;
   if (read.scanned > 0 && !scans) {
     const how = read.pictures > 0 ? 'came through as pictures' : 'came through empty';
@@ -188,10 +264,10 @@ function scanNote(read: Read, scans: boolean): string {
 export const pdfToWordOp = converter<PdfToWordParams>(
   'pdf-to-word',
   () => 'PDF to Word',
-  (p) => p.scans,
+  scanningOf,
   true,
   async (read, input, params) => {
-    if (!hasContent(read)) return NO_WORDS(input, params.scans);
+    if (!hasContent(read)) return NO_WORDS(input, scanningOf(params).ocr);
     const flow = toFlow(read.pages, { title: baseName(input.name) });
     const headings = flow.blocks.filter((b) => b.kind === 'paragraph' && b.heading !== undefined).length;
     const tables = flow.blocks.filter((b) => b.kind === 'table').length;
@@ -205,7 +281,7 @@ export const pdfToWordOp = converter<PdfToWordParams>(
     return {
       name: `${baseName(input.name)}.docx`,
       bytes: toDocx(flow),
-      detail: `Word document: ${parts.join(', ')}${scanNote(read, params.scans)}`,
+      detail: `Word document: ${parts.join(', ')}${scanNote(read, scanningOf(params).ocr)}`,
     };
   },
 );
@@ -213,7 +289,8 @@ export const pdfToWordOp = converter<PdfToWordParams>(
 export const pdfToExcelOp = converter<PdfToWordParams>(
   'pdf-to-excel',
   () => 'PDF to Excel',
-  (p) => p.scans,
+  // A spreadsheet wants words: a scan's own hidden words, or the picture read when asked.
+  (p) => ({ mode: 'words', ocr: p.scans }),
   false,
   async (read, input, params) => {
     if (!hasWords(read)) return NO_WORDS(input, params.scans);
@@ -230,10 +307,10 @@ export const pdfToExcelOp = converter<PdfToWordParams>(
 export const pdfToEpubOp = converter<PdfToEpubParams>(
   'pdf-to-epub',
   (p) => (p.format === 'html' ? 'PDF to web page' : 'PDF to EPUB'),
-  (p) => p.scans,
+  scanningOf,
   true,
   async (read, input, params) => {
-    if (!hasContent(read)) return NO_WORDS(input, params.scans);
+    if (!hasContent(read)) return NO_WORDS(input, scanningOf(params).ocr);
     const flow = toFlow(read.pages, { title: baseName(input.name) });
     const pictures = flow.blocks.filter((b) => b.kind === 'image').length;
     const withPictures = pictures > 0 ? ` and ${plural(pictures, 'picture')}` : '';
@@ -241,13 +318,13 @@ export const pdfToEpubOp = converter<PdfToEpubParams>(
       return {
         name: `${baseName(input.name)}.html`,
         bytes: new TextEncoder().encode(toHtml(flow)),
-        detail: `One web page that opens in any browser, ${plural(read.pages.length, 'page')} of text${withPictures}${scanNote(read, params.scans)}`,
+        detail: `One web page that opens in any browser, ${plural(read.pages.length, 'page')} of text${withPictures}${scanNote(read, scanningOf(params).ocr)}`,
       };
     }
     return {
       name: `${baseName(input.name)}.epub`,
       bytes: toEpub(flow),
-      detail: `An e-book whose text reflows on any reader, ${plural(read.pages.length, 'page')} of text${withPictures}${scanNote(read, params.scans)}`,
+      detail: `An e-book whose text reflows on any reader, ${plural(read.pages.length, 'page')} of text${withPictures}${scanNote(read, scanningOf(params).ocr)}`,
     };
   },
 );
@@ -338,7 +415,7 @@ async function jpegOf(pixels: ImageData): Promise<Uint8Array> {
 export const pdfToPowerPointOp = converter<PdfToPowerPointParams>(
   'pdf-to-powerpoint',
   () => 'PDF to PowerPoint',
-  () => false,
+  () => ({ mode: 'picture', ocr: false }),
   false,
   async (_read, input, params, view, ctx, which) => {
     const first = await view.page(0);

@@ -469,6 +469,10 @@ export interface PageLayout {
   readonly width: number;
   readonly height: number;
   readonly items: readonly LayoutItem[];
+  /** The share of the page its largest picture covers, 0 to 1 (pdf/page-cover.ts). */
+  readonly pictureCover?: number;
+  /** The share of its text nobody sees: a scan's invisible word layer, or words under a picture. 0 to 1. */
+  readonly hiddenText?: number;
 }
 
 /** A change to a picture already on a page, found by where it is drawn. */

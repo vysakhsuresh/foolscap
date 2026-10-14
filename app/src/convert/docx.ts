@@ -52,6 +52,9 @@ export function toDocx(doc: FlowDocument): Uint8Array {
   return new DocxWriter(doc).build();
 }
 
+/** Room kept below a page-tall picture for the line Word adds after it, in points. */
+const LINE_ROOM = 24;
+
 class DocxWriter {
   private readonly rels: RelSpec[] = [
     { id: 'rId1', type: REL.styles, target: 'styles.xml' },
@@ -119,7 +122,9 @@ class DocxWriter {
     let out = '';
     let ordered: number | undefined;
     let previous: Block['kind'] | undefined;
-    for (const block of blocks) {
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
+      if (!block) continue;
       if (block.kind !== 'paragraph' || !block.list) ordered = undefined;
       if (block.kind === 'table' && previous === 'table') out += SPACER;
       switch (block.kind) {
@@ -135,9 +140,16 @@ class DocxWriter {
         case 'table':
           out += this.table(block);
           break;
-        case 'image':
-          out += `<w:p>${this.picture(block, this.textWidth, this.page.height - 2 * this.page.margin)}</w:p>`;
+        case 'image': {
+          // A picture as tall as the page leaves no room for a paragraph after it: the page
+          // break rides in the picture's own paragraph, and a line's height is kept spare,
+          // or Word would push an empty line onto a blank page of its own.
+          const breakAfter = blocks[i + 1]?.kind === 'page-break';
+          const room = this.page.height - 2 * this.page.margin - LINE_ROOM;
+          out += `<w:p>${this.picture(block, this.textWidth, room)}${breakAfter ? '<w:r><w:br w:type="page"/></w:r>' : ''}</w:p>`;
+          if (breakAfter) i++;
           break;
+        }
         case 'page-break':
           out += '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
           break;

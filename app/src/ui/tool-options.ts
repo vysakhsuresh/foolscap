@@ -14,6 +14,7 @@ import type {
   PdfToPowerPointParams,
   RentReceiptsParams,
   PdfToWordParams,
+  ScanPages,
   PageLabelsParams,
   CompressParams,
   PdfToImagesParams,
@@ -45,6 +46,24 @@ export interface ToolOptions {
 }
 
 const PAGES_PLACEHOLDER = '1-3, 7, 12-';
+
+/**
+ * What a scanned page — a photo of paper, perhaps with the scanner's hidden
+ * guess at its words — becomes in a Word file or an e-book.
+ */
+function scanChoice(onChange: () => void): { root: HTMLElement; value: () => ScanPages } {
+  return choices<ScanPages>(
+    'scan-pages',
+    'Scanned pages',
+    [
+      { value: 'picture', title: 'Keep as a picture', hint: 'The page goes in exactly as it looks: right for passports, ID cards, certificates and signed letters.' },
+      { value: 'words', title: 'Editable words', hint: 'The words are read from the scan so you can edit them. Check names and numbers; the picture is left out.' },
+      { value: 'both', title: 'Both', hint: 'The picture of the page, then its words underneath to copy from.' },
+    ],
+    'picture',
+    onChange,
+  );
+}
 
 export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions | null {
   switch (id) {
@@ -717,19 +736,22 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
       };
     }
 
-    case 'pdf-to-word':
-    case 'pdf-to-excel': {
-      const scans = check('scans', 'Read scanned pages too', true, onChange, 'Pages that are photos of paper are read with the text reader, fetched from this site the first time. Slower.');
-      const word = id === 'pdf-to-word';
+    case 'pdf-to-word': {
+      const scanned = scanChoice(onChange);
       return {
         root: group([
-          scans.root,
-          note(
-            word
-              ? 'Headings, paragraphs, lists and tables are worked out from where the words sit, so a tidy PDF comes out tidy. Photos and pictures come along where they were; page numbers and running headers are left out. Fonts become their nearest Word font.'
-              : 'Rows and columns are worked out from where the words line up: bank statements, invoices and price lists come out as real tables, amounts as numbers.',
-          ),
+          scanned.root,
+          note('Headings, paragraphs, lists and tables are worked out from where the words sit, so a tidy PDF comes out tidy. Photos and pictures come along where they were; page numbers and running headers are left out. Fonts become their nearest Word font.'),
         ]),
+        params: (): PdfToWordParams => ({ scans: scanned.value() !== 'picture', scanPages: scanned.value() }),
+        problem: () => null,
+      };
+    }
+
+    case 'pdf-to-excel': {
+      const scans = check('scans', 'Read scanned pages too', true, onChange, 'Pages that are photos of paper are read with the text reader, fetched from this site the first time. Slower.');
+      return {
+        root: group([scans.root, note('Rows and columns are worked out from where the words line up: bank statements, invoices and price lists come out as real tables, amounts as numbers.')]),
         params: (): PdfToWordParams => ({ scans: scans.checked() }),
         problem: () => null,
       };
@@ -746,10 +768,10 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         'epub',
         onChange,
       );
-      const scans = check('scans', 'Read scanned pages too', false, onChange, 'Slower; the text reader is fetched from this site the first time.');
+      const scanned = scanChoice(onChange);
       return {
-        root: group([format.root, scans.root, note('Chapters start at each main heading, and photos come along. Page layout gives way to text that fits any screen.')]),
-        params: (): PdfToEpubParams => ({ format: format.value(), scans: scans.checked() }),
+        root: group([format.root, scanned.root, note('Chapters start at each main heading, and photos come along. Page layout gives way to text that fits any screen.')]),
+        params: (): PdfToEpubParams => ({ format: format.value(), scans: scanned.value() !== 'picture', scanPages: scanned.value() }),
         problem: () => null,
       };
     }

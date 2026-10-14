@@ -11,7 +11,7 @@
  * so this module runs in Node only: in unit tests and in the e2e runner.
  * Tests may name the libraries: the seam rule applies to app/ only.
  */
-import { PDFDocument, PDFHexString, PDFName, StandardFonts, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
+import { PDFDocument, PDFHexString, PDFName, StandardFonts, TextRenderingMode, beginText, endText, moveText, rgb, setFontAndSize, setTextRenderingMode, showText, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
 import { createCanvas } from '@napi-rs/canvas';
 import { strToU8, zipSync } from 'fflate';
 import type { Bytes } from './pdfs';
@@ -694,4 +694,34 @@ export async function sitePlanPdf(): Promise<Bytes> {
   page.node.addContentStream(doc.context.register(doc.context.flateStream(ops)));
   page.drawText('Site plan, ward 14', { x: 40, y: 790, size: 18, font });
   return fresh(await doc.save());
+}
+
+/**
+ * A document the way a scanner hands it over: each page one photo of the
+ * paper, with the scanner's own guess at the words laid over it where nobody
+ * sees them, so the file can be searched. `layer: 'invisible'` writes them in
+ * render mode 3, as OmniPage, Adobe Scan and most phone apps do;
+ * `layer: 'under'` draws them first and the photo over them, as some older
+ * scanners do. The guesses include the kind of junk a real one makes: a
+ * barcode read as "1111111", words in another script read as Latin letters.
+ */
+export async function scannerPdf(layer: 'invisible' | 'under' = 'invisible', pages = 2): Promise<Bytes> {
+  const doc = await PDFDocument.create({ updateMetadata: false });
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const words = ['REPUBLIC OF INDIA', 'Surname SURESH', 'Given name VYSAKH', 'III11111 1111g1', 'mfiasFl efil /Place of Issue'];
+  for (let n = 0; n < pages; n++) {
+    const page = doc.addPage([356, 486]);
+    const jpeg = await doc.embedJpg(photo(712, 972, { top: n === 0 ? '#c03030' : '#3060c0' }));
+    const fontKey = page.node.newFontDictionary(font.name, font.ref);
+    const putWords = () => {
+      page.pushOperators(beginText(), setFontAndSize(fontKey, 9));
+      if (layer === 'invisible') page.pushOperators(setTextRenderingMode(TextRenderingMode.Invisible));
+      words.forEach((w, i) => page.pushOperators(moveText(i === 0 ? 30 : 0, i === 0 ? 420 : -40), showText(font.encodeText(`${w} ${n + 1}`))));
+      page.pushOperators(endText());
+    };
+    if (layer === 'under') putWords();
+    page.drawImage(jpeg, { x: 0, y: 0, width: 356, height: 486 });
+    if (layer === 'invisible') putWords();
+  }
+  return new Uint8Array(await doc.save());
 }

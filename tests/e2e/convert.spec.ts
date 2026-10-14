@@ -51,9 +51,25 @@ test('pdf to word reads the words in a scanned page', async ({ page }) => {
     return canvas.toDataURL('image/png');
   });
   await pick(page, 'Scan.pdf', await pictureOnlyPdf(new Uint8Array(Buffer.from(png.slice(png.indexOf(',') + 1), 'base64'))));
-  await expect(page.getByTestId('opt-scans')).toBeChecked();
+  // A scan goes in as its picture unless its words are asked for.
+  await expect(page.getByTestId('opt-scan-pages-picture')).toBeChecked();
+  await page.getByTestId('opt-scan-pages-words').check();
   await run(page);
   await expect(page.getByTestId('result-detail')).toContainText('1 scanned page read from the picture', { timeout: 150_000 });
+});
+
+test('pdf to word keeps a scanner-made PDF as its pictures, without the scanner’s hidden guesses', async ({ page }) => {
+  const { scannerPdf } = await import('../fixtures/realistic');
+  await openTool(page, 'pdf-to-word');
+  await pick(page, 'Passport.pdf', await scannerPdf('invisible', 2));
+  await run(page);
+  await expect(page.getByTestId('result-detail')).toContainText('2 scanned pages kept as pictures of the page');
+  const { bytes } = await downloadFrom(page, page.getByTestId('save-button'));
+  const parts = unzipSync(bytes);
+  const xml = new TextDecoder().decode(parts['word/document.xml']);
+  expect(Object.keys(parts).filter((k) => k.startsWith('word/media/'))).toHaveLength(2);
+  expect(xml).not.toContain('III11111');
+  expect(xml).not.toContain('SURESH');
 });
 
 test('word to pdf lays out a .docx, Malayalam included', async ({ page }) => {

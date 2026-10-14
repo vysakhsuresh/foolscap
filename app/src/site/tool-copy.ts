@@ -228,7 +228,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     about: 'Turns a PDF into an editable Word .docx, working out headings, paragraphs, lists and tables from where the words sit. Scanned pages can be read too, more slowly. Photos come along where they stood, page numbers and running headers are left out, and fonts become their nearest Word font.',
     steps: [
       'Add the PDFs to convert; if one is locked, type its password in the box under it and tap Unlock.',
-      'Leave Read scanned pages too ticked if some pages are photos or scans of paper.',
+      'If some pages are scans or photos of paper, choose under Scanned pages: keep them as a picture of the page, turn them into editable words, or both.',
       'Press Make a Word file.',
       'Save the .docx and open it in Word, Google Docs, LibreOffice or WPS Office.',
     ],
@@ -239,7 +239,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
     faq: [
       { q: 'Will it look exactly like the PDF?', a: 'Close, not identical: Word flows text where a PDF fixes it. Complex layouts may need tidying.' },
-      { q: 'Can it convert a scan?', a: 'Yes. Leave Read scanned pages too ticked; it reads English text in the scan.' },
+      { q: 'Can it convert a scan?', a: 'Yes. By default each scanned page goes in as a picture, exactly as it looks, which suits a passport or a certificate. Choose Editable words to get its text instead: the words a scanner already hid in the file are used, otherwise the English text is read from the picture. Check names and numbers either way.' },
       { q: 'Only need to fix a word or two?', a: '[Edit text](/tools/edit-text/) changes the PDF directly and keeps its layout.' },
       { q: 'How do I get a PDF back after editing?', a: 'Use your word processor’s Save as PDF, or [Word or Excel to PDF](/tools/office-to-pdf/).' },
     ],
@@ -289,7 +289,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     steps: [
       'Add the PDF, or several.',
       'Choose EPUB e-book, or A web page for a single .html file.',
-      'Tick Read scanned pages too if the pages are scans.',
+      'If the pages are scans, choose Editable words under Scanned pages to get their text; otherwise they come in as pictures.',
       'Press Make the e-book, then open the file in your reading app or browser.',
     ],
     notes: [
@@ -299,7 +299,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
     faq: [
       { q: 'Does it work with Kindle?', a: 'Amazon’s Send to Kindle accepts EPUB files.' },
-      { q: 'Can it convert a scanned book?', a: 'Tick Read scanned pages too. It is slower, and works best on clean scans.' },
+      { q: 'Can it convert a scanned book?', a: 'Choose Editable words under Scanned pages. Reading a scan is slower and works best on clean, straight pages.' },
       { q: 'Which apps open the EPUB?', a: 'Apple Books, Google Play Books and most e-book apps open it directly.' },
       { q: 'Is my file uploaded?', a: 'No. The e-book is put together in your browser, and the PDF never leaves your device.' },
       { q: 'More help?', a: 'See [PDF to EPUB](/guides/pdf-to-epub/).' },

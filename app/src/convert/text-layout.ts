@@ -1469,7 +1469,8 @@ function pageSize(pages: readonly PageText[]): FlowDocument['page'] {
   if (!first || !(first.width > 0 && first.height > 0)) return undefined;
   const withText = pages.find((p) => p.items.some((i) => i.str.trim() !== '')) ?? first;
   const items = withText.items.filter((i) => i.str.trim() !== '');
-  let margin = 72;
+  // Pages that are only pictures (scans kept as they look) get a narrow margin, so the picture is nearly the page.
+  let margin = items.length === 0 && pages.some((p) => (p.images?.length ?? 0) > 0) ? 18 : 72;
   if (items.length > 0) {
     const left = Math.min(...items.map((i) => i.x));
     const right = withText.width - Math.max(...items.map((i) => i.x + i.width));
