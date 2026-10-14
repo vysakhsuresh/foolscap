@@ -819,6 +819,16 @@ test.describe('pinned corners', () => {
     await pick(page, [await report()]);
     await page.getByTestId('split-mode-single').check();
     await run(page);
+    // The page glides down to the result; measure only once it has come to rest.
+    let last = -1;
+    await expect
+      .poll(async () => {
+        const y = await page.evaluate(() => window.scrollY);
+        const still = y === last;
+        last = y;
+        return still;
+      }, { intervals: [200] })
+      .toBe(true);
     const pill = (await page.getByTestId('support').boundingBox())!;
     for (let i = 0; i < 8; i++) {
       const save = page.getByTestId('result-item').nth(i).getByTestId('save-button');
