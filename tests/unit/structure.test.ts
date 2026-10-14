@@ -15,14 +15,14 @@ import { createSurgeon } from '../../app/src/pdf/surgeon';
 import { flatten, toTree } from '../../app/src/ui/bookmarks-panel';
 import { chunks } from '../../app/src/ui/reader';
 import { bloatedPdf, outlinedPdf, pagesPdf, stampsIn } from '../fixtures/pdfs';
+import { pdfjsWorkerModule } from '../fixtures/pdfjs-worker';
 
 type PdfJs = typeof import('pdfjs-dist');
 let pdfjs: PdfJs;
 
 beforeAll(async () => {
   await import('../../app/src/pdf/shims');
-  const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-  (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+  (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
   pdfjs = await import('pdfjs-dist');
 });
 

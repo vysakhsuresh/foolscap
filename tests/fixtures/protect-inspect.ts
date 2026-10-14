@@ -12,6 +12,7 @@
 import { createCanvas, DOMMatrix as NodeDOMMatrix, Path2D as NodePath2D } from '@napi-rs/canvas';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { pdfjsWorkerModule } from './pdfjs-worker';
 
 type PdfJs = typeof import('pdfjs-dist');
 type Doc = Awaited<ReturnType<PdfJs['getDocument']>['promise']>;
@@ -26,8 +27,7 @@ async function pdfjs(): Promise<PdfJs> {
     const g = globalThis as Record<string, unknown>;
     g.Path2D ??= NodePath2D;
     g.DOMMatrix ??= NodeDOMMatrix;
-    const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-    (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+    (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
     root = dirname(createRequire(import.meta.url).resolve('pdfjs-dist/package.json'));
     return (await import('pdfjs-dist')) as PdfJs;
   })();

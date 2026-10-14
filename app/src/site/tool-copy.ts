@@ -253,8 +253,8 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
       'Open the .xlsx and check the totals against the PDF before you use them.',
     ],
     notes: [
-      'What you get depends on the document. A table that runs on from page to page with the same columns, such as a statement, becomes one sheet called Table, with its column headings once at the top. Separate tables on separate pages each get a sheet named after their page, and a PDF with no tables at all comes out as its lines of text, one per row.',
-      'Amounts arrive as numbers, so sums, filters and sorting work at once. Details printed above a statement and the summary box at its end go on a sheet called Other details, rather than being mixed in among the transactions.',
+      'What you get depends on the document. A table that runs on from page to page with the same columns, such as a statement, becomes one sheet called Table, with its column headings once at the top. Separate tables on separate pages each get a sheet named after their page, with the lines outside them (a payslip’s Net Pay, an invoice’s amount in words) on a last sheet called Text, so nothing on the pages is lost; a PDF with no tables at all comes out as its lines of text, one per row.',
+      'Amounts arrive as numbers, so sums, filters and sorting work at once. Details printed above a statement, the summary box at its end and any other lines go on a sheet called Other details, rather than being mixed in among the transactions.',
       'Columns are worked out from where the words line up. On a tidy layout that is exact; on a crowded one, a value can land one column over, or a long description can split across two rows. Checking the closing balance catches either. Each PDF becomes its own spreadsheet; to get one, [Merge](/tools/merge/) the PDFs first.',
     ],
     faq: [

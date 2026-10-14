@@ -16,14 +16,14 @@ import type { ToolId } from '../../app/src/ops/tools';
 import { pngFromPixels } from '../../app/src/pdf/png';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
 import { encryptedPdf, pagesPdf, pdfInfo, rotatedPdf, stampsIn } from '../fixtures/pdfs';
+import { pdfjsWorkerModule } from '../fixtures/pdfjs-worker';
 
 type PdfJs = typeof import('pdfjs-dist');
 let pdfjs: PdfJs;
 
 beforeAll(async () => {
   await import('../../app/src/pdf/shims');
-  const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-  (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+  (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
   pdfjs = await import('pdfjs-dist');
 });
 

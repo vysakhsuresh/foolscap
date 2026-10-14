@@ -8,6 +8,7 @@
 import { DOMMatrix as NodeDOMMatrix, ImageData as NodeImageData, Path2D as NodePath2D, createCanvas } from '@napi-rs/canvas';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { pdfjsWorkerModule } from './pdfjs-worker';
 
 type PdfJs = typeof import('pdfjs-dist');
 let loaded: Promise<PdfJs> | null = null;
@@ -20,8 +21,7 @@ function pdfjs(): Promise<PdfJs> {
     g.DOMMatrix ??= NodeDOMMatrix;
     g.ImageData ??= NodeImageData;
     await import('../../app/src/pdf/shims');
-    const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-    (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+    (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
     return import('pdfjs-dist');
   })();
   return loaded;

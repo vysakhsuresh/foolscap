@@ -4,7 +4,7 @@
  * which re-encodes the photos inside a PDF with the browser's own decoder.
  */
 import type { FoolscapFile } from '../files/types';
-import type { PdfView } from '../pdf';
+import type { PdfDoc, PdfView } from '../pdf';
 import { PageSelection } from '../pdf/page-selection';
 import { baseName, failed, forEachPdf, megabytes, ordinal, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import { canDecode, shrink } from './images';
@@ -14,10 +14,27 @@ import { documentText } from '../ocr/text';
 import { checkOcrParams, type OcrParams } from './ocr-params';
 import { checkCancelled, type CompressParams, type NoParams, type OcrReader, type OcrWord, type Op, type OpContext, type Outcome, type PdfToImagesParams } from './op';
 import { PAGES_HELP } from './pages-ops';
+import { SCAN_COVER } from '../pdf/page-cover';
 
 export async function openView(ctx: OpContext, input: FoolscapFile): Promise<PdfView> {
   const engine = await ctx.engine();
-  return engine.open(await ctx.workspace.read(input), { ...passwordFor(ctx, input), signal: ctx.signal });
+  // The file opened a second time, by the surgeon, only if a page has marked
+  // content: its /ActualText is what Malayalam and Hindi clusters really say,
+  // and pdf.js does not read it (pdf/actual-text.ts).
+  let doc: Promise<PdfDoc | null> | null = null;
+  const marked = async (index: number) => {
+    doc ??= (async () => ctx.surgeon.open(await readInput(ctx, input), passwordFor(ctx, input)))().catch(() => null);
+    return (await doc)?.markedSections(index) ?? null;
+  };
+  const view = await engine.open(await ctx.workspace.read(input), { ...passwordFor(ctx, input), signal: ctx.signal, marked });
+  const close = async () => {
+    try {
+      await view.close();
+    } finally {
+      (await doc)?.close();
+    }
+  };
+  return Object.create(view, { close: { value: close } }) as PdfView;
 }
 
 export const pdfToImagesOp: Op<PdfToImagesParams> = {
@@ -428,7 +445,15 @@ export const ocrOp: Op<OcrParams> = {
           for (let index = 0; index < pageCount; index++) {
             checkCancelled(ctx.signal);
             ctx.progress({ done: index, total: pageCount, label: `Reading page ${index + 1} of ${pageCount}${which}` });
-            if ((await view.text(index)).replace(/\s+/g, '').length >= HAS_TEXT) {
+            const own = (await view.text(index)).replace(/\s+/g, '').length;
+            if (own >= HAS_TEXT) {
+              alreadyText++;
+              continue;
+            }
+            const layout = await view.layout(index).catch(() => null);
+            // A few words of its own and no scan on it (a title over a photo, a cover): its
+            // words are already searchable, and reading the photo would only add guesses.
+            if (own > 0 && (layout?.pictureCover ?? 0) < SCAN_COVER) {
               alreadyText++;
               continue;
             }
@@ -451,6 +476,10 @@ export const ocrOp: Op<OcrParams> = {
       }
       if (alreadyText === pageCount) {
         outcomes.push({ kind: 'skipped', inputIds: [input.id], reason: 'Every page of this file already has text you can search and copy.' });
+        continue;
+      }
+      if (found.size === 0 && alreadyText > 0) {
+        outcomes.push({ kind: 'skipped', inputIds: [input.id], reason: 'Every page with words on it already has text you can search and copy; the other pages look blank.' });
         continue;
       }
       if (found.size === 0) {

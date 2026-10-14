@@ -47,10 +47,13 @@ export interface DrawCall {
 const WHITE = new Set([0x00, 0x09, 0x0a, 0x0c, 0x0d, 0x20]);
 const DELIM = new Set([0x28, 0x29, 0x3c, 0x3e, 0x5b, 0x5d, 0x7b, 0x7d, 0x2f, 0x25]);
 
-/** One operand before an operator: a number, a name (without its slash), or '' for anything else; and where it starts. */
+/** One operand before an operator: a number, a name (without its slash), or '' for anything else; and where it starts and ends. */
 interface Operand {
   readonly value: number | string;
   readonly start: number;
+  readonly end?: number;
+  /** For an inline dictionary (`<< … >>`). */
+  readonly dict?: true;
 }
 
 /**
@@ -93,6 +96,7 @@ function scan(bytes: Uint8Array, visit: (op: string, operands: readonly Operand[
     }
     if (c === 0x3c && bytes[i + 1] === 0x3c) {
       // A dictionary, possibly nested.
+      const from = i;
       let depth = 0;
       for (; i < n; i++) {
         if (bytes[i] === 0x3c && bytes[i + 1] === 0x3c) {
@@ -113,7 +117,7 @@ function scan(bytes: Uint8Array, visit: (op: string, operands: readonly Operand[
           }
         }
       }
-      operands.push({ value: '', start: i });
+      operands.push({ value: '', start: from, end: i, dict: true });
       continue;
     }
     if (c === 0x3c) {
@@ -184,6 +188,106 @@ export function drawCalls(bytes: Uint8Array): DrawCall[] {
     if (operand && typeof operand.value === 'string' && operand.value !== '') out.push({ name: operand.value, start: operand.start, end: at.end, ctm });
   });
   return out;
+}
+
+/**
+ * One marked-content section opened in a content stream (`BMC` or `BDC`), in
+ * the order a reader meets them, with the replacement text it carries.
+ * `/ActualText` is how Chrome, LibreOffice and Word say what a run of glyphs
+ * means when the glyphs alone cannot: a Malayalam or Hindi conjunct drawn as
+ * one shape, a vowel sign drawn before the letter it follows.
+ */
+export type MarkedEvent =
+  | { readonly kind: 'begin'; readonly tag: string; readonly actualText?: string; readonly properties?: string }
+  | { readonly kind: 'form'; readonly name: string };
+
+/**
+ * The marked-content sections in `bytes`, and the form XObjects drawn among
+ * them, in order. `properties` is the name of a property list in the
+ * resources (`/Span /MC0 BDC`); an inline one (`/Span <</ActualText …>> BDC`)
+ * is read here.
+ */
+export function markedContent(bytes: Uint8Array): MarkedEvent[] {
+  const out: MarkedEvent[] = [];
+  scan(bytes, (op, operands) => {
+    if (op === 'BMC' || op === 'BDC') {
+      const tagOperand = operands[operands.length - (op === 'BDC' ? 2 : 1)];
+      const tag = tagOperand && typeof tagOperand.value === 'string' ? tagOperand.value : '';
+      if (op === 'BMC') {
+        out.push({ kind: 'begin', tag });
+        return;
+      }
+      const props = operands[operands.length - 1];
+      if (props?.dict === true && props.end !== undefined) {
+        const actualText = actualTextIn(bytes.subarray(props.start, props.end));
+        out.push(actualText === undefined ? { kind: 'begin', tag } : { kind: 'begin', tag, actualText });
+      } else if (props && typeof props.value === 'string' && props.value !== '') {
+        out.push({ kind: 'begin', tag, properties: props.value });
+      } else out.push({ kind: 'begin', tag });
+    } else if (op === 'Do') {
+      const operand = operands[operands.length - 1];
+      if (operand && typeof operand.value === 'string' && operand.value !== '') out.push({ kind: 'form', name: operand.value });
+    }
+  });
+  return out;
+}
+
+/** The /ActualText string of an inline dictionary's bytes, decoded; undefined when it has none. */
+export function actualTextIn(dict: Uint8Array): string | undefined {
+  const key = indexOfBytes(dict, '/ActualText');
+  if (key < 0) return undefined;
+  let i = key + '/ActualText'.length;
+  while (i < dict.length && WHITE.has(dict[i]!)) i++;
+  const raw: number[] = [];
+  if (dict[i] === 0x28) {
+    // A literal string, with its escapes.
+    let depth = 0;
+    for (; i < dict.length; i++) {
+      const b = dict[i]!;
+      if (b === 0x5c) {
+        const next = dict[++i];
+        if (next === undefined) break;
+        const escapes: Record<number, number> = { 0x6e: 0x0a, 0x72: 0x0d, 0x74: 0x09, 0x62: 0x08, 0x66: 0x0c };
+        if (next >= 0x30 && next <= 0x37) {
+          let value = next - 0x30;
+          for (let k = 0; k < 2 && dict[i + 1]! >= 0x30 && dict[i + 1]! <= 0x37; k++) value = value * 8 + (dict[++i]! - 0x30);
+          raw.push(value & 0xff);
+        } else if (next === 0x0d || next === 0x0a) {
+          // A line continued: nothing.
+          if (next === 0x0d && dict[i + 1] === 0x0a) i++;
+        } else raw.push(escapes[next] ?? next);
+        continue;
+      }
+      if (b === 0x28 && depth++ === 0) continue;
+      if (b === 0x29 && --depth === 0) break;
+      raw.push(b);
+    }
+  } else if (dict[i] === 0x3c) {
+    let hex = '';
+    for (i++; i < dict.length && dict[i] !== 0x3e; i++) if (!WHITE.has(dict[i]!)) hex += String.fromCharCode(dict[i]!);
+    if (hex.length % 2 === 1) hex += '0';
+    for (let k = 0; k < hex.length; k += 2) raw.push(parseInt(hex.slice(k, k + 2), 16) || 0);
+  } else return undefined;
+  return decodeTextString(Uint8Array.from(raw));
+}
+
+/** A PDF text string's bytes as text: UTF-16 with its byte-order mark, UTF-8 with its own, else PDFDocEncoding (Latin-1 for what matters here). */
+export function decodeTextString(raw: Uint8Array): string {
+  if (raw[0] === 0xfe && raw[1] === 0xff) {
+    let out = '';
+    for (let k = 2; k + 1 < raw.length; k += 2) out += String.fromCharCode((raw[k]! << 8) | raw[k + 1]!);
+    return out;
+  }
+  if (raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf) return new TextDecoder('utf-8').decode(raw.subarray(3));
+  return String.fromCharCode(...raw);
+}
+
+function indexOfBytes(bytes: Uint8Array, word: string): number {
+  outer: for (let i = 0; i + word.length <= bytes.length; i++) {
+    for (let k = 0; k < word.length; k++) if (bytes[i + k] !== word.charCodeAt(k)) continue outer;
+    return i;
+  }
+  return -1;
 }
 
 /**

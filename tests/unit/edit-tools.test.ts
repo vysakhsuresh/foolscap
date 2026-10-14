@@ -12,13 +12,13 @@ import type { OpContext, Outcome } from '../../app/src/ops/op';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
 import type { Mark, PdfEngine } from '../../app/src/pdf/types';
 import { TINY_JPEG, formPdf, noisePng, pagesPdf, rotatedPdf, stampsIn } from '../fixtures/pdfs';
+import { pdfjsWorkerModule } from '../fixtures/pdfjs-worker';
 
 let engine: PdfEngine;
 
 beforeAll(async () => {
   await import('../../app/src/pdf/shims');
-  const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-  (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+  (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
   const { createEngine } = await import('../../app/src/pdf/engine');
   engine = createEngine();
   await engine.ready;

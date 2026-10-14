@@ -15,7 +15,7 @@ import type { SlideText } from '../convert/model';
 import { fromXlsx, toXlsx } from '../convert/xlsx';
 import { unzipSync } from 'fflate';
 import type { FoolscapFile } from '../files/types';
-import type { LinePainter, PdfView } from '../pdf';
+import type { LinePainter, PageLayout, PdfView } from '../pdf';
 import { baseName, failed, ordinal, passwordFor, plural, readInput, refused, stem, store } from './common';
 import { checkCancelled, type Op, type OpContext, type Outcome, type PdfToEpubParams, type PdfToPowerPointParams, type PdfToWordParams, type ScanPages } from './op';
 import { SCAN_COVER } from '../pdf/page-cover';
@@ -24,7 +24,6 @@ import { openView, pngHeight, pngWidth } from './render-ops';
 
 /** Fewer letters than this on a page and it is treated as a scan. */
 const HAS_TEXT = 12;
-const OCR_DPI = 300;
 /** Pictures are cut from the page drawn at this many dots per inch: sharp on screen and on paper, light in the file. */
 const PICTURE_DPI = 150;
 /** No picture wider than this, however big it is drawn. */
@@ -71,11 +70,16 @@ async function wholePage(ctx: OpContext, view: PdfView, index: number, width: nu
  * where it sits. A picture that fills most of a page whose words were read
  * from it is the scan itself, and is left out: its words are already there.
  */
-async function picturesOn(ctx: OpContext, view: PdfView, index: number, width: number, height: number, scanRead: boolean): Promise<PageImage[]> {
+async function picturesOn(ctx: OpContext, view: PdfView, index: number, width: number, height: number, scanRead: boolean, turned?: 90 | 180 | 270): Promise<PageImage[]> {
   if (!canDecode()) return [];
   const areas = (await view.images(index)).filter((a) => !(scanRead && a.w * a.h > 0.5));
   if (areas.length === 0) return [];
-  const pixels = Math.max(1, Math.round((width / 72) * PICTURE_DPI));
+  // A page read turned (its words ran sideways) is drawn as shown; its pictures are placed on the turned page.
+  const sideways = turned === 90 || turned === 270;
+  const shownWidth = sideways ? height : width;
+  const place = (a: { x: number; y: number; w: number; h: number }) =>
+    turned === 90 ? { x: a.y, y: 1 - a.x - a.w, w: a.h, h: a.w } : turned === 270 ? { x: 1 - a.y - a.h, y: a.x, w: a.h, h: a.w } : turned === 180 ? { x: 1 - a.x - a.w, y: 1 - a.y - a.h, w: a.w, h: a.h } : a;
+  const pixels = Math.max(1, Math.round((shownWidth / 72) * PICTURE_DPI));
   const png = await view.encode(index, { width: pixels, format: 'png', signal: ctx.signal });
   const bitmap = await createImageBitmap(new Blob([png as Uint8Array<ArrayBuffer>], { type: 'image/png' }));
   try {
@@ -95,7 +99,8 @@ async function picturesOn(ctx: OpContext, view: PdfView, index: number, width: n
       c.fillRect(0, 0, canvas.width, canvas.height);
       c.drawImage(bitmap, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
       const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.88 });
-      out.push({ bytes: new Uint8Array(await blob.arrayBuffer()), format: 'jpeg', x: area.x * width, y: area.y * height, width: area.w * width, height: area.h * height });
+      const at = place(area);
+      out.push({ bytes: new Uint8Array(await blob.arrayBuffer()), format: 'jpeg', x: at.x * width, y: at.y * height, width: at.w * width, height: at.h * height });
     }
     return out;
   } finally {
@@ -119,10 +124,10 @@ async function readPages(ctx: OpContext, view: PdfView, which: string, scanning:
   let layered = 0;
   let kept = 0;
   let found = 0;
-  const withPictures = async (index: number, page: PageText, scanRead: boolean): Promise<PageText> => {
+  const withPictures = async (index: number, page: PageText, scanRead: boolean, turned?: 90 | 180 | 270): Promise<PageText> => {
     if (!pictures) return page;
     try {
-      const images = await picturesOn(ctx, view, index, page.width, page.height, scanRead);
+      const images = await picturesOn(ctx, view, index, page.width, page.height, scanRead, turned);
       found += images.length;
       return images.length > 0 ? { ...page, images } : page;
     } catch {
@@ -134,9 +139,13 @@ async function readPages(ctx: OpContext, view: PdfView, which: string, scanning:
   for (let index = 0; index < view.pageCount; index++) {
     checkCancelled(ctx.signal);
     ctx.progress({ done: index, total: view.pageCount, label: `Reading page ${index + 1} of ${view.pageCount}${which}` });
-    const layout = await view.layout(index);
-    const letters = layout.items.reduce((n, i) => n + i.str.replace(/\s+/g, '').length, 0);
-    const scan = (layout.pictureCover ?? 0) >= SCAN_COVER && (letters < HAS_TEXT || (layout.hiddenText ?? 0) >= HIDDEN_LAYER);
+    // Upright: a table printed sideways is read as a person turning the paper would read it.
+    // A scan is not: it stays the page as it is shown.
+    const upright = await view.layout(index, { upright: true });
+    const shown = upright.turned === undefined ? upright : await view.layout(index);
+    const scan = (shown.pictureCover ?? 0) >= SCAN_COVER && (lettersIn(shown) < HAS_TEXT || (shown.hiddenText ?? 0) >= HIDDEN_LAYER);
+    const layout = scan ? shown : upright.turned === undefined ? upright : withShownLines(upright, shown);
+    const letters = lettersIn(layout);
     if (scan && pictures) {
       scanned++;
       let items: PageText['items'] = [];
@@ -146,7 +155,7 @@ async function readPages(ctx: OpContext, view: PdfView, which: string, scanning:
           layered++;
         } else if (scans && ctx.ocr) {
           ctx.progress({ done: index, total: view.pageCount, label: `Reading the words in page ${index + 1}${which} (a scan, so this is slower)` });
-          items = await ocrPage(ctx, view, index, layout.width, layout.height);
+          items = await ocrPage(ctx, view, index, layout);
           read++;
         }
       }
@@ -162,23 +171,47 @@ async function readPages(ctx: OpContext, view: PdfView, which: string, scanning:
       pages.push({ width: layout.width, height: layout.height, items, ...(images.length > 0 ? { images } : {}) });
       continue;
     }
-    if (letters >= HAS_TEXT || !scans || !ctx.ocr) {
-      if (letters < HAS_TEXT) scanned++;
-      pages.push(await withPictures(index, { width: layout.width, height: layout.height, items: layout.items }, false));
+    // A page with a few words of its own and no scan on it (a slide's title over a photo) is not
+    // read from its picture: the photo's "words" would be guesses. A page with no words at all
+    // is, even with no picture: its letters may be drawn as shapes.
+    const nothingToRead = letters > 0 && (layout.pictureCover ?? 0) < SCAN_COVER;
+    if (letters >= HAS_TEXT || !scans || !ctx.ocr || nothingToRead) {
+      if (letters < HAS_TEXT && !nothingToRead) scanned++;
+      pages.push(await withPictures(index, { width: layout.width, height: layout.height, items: layout.items }, false, layout.turned));
       continue;
     }
     // A scan: read the picture of the page, then treat its words like any other.
     ctx.progress({ done: index, total: view.pageCount, label: `Reading the words in page ${index + 1}${which} (a scan, so this is slower)` });
-    const items = await ocrPage(ctx, view, index, layout.width, layout.height);
+    const items = await ocrPage(ctx, view, index, layout);
     read++;
     pages.push(await withPictures(index, { width: layout.width, height: layout.height, items }, true));
   }
   return { pages, scanned, read, layered, kept, pictures: found };
 }
 
+/** 300 dpi: what Tesseract reads best. */
+const OCR_DPI = 300;
+
+/**
+ * A page read turned (a table printed sideways) keeps the few lines that ran
+ * the usual way too (its title, its footnote), as lines above the rest:
+ * turned, they would run down the page and be left out.
+ */
+function withShownLines(upright: PageLayout, shown: PageLayout): PageLayout {
+  if (shown.items.length === 0) return upright;
+  const baselines = [...new Set(shown.items.map((i) => Math.round(i.y)))].sort((a, b) => a - b);
+  const step = Math.max(14, ...shown.items.map((i) => i.height * 1.4));
+  const offset = step * (baselines.length + 1);
+  const above = shown.items.map((i) => ({ ...i, y: step * (baselines.indexOf(Math.round(i.y)) + 1) }));
+  return { ...upright, height: upright.height + offset, items: [...above, ...upright.items.map((i) => ({ ...i, y: i.y + offset }))] };
+}
+
+const lettersIn = (layout: PageLayout) => layout.items.reduce((n, i) => n + i.str.replace(/\s+/g, '').length, 0);
+
 /** The words in a picture of a page, read with the text reader, placed where they sit. */
-async function ocrPage(ctx: OpContext, view: PdfView, index: number, pageWidth: number, pageHeight: number): Promise<TextItem[]> {
+async function ocrPage(ctx: OpContext, view: PdfView, index: number, layout: PageLayout): Promise<TextItem[]> {
   if (!ctx.ocr) return [];
+  const { width: pageWidth, height: pageHeight } = layout;
   const reader = await ctx.ocr();
   const width = Math.round((pageWidth / 72) * OCR_DPI);
   const png = await view.encode(index, { width, format: 'png', signal: ctx.signal });
@@ -460,7 +493,9 @@ export const pdfToPowerPointOp = converter<PdfToPowerPointParams>(
           const found = complete ? slideBoxes(layout) : [];
           if (found.length > 0) {
             const withText = await pixelsOf(view, index, SLIDE_PIXELS, ctx.signal);
-            const without = await pixelsOf(bare, index, withText.width, ctx.signal);
+            // Asked for at the same width, not at the width that came back: a page 595.28 points wide
+            // drawn 1600 pixels across comes back 1599, and drawn 1599 across it would come back a row shorter.
+            const without = await pixelsOf(bare, index, SLIDE_PIXELS, ctx.signal);
             if (without.width === withText.width && without.height === withText.height) {
               const texts: SlideText[] = [];
               for (const box of found) {

@@ -13,6 +13,7 @@ import { PDFDocument, degrees } from '@cantoo/pdf-lib';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { PdfEngine } from '../../app/src/pdf/types';
 import { PdfError } from '../../app/src/pdf/types';
+import { pdfjsWorkerModule } from '../fixtures/pdfjs-worker';
 
 let engine: PdfEngine;
 
@@ -24,8 +25,7 @@ beforeAll(async () => {
   // A non-literal specifier: the worker module ships no types, and the only
   // thing wanted from it is its presence on the global pdf.js checks for an
   // in-thread fallback.
-  const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-  (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+  (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
 
   const { createEngine } = await import('../../app/src/pdf/engine');
   engine = createEngine();

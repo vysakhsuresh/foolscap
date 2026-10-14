@@ -536,7 +536,9 @@ function statement(offset: number, header = true): TextItem[] {
 describe('text layout: toWorkbook', () => {
   it('joins a table that runs across pages into one sheet, header once', () => {
     const book = toWorkbook([page(statement(0)), page(statement(0))]);
-    expect(book.sheets.map((s) => s.name)).toEqual(['Table']);
+    // The title above the table is not lost: it is on the sheet beside it.
+    expect(book.sheets.map((s) => s.name)).toEqual(['Table', 'Other details']);
+    expect(book.sheets[1]?.rows).toEqual([['Statement of account'], [], ['Statement of account']]);
     expect(book.sheets[0]?.rows).toHaveLength(7);
     expect(book.sheets[0]?.rows[2]).toEqual(['02/04/2024', 'UPI payment to grocery store Kochi branch', '1,250.50']);
     const back = fromXlsx(toXlsx(book));
@@ -546,7 +548,9 @@ describe('text layout: toWorkbook', () => {
   it('gives each page its own sheet when the columns differ', () => {
     const other = [...words('Name', 72, 100), ...words('Qty', 300, 100), ...words('Tea', 72, 120), ...words('2', 300, 120), ...words('Rice', 72, 140), ...words('5', 300, 140)];
     const book = toWorkbook([page(statement(0)), page([]), page(other)]);
-    expect(book.sheets.map((s) => s.name)).toEqual(['Page 1', 'Page 3']);
+    expect(book.sheets.map((s) => s.name)).toEqual(['Page 1', 'Page 3', 'Text']);
+    // The lines outside the tables come after them, so nothing on the pages is lost.
+    expect(book.sheets[2]?.rows).toEqual([['Statement of account']]);
     expect(book.sheets[1]?.rows).toEqual([
       ['Name', 'Qty'],
       ['Tea', '2'],

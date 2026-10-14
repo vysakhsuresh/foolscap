@@ -11,14 +11,14 @@ import type { OpContext, Outcome } from '../../app/src/ops/op';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
 import { AES_EC384 } from '../fixtures/certificates';
 import { encryptedPdf, pagesPdf, stampsIn } from '../fixtures/pdfs';
+import { pdfjsWorkerModule } from '../fixtures/pdfjs-worker';
 
 type PdfJs = typeof import('pdfjs-dist');
 let pdfjs: PdfJs;
 
 beforeAll(async () => {
   await import('../../app/src/pdf/shims');
-  const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-  (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+  (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
   pdfjs = await import('pdfjs-dist');
 });
 

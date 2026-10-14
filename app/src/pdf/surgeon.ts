@@ -73,11 +73,12 @@ import { readIdentity } from '../sign/identity';
 import { hasSignatures, signPdf } from './sign-pdf';
 import { layoutFlow } from './surgeon-flow';
 import { srgbProfile } from './icc';
-import { drawCalls, invert, multiply, paperFills, unitBox, withoutText, type Matrix } from './content-stream';
+import { drawCalls, invert, markedContent, multiply, paperFills, unitBox, withoutText, type Matrix } from './content-stream';
 import { appendCopies, carryLabels, carryOutline, finishCopies, fitToPaper, formDefaults, rewriteOutline, type PendingLink } from './surgeon-pages';
 import {
   PdfError,
   type Box,
+  type MarkedSection,
   type DocInfo,
   type DocInfoField,
   type Attachment,
@@ -671,6 +672,21 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
     wasEncrypted,
     missingPages,
     signed,
+    archival: claimsArchival(initial),
+
+    markedSections(index) {
+      const page = pageAt(index);
+      const contents = page.node.Contents();
+      const streams = contents instanceof PDFArray ? contents.asArray() : contents === undefined ? [] : [contents];
+      const parts: Uint8Array[] = [];
+      for (const item of streams) {
+        const bytes = streamBytes(page.doc.context.lookup(item));
+        if (bytes) parts.push(bytes);
+      }
+      const out: MarkedSection[] = [];
+      sectionsOf(concatLines(parts), page.node.Resources(), out, 0, new Set());
+      return out;
+    },
 
     visibleBox(index) {
       const { x, y, width, height } = pageAt(index).getCropBox();
@@ -1724,6 +1740,8 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const encrypt = opts?.encrypt;
       if (encrypt !== undefined) {
         if (encrypt.userPassword.length === 0 && encrypt.restrictOnly !== true) throw new Error('A password cannot be empty.');
+        // An archive copy (PDF/A) may not be encrypted, so a locked one stops saying it is one.
+        dropArchivalClaim(d);
         d.encrypt({
           userPassword: encrypt.userPassword,
           // Nobody is told the owner password: it exists so a reader enforces
@@ -1760,6 +1778,86 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
 
   documents.set(self, initial);
   return self;
+}
+
+/** A stream's decoded bytes, or null when it is not a stream or cannot be decoded. */
+function streamBytes(stream: unknown): Uint8Array | null {
+  try {
+    if (stream instanceof PDFRawStream) return decodePDFRawStream(stream).decode();
+    if (stream instanceof PDFContentStream) return stream.getUnencodedContents();
+  } catch {
+    // A stream that cannot be decoded draws nothing a reader can read either.
+  }
+  return null;
+}
+
+function concatLines(parts: readonly Uint8Array[]): Uint8Array {
+  const joined = new Uint8Array(parts.reduce((n, p) => n + p.length + 1, 0));
+  let at = 0;
+  for (const p of parts) {
+    joined.set(p, at);
+    joined[at + p.length] = 0x0a;
+    at += p.length + 1;
+  }
+  return joined;
+}
+
+/**
+ * The marked-content sections a content stream opens, in the order a reader
+ * meets them, going into each form XObject where it is drawn, as pdf.js does
+ * when it reads a page's words: what lets the engine put /ActualText back.
+ */
+function sectionsOf(bytes: Uint8Array, resources: PDFDict | undefined, out: MarkedSection[], depth: number, seen: Set<PDFRawStream>): void {
+  for (const event of markedContent(bytes)) {
+    if (event.kind === 'begin') {
+      let actualText = event.actualText;
+      if (actualText === undefined && event.properties !== undefined) {
+        const list = resources?.lookupMaybe(PDFName.of('Properties'), PDFDict)?.lookup(PDFName.of(event.properties));
+        if (list instanceof PDFDict) actualText = textOf(list.lookup(PDFName.of('ActualText')));
+      }
+      out.push(actualText === undefined ? { tag: event.tag } : { tag: event.tag, actualText });
+      continue;
+    }
+    if (depth >= 12) continue;
+    const xobject = resources?.lookupMaybe(PDFName.of('XObject'), PDFDict)?.lookup(PDFName.of(event.name));
+    if (!(xobject instanceof PDFRawStream) || seen.has(xobject)) continue;
+    const subtype = xobject.dict.lookup(PDFName.of('Subtype'));
+    if (!(subtype instanceof PDFName) || subtype.decodeText() !== 'Form') continue;
+    const inner = streamBytes(xobject);
+    if (!inner) continue;
+    const own = xobject.dict.lookup(PDFName.of('Resources'));
+    seen.add(xobject);
+    sectionsOf(inner, own instanceof PDFDict ? own : resources, out, depth + 1, seen);
+    seen.delete(xobject);
+  }
+}
+
+/** The words in an XMP packet that say a file is PDF/A ("pdfaid"), as elements or attributes. */
+const PDFA_ID = /<pdfaid:(part|conformance|amd|corr)>[^<]*<\/pdfaid:\1>|\spdfaid:(part|conformance|amd|corr)\s*=\s*(["'])[^"']*\3/g;
+
+/** The XMP packet the catalog carries, as text, or null when it has none that can be read. */
+function catalogXmp(doc: PDFDocument): string | null {
+  try {
+    const stream = doc.catalog.lookup(PDFName.of('Metadata'));
+    if (!(stream instanceof PDFRawStream)) return null;
+    return new TextDecoder('utf-8').decode(decodePDFRawStream(stream).decode());
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the document says it is an archive copy: PDF/A's part and conformance in its XMP. */
+function claimsArchival(doc: PDFDocument): boolean {
+  const xml = catalogXmp(doc);
+  return xml !== null && /pdfaid:part/.test(xml);
+}
+
+/** Takes the PDF/A identification out of the XMP, keeping the rest of it (title, author, dates). */
+function dropArchivalClaim(doc: PDFDocument): void {
+  const xml = catalogXmp(doc);
+  if (xml === null || !/pdfaid:part/.test(xml)) return;
+  const kept = xml.replace(PDFA_ID, '');
+  doc.catalog.set(PDFName.of('Metadata'), doc.context.register(doc.context.stream(new TextEncoder().encode(kept), { Type: 'Metadata', Subtype: 'XML' })));
 }
 
 /**
@@ -1948,6 +2046,9 @@ interface FoundImage {
   readonly channels: 1 | 3 | undefined;
 }
 
+/** Filters that only spell bytes out as text, which a picture can be wrapped in. */
+const TEXT_FILTERS = new Set(['ASCII85Decode', 'ASCIIHexDecode', 'A85', 'AHx']);
+
 function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage[]; skipped: number; odd: OddImage[]; found: FoundImage[] } {
   const { context } = doc;
   const seen = new Set<string>();
@@ -2005,6 +2106,15 @@ function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage
         : filterObj === undefined
           ? []
           : [name(filterObj)];
+    // A text wrapping (ASCII85 or hex, as ReportLab writes every picture by
+    // default) around a JPEG is taken off: what is inside is the JPEG itself.
+    const wrappers = filters.findIndex((f) => !(f !== undefined && TEXT_FILTERS.has(f)));
+    const core = wrappers < 0 ? [] : filters.slice(wrappers);
+    if (wrappers > 0 && core.length === 1 && core[0] === 'DCTDecode') {
+      const unwrap = () => decodePDFRawStream(PDFRawStream.of(context.obj({ Filter: filters.slice(0, wrappers).map((f) => PDFName.of(f ?? '')) }), stream.getContents())).decode();
+      push({ page, ext: 'jpg', width, height }, unwrap, stream, ref, channelsOf(dict));
+      return;
+    }
     const only = filters.length === 1 ? filters[0] : undefined;
     const skipOdd = () => {
       skipped++;
@@ -2046,8 +2156,13 @@ function extractImages(doc: PDFDocument, eager = true): { images: ExtractedImage
         return;
       }
     } else if (filters.length > 0) {
-      skipOdd();
-      return;
+      // A chain pdf-lib can undo (ASCII85 around Flate, say), with no predictor to apply afterwards.
+      const parms = dict.lookup(PDFName.of('DecodeParms'));
+      const plain = filters.every((f) => f !== undefined && (TEXT_FILTERS.has(f) || f === 'FlateDecode' || f === 'LZWDecode' || f === 'RunLengthDecode'));
+      if (!plain || parms !== undefined) {
+        skipOdd();
+        return;
+      }
     }
     const raw = filters.length === 0;
     push(
@@ -2130,8 +2245,19 @@ async function compressDocument(
     }
     if (picture === null) continue;
     const next = await recompress({ ...image, bytes: picture });
+    if (next === null || next.bytes.length >= stream.getContents().length * 0.9) {
+      // A JPEG spelled out as text (ASCII85) is a quarter bigger than itself: unwrapped, not a pixel changes.
+      const filter = dict.lookup(PDFName.of('Filter'));
+      if (image.ext === 'jpg' && filter instanceof PDFArray && filter.size() > 1 && picture.length < stream.getContents().length * 0.9) {
+        const plain = PDFRawStream.of(dict.clone(context), picture);
+        plain.dict.set(PDFName.of('Filter'), PDFName.of('DCTDecode'));
+        plain.dict.delete(PDFName.of('DecodeParms'));
+        context.assign(ref, plain);
+        replaced++;
+      }
+      continue;
+    }
     picture = null;
-    if (next === null || next.bytes.length >= stream.getContents().length * 0.9) continue;
     const entries: Record<string, unknown> = {
       Type: 'XObject',
       Subtype: 'Image',

@@ -178,7 +178,11 @@ export function toFlow(pages: readonly PageText[], opts: { title?: string } = {}
  * Finds the tables on each page and returns them as sheets: one sheet called
  * "Table" when the same columns run on from page to page (a bank statement),
  * otherwise one sheet per page that has a table ("Page 3"). A document with
- * no tables at all gets its lines, one per row, in column A.
+ * no tables at all gets its lines, one per row, in column A. The lines
+ * outside the tables are kept too, one per row, on "Other details" beside a
+ * statement or on "Text" after the pages' sheets: a payslip's Net Pay, an
+ * invoice's amount in words, the clauses of an agreement with one small
+ * table in it.
  */
 export function toWorkbook(pages: readonly PageText[]): Workbook {
   const bounds = documentBounds(pages);
@@ -186,8 +190,18 @@ export function toWorkbook(pages: readonly PageText[]): Workbook {
     const items = layoutPage(page, bounds);
     const tables = items.flatMap((item) => (item.kind === 'table' ? [item.table] : []));
     const lines = items.flatMap((item) => (item.kind === 'line' ? [lineText(item.line)] : item.kind === 'table' ? tableLines(item.table) : []));
-    return { index, tables, lines };
+    // The words that are not in any table: a payslip's Net Pay line, an
+    // agreement's clauses, the amount in words under an invoice.
+    const prose = items.flatMap((item) => (item.kind === 'line' ? [lineText(item.line)] : [])).filter((l) => l.trim() !== '');
+    return { index, tables, lines, prose };
   });
+  /** Every line outside the tables, page by page with a blank row between: nothing on the pages is lost. */
+  const proseRows: string[][] = [];
+  for (const p of perPage) {
+    if (p.prose.length === 0) continue;
+    if (proseRows.length > 0) proseRows.push([]);
+    proseRows.push(...p.prose.map((l) => [l]));
+  }
 
   const withTables = perPage.filter((p) => p.tables.length > 0);
   if (withTables.length === 0) {
@@ -198,7 +212,12 @@ export function toWorkbook(pages: readonly PageText[]): Workbook {
   // Each page's main table is its longest. When most pages' main tables share
   // their columns, they are one table broken by page breaks: a statement.
   const mains = withTables.map((p) => ({ p, main: p.tables.reduce((best, t) => (tableRows(t).length > tableRows(best).length ? t : best)) }));
-  const first = mains[0]?.main;
+  // The columns most pages share are the statement's: a first page whose table found its
+  // columns a little differently (an account summary across its top) does not set them.
+  const first = mains.reduce<{ main: FoundTable; n: number } | undefined>((best, m) => {
+    const n = mains.filter((o) => sameColumns(o.main, m.main)).length;
+    return best && best.n >= n ? best : { main: m.main, n };
+  }, undefined)?.main;
   const alike = first ? mains.filter((m) => sameColumns(m.main, first)).length : 0;
   if (first && mains.length > 1 && alike >= Math.max(2, Math.ceil(mains.length * 0.6))) {
     // The header is the row that comes back at the top of later pages.
@@ -251,19 +270,22 @@ export function toWorkbook(pages: readonly PageText[]): Workbook {
       }
       rows.push(...body);
     }
+    if (proseRows.length > 0) {
+      if (other.length > 0) other.push([]);
+      other.push(...proseRows);
+    }
     return { sheets: other.length > 0 ? [{ name: 'Table', rows }, { name: 'Other details', rows: other }] : [{ name: 'Table', rows }] };
   }
 
-  return {
-    sheets: withTables.map((p) => {
-      const rows: string[][] = [];
-      p.tables.forEach((t, i) => {
-        if (i > 0) rows.push([]);
-        rows.push(...tableRows(t));
-      });
-      return { name: `Page ${p.index + 1}`, rows };
-    }),
-  };
+  const sheets = withTables.map((p) => {
+    const rows: string[][] = [];
+    p.tables.forEach((t, i) => {
+      if (i > 0) rows.push([]);
+      rows.push(...tableRows(t));
+    });
+    return { name: `Page ${p.index + 1}`, rows };
+  });
+  return { sheets: proseRows.length > 0 ? [...sheets, { name: 'Text', rows: proseRows }] : sheets };
 }
 
 /**
@@ -495,11 +517,12 @@ function dominantSize(pieces: readonly Piece[]): number {
  * its own, which is how three columns are read.
  */
 function arrange(segs: readonly Segment[], imgs: readonly Img[], left: number, right: number, depth: number): Chunk[] {
-  const gutter = depth < 3 ? findGutter(segs, left, right) : undefined;
-  if (!gutter) return [{ left, right, elements: elementsOf(segs, imgs) }];
-  const [g0, g1] = gutter;
+  const found = depth < 3 ? findGutter(segs, left, right) : undefined;
+  if (!found) return [{ left, right, elements: elementsOf(segs, imgs) }];
+  const [g0, g1, sidebar] = found;
   const middle = (g0 + g1) / 2;
-  const crosses = (x0: number, x1: number) => x0 < g1 - 1 && x1 > g0 + 1;
+  // A sidebar is read whole, then the main text: nothing crossing between them cuts them into bands.
+  const crosses = (x0: number, x1: number) => !sidebar && x0 < g1 - 1 && x1 > g0 + 1;
   const spanning = new Set(segs.filter((s) => crosses(s.x0, s.x1)).map((s) => s.cluster));
 
   type Thing = { readonly top: number; readonly seg?: Segment; readonly img?: Img };
@@ -536,8 +559,8 @@ function arrange(segs: readonly Segment[], imgs: readonly Img[], left: number, r
   return chunks;
 }
 
-/** The widest gutter between two columns of prose, or undefined when the region is one column. */
-function findGutter(segs: readonly Segment[], left: number, right: number): [number, number] | undefined {
+/** The widest gutter between two columns of prose (or a sidebar and the main text: true), or undefined when the region is one column. */
+function findGutter(segs: readonly Segment[], left: number, right: number): [number, number, boolean] | undefined {
   const width = right - left;
   if (segs.length < 6 || width < 100) return undefined;
   const bins = Math.ceil(width) + 2;
@@ -574,8 +597,30 @@ function findGutter(segs: readonly Segment[], left: number, right: number): [num
   const [g0, g1] = best;
   const leftSide = segs.filter((s) => s.x1 <= g0 + 1);
   const rightSide = segs.filter((s) => s.x0 >= g1 - 1);
-  if (!isProse(leftSide, left, g0) || !isProse(rightSide, g1, right)) return undefined;
-  return best;
+  if (isProse(leftSide, left, g0) && isProse(rightSide, g1, right)) return [g0, g1, false];
+  // A sidebar beside the main text (a résumé's contact details and skills,
+  // a newsletter's contents): short lines on one side, but lines that keep to
+  // their own spacing rather than lining up with the other side's, which is
+  // what a table's rows do.
+  if (isSidebar(leftSide, rightSide, left, g0, g1, right)) return [g0, g1, true];
+  return undefined;
+}
+
+/**
+ * Two sides that are read one after the other, not across: each has several
+ * lines, at least one side is prose, and few of either side's baselines line
+ * up with the other's.
+ */
+function isSidebar(leftSide: readonly Segment[], rightSide: readonly Segment[], left: number, g0: number, g1: number, right: number): boolean {
+  const lines = (side: readonly Segment[]) => [...new Set(side.map((s) => Math.round(s.y)))];
+  const l = lines(leftSide);
+  const r = lines(rightSide);
+  if (l.length < 4 || r.length < 4) return false;
+  // At least one side carries running text: a good share of its lines fill most of its width.
+  const runs = (side: readonly Segment[], x0: number, x1: number) => side.filter((s) => s.x1 - s.x0 >= 0.5 * (x1 - x0) && s.text.length >= 20).length >= Math.max(3, side.length * 0.25);
+  if (!runs(leftSide, left, g0) && !runs(rightSide, g1, right)) return false;
+  const aligned = (a: readonly number[], b: readonly number[]) => a.filter((y) => b.some((z) => Math.abs(y - z) <= 1.5)).length / a.length;
+  return Math.max(aligned(l, r), aligned(r, l)) < 0.3;
 }
 
 /**
@@ -748,7 +793,29 @@ function tableAt(els: readonly Element[], start: number, chunk: ChunkInfo, floor
   }
   const rows = groupRows(fitted);
   if (rows.filter((r) => filled(r) >= 2).length < 2) return undefined;
-  return { table: { columns, rows }, from, next: from + fitted.length };
+  return { table: headingsOverFigures({ columns, rows }), from, next: from + fitted.length };
+}
+
+/**
+ * A heading set flush left over figures set flush right ("Debit" over
+ * "2,247.89" in a column wider than both) does not overlap them, so the two
+ * came out as columns of their own: one with only the heading, the next with
+ * only the figures. Such a pair is one column.
+ */
+function headingsOverFigures(table: FoundTable): FoundTable {
+  const columns = [...table.columns];
+  const rows = table.rows.map((r) => r.map((c) => [...c]));
+  if (rows.length < 3) return table;
+  const headOnly = (k: number) => (rows[0]?.[k]?.length ?? 0) > 0 && rows.slice(1).every((r) => (r[k]?.length ?? 0) === 0);
+  const bodyOnly = (k: number) => (rows[0]?.[k]?.length ?? 0) === 0 && rows.slice(1).some((r) => (r[k]?.length ?? 0) > 0);
+  for (let k = 0; k + 1 < columns.length; k++) {
+    if (!((headOnly(k) && bodyOnly(k + 1)) || (bodyOnly(k) && headOnly(k + 1)))) continue;
+    const a = columns[k]!;
+    const b = columns[k + 1]!;
+    columns.splice(k, 2, { x0: Math.min(a.x0, b.x0), x1: Math.max(a.x1, b.x1) });
+    for (const r of rows) r.splice(k, 2, [...(r[k] ?? []), ...(r[k + 1] ?? [])]);
+  }
+  return columns.length === table.columns.length ? table : { columns, rows };
 }
 
 interface Fitted {

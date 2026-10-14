@@ -1,12 +1,20 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { cloudflareHeaders } from './scripts/vite-cf-headers';
 import { rebaseHtml } from './scripts/vite-rebase-html';
 import { serviceWorker } from './scripts/vite-sw';
+import { isPdfjsWorker, patchPdfjsWorker } from './scripts/pdfjs-patch';
 
 const here = dirname(fileURLToPath(import.meta.url));
+
+/** pdf.js read Malayalam and Hindi letters with a vowel sign as taking no room (scripts/pdfjs-patch.ts). */
+const pdfjsDiacritics = (): Plugin => ({
+  name: 'pdfjs-diacritics',
+  enforce: 'pre',
+  transform: (code, id) => (isPdfjsWorker(id) ? { code: patchPdfjsWorker(code), map: null } : null),
+});
 const page = (...parts: string[]) => resolve(here, 'app', ...parts);
 
 /** Every index.html below app/ (tools, guides, privacy, about…), outside the source and public folders. */
@@ -40,6 +48,7 @@ export default defineConfig({
     rebaseHtml(base, { metaCsp: github || base !== '/', noindex: base !== '/' }),
     // Writes dist/sw.js from what the build wrote, so the tools work offline.
     serviceWorker(base),
+    pdfjsDiacritics(),
   ],
   build: {
     outDir: '../dist',
@@ -56,7 +65,10 @@ export default defineConfig({
       },
     },
   },
-  worker: { format: 'es' },
+  // Worker bundles take their own plugins in a build: pdf.js's worker is in one.
+  worker: { format: 'es', plugins: () => [pdfjsDiacritics()] },
+  // Served as it is, not pre-bundled, so the pdfjs-diacritics correction reaches it in `vite dev` too.
+  optimizeDeps: { exclude: ['pdfjs-dist'] },
   server: { host: '127.0.0.1' },
   // allowedHosts: the e2e maps the real domain to the preview server to check
   // that ads load there and only on the pages that may carry them.

@@ -62,6 +62,15 @@ describeBuilt('every built file', () => {
   });
 });
 
+describeBuilt("pdf.js's worker", () => {
+  it('is bundled with the correction scripts/pdfjs-patch.ts makes, so Malayalam and Hindi read as words', () => {
+    const scripts = walk(join(DIST, 'assets')).filter((f) => f.endsWith('.js'));
+    const workers = scripts.filter((f) => readFileSync(f, 'utf8').includes('isZeroWidthDiacritic'));
+    expect(workers.length, 'no pdf.js worker found under dist/assets').toBeGreaterThan(0);
+    for (const file of workers) expect(readFileSync(file, 'utf8'), relative(DIST, file)).toContain('widthAware');
+  });
+});
+
 describeBuilt('each tool page', () => {
   const toolsDir = join(DIST, 'tools');
   const pages = existsSync(toolsDir)

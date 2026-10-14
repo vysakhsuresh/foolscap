@@ -34,6 +34,7 @@ import { CertificateError } from '../../app/src/sign/errors';
 import { readIdentity, type SigningIdentity } from '../../app/src/sign/identity';
 import { ALREADY_SIGNED_MESSAGE, signPdf, type SignPdfOptions } from '../../app/src/pdf/sign-pdf';
 import { encryptedPdf, formPdf, noisePng, pagesPdf, rotatedPdf } from '../fixtures/pdfs';
+import { pdfjsWorkerModule } from '../fixtures/pdfjs-worker';
 
 interface PdfJs {
   getDocument(src: { data: Uint8Array; verbosity?: number }): { promise: Promise<PdfJsDocument>; destroy(): Promise<void> };
@@ -56,8 +57,7 @@ let pdfjs: PdfJs;
 
 beforeAll(async () => {
   await import('../../app/src/pdf/shims');
-  const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-  (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+  (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
   const main = 'pdfjs-dist';
   pdfjs = (await import(/* @vite-ignore */ main)) as PdfJs;
 });

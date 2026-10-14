@@ -42,6 +42,8 @@ const PIC_NS = 'http://schemas.openxmlformats.org/drawingml/2006/picture';
 const WML = 'application/vnd.openxmlformats-officedocument.wordprocessingml';
 
 const twips = (points: number) => Math.round(points * 20);
+/** 22 inches: the largest page Word will lay out. */
+const MAX_PAGE = 22 * 72;
 
 // =====================================================================
 // Writing
@@ -69,7 +71,12 @@ class DocxWriter {
   private readonly page: { width: number; height: number; margin: number };
 
   constructor(private readonly doc: FlowDocument) {
-    const page = doc.page ?? A4;
+    const given = doc.page ?? A4;
+    // Word takes no page over 22 inches a side. A phone photo made into a PDF
+    // at 72 dpi says its page is 42 by 56 inches; such a page is scaled down
+    // to fit, the same shape, and its pictures shrink with the text area.
+    const fit = Math.min(1, MAX_PAGE / Math.max(given.width, given.height));
+    const page = { width: given.width * fit, height: given.height * fit, margin: given.margin * fit };
     const margin = Math.max(0, Math.min(page.margin, page.width / 3, page.height / 3));
     this.page = { width: Math.max(72, page.width), height: Math.max(72, page.height), margin };
   }
@@ -226,7 +233,7 @@ class DocxWriter {
         const s = Math.min(span(cell), columnCount - column);
         if (s <= 0) break;
         const width = widths.slice(column, column + s).reduce((a, b) => a + b, 0);
-        cells += this.cell(cell.paragraphs, width, s);
+        cells += this.cell(cell.paragraphs, width, s, cell.images);
         column += s;
       }
       // A short row is filled out with empty cells so every row meets the grid.
@@ -239,7 +246,7 @@ class DocxWriter {
     );
   }
 
-  private cell(paragraphs: readonly Paragraph[], width: number, gridSpan: number): string {
+  private cell(paragraphs: readonly Paragraph[], width: number, gridSpan: number, images: readonly Picture[] = []): string {
     const props = `<w:tcPr><w:tcW w:w="${twips(width)}" w:type="dxa"/>${gridSpan > 1 ? `<w:gridSpan w:val="${gridSpan}"/>` : ''}</w:tcPr>`;
     let ordered: number | undefined;
     let body = '';
@@ -248,6 +255,7 @@ class DocxWriter {
       else if (p.list.ordered) ordered ??= this.newOrderedList();
       body += this.paragraph(p, p.list ? (p.list.ordered ? ordered : 1) : undefined);
     }
+    for (const image of images) body += `<w:p>${this.picture(image, Math.max(18, width - 12), this.page.height / 2)}</w:p>`;
     // Every cell must hold at least one paragraph.
     return `<w:tc>${props}${body || '<w:p/>'}</w:tc>`;
   }
@@ -425,6 +433,10 @@ export function fromDocx(bytes: Uint8Array): FlowDocument {
   const partOf = (suffix: string, fallback: string) => [...rels.values()].find((r) => r.type.endsWith(suffix) && !r.external)?.target ?? fallback;
   const reader = new DocxReader(pkg, rels, pkg.xml(partOf('/styles', 'word/styles.xml')), pkg.xml(partOf('/numbering', 'word/numbering.xml')));
 
+  // How a section starts is said by its own sectPr, which ends it: the break after one
+  // section is the next one's (a two-column part LibreOffice writes is "continuous").
+  const order = descendants(body, 'sectPr');
+  order.forEach((sect, i) => reader.nextSection.set(sect, order[i + 1]));
   const blocks: Block[] = [];
   reader.container(body, blocks);
   while (blocks[blocks.length - 1]?.kind === 'page-break') blocks.pop();
@@ -454,11 +466,21 @@ export function fromDocx(bytes: Uint8Array): FlowDocument {
     if (notes.length > 0) blocks.push({ kind: 'paragraph', heading: 2, spaceBefore: 18, runs: [{ text: 'Notes', size: 13, bold: true }] }, ...notes);
   }
 
+  // Sections in document order: each one's sectPr ends it, the body's own is the last.
+  // The document takes the first section's paper (a report whose annexure turns
+  // landscape is still a portrait report), and the first headers and footers any
+  // section names: a later section that names none carries on with those, as in Word.
   const sections = descendants(body, 'sectPr');
-  const sect = elements(body, 'sectPr').pop() ?? sections[sections.length - 1];
-  const page = pageOf(sect);
+  const last = elements(body, 'sectPr').pop() ?? sections[sections.length - 1];
+  const page = pageOf(sections[0]) ?? pageOf(last);
   const title = textOf(firstDescendant(pkg.xml('docProps/core.xml'), 'title')).trim();
-  const furniture = furnitureOf(pkg, rels, sect, pkg.xml(partOf('/styles', 'word/styles.xml')), pkg.xml(partOf('/numbering', 'word/numbering.xml')));
+  const styles = pkg.xml(partOf('/styles', 'word/styles.xml'));
+  const numbering = pkg.xml(partOf('/numbering', 'word/numbering.xml'));
+  let furniture: FlowDocument['furniture'];
+  for (const sect of sections.length > 0 ? sections : [last]) {
+    furniture = furnitureOf(pkg, rels, sect, styles, numbering);
+    if (furniture) break;
+  }
   return { ...(title ? { title } : {}), ...(page ? { page } : {}), blocks, ...(furniture ? { furniture } : {}) };
 }
 
@@ -535,9 +557,11 @@ class DocxReader {
   private readonly charResolved = new Map<string, RunStyle>();
   private readonly defaults: RunStyle;
   private readonly defaultParaStyle: string | undefined;
-  /** numId → level → is it a bullet list? */
-  private readonly numbering = new Map<string, Map<number, boolean>>();
+  /** numId → level → how it is numbered: bullets, numbers, or nothing shown at all. */
+  private readonly numbering = new Map<string, Map<number, 'bullet' | 'number' | 'none'>>();
   private fields: Field[] = [];
+  /** Each section's sectPr → the next section's, whose type says whether a new page starts between them. */
+  readonly nextSection = new Map<XmlElement, XmlElement | undefined>();
   /** Footnotes and endnotes referred to so far, numbered in the order they appear. */
   readonly notes: Array<{ readonly kind: 'footnote' | 'endnote'; readonly id: string; readonly n: number }> = [];
 
@@ -570,15 +594,17 @@ class DocxReader {
   }
 
   private readNumbering(numbering: XmlElement | undefined): void {
-    const abstract = new Map<string, Map<number, boolean>>();
-    const levels = (el: XmlElement, into: Map<number, boolean>) => {
+    const abstract = new Map<string, Map<number, 'bullet' | 'number' | 'none'>>();
+    const levels = (el: XmlElement, into: Map<number, 'bullet' | 'number' | 'none'>) => {
       for (const lvl of elements(el, 'lvl')) {
         const fmt = attr(child(lvl, 'numFmt'), 'val') ?? 'decimal';
-        into.set(Number(attr(lvl, 'ilvl') ?? 0), fmt === 'bullet' || fmt === 'none');
+        // "none" with no text is how LibreOffice and Word tie headings to an outline that shows nothing.
+        const text = attr(child(lvl, 'lvlText'), 'val') ?? '';
+        into.set(Number(attr(lvl, 'ilvl') ?? 0), fmt === 'bullet' ? 'bullet' : fmt === 'none' && !/\S/.test(text.replace(/%\d/g, '')) ? 'none' : 'number');
       }
     };
     for (const a of elements(numbering, 'abstractNum')) {
-      const map = new Map<number, boolean>();
+      const map = new Map<number, 'bullet' | 'number' | 'none'>();
       levels(a, map);
       abstract.set(attr(a, 'abstractNumId') ?? '', map);
     }
@@ -669,7 +695,8 @@ class DocxReader {
     const numPr = child(pPr, 'numPr');
     const numId = attr(child(numPr, 'numId'), 'val') ?? style.numId;
     const ilvl = Number(attr(child(numPr, 'ilvl'), 'val') ?? style.ilvl ?? 0);
-    const list = numId !== undefined && numId !== '0' ? { ordered: !(this.numbering.get(numId)?.get(ilvl) ?? true), level: clamp(ilvl, 0, 8) } : undefined;
+    const numbered = numId !== undefined && numId !== '0' ? (this.numbering.get(numId)?.get(ilvl) ?? 'bullet') : 'none';
+    const list = numbered !== 'none' ? { ordered: numbered === 'number', level: clamp(ilvl, 0, 8) } : undefined;
     const heading = headingOf('', '', pPr) ?? style.heading;
     const align = alignOf(pPr) ?? style.align;
     const before = Number(attr(child(pPr, 'spacing'), 'before'));
@@ -764,7 +791,10 @@ class DocxReader {
       state.pendingSpace += (mark.size ?? base.size ?? 11) * 1.2;
     }
     const sect = child(pPr, 'sectPr');
-    if (sect && attr(child(sect, 'type'), 'val') !== 'continuous') out.push({ kind: 'page-break' });
+    if (sect) {
+      const next = this.nextSection.has(sect) ? this.nextSection.get(sect) : sect;
+      if (attr(child(next, 'type'), 'val') !== 'continuous') out.push({ kind: 'page-break' });
+    }
   }
 
   private run(r: XmlElement, base: RunStyle, href: string | undefined, runs: Run[], push: (b: Block) => void, after: Block[]): void {
@@ -904,7 +934,8 @@ class DocxReader {
         const blocks: Block[] = [];
         if (!merged) this.container(tc, blocks);
         const paragraphs = blocks.flatMap((b) => paragraphsIn(b));
-        cells.push({ paragraphs, ...(gridSpan > 1 ? { colSpan: gridSpan } : {}) });
+        const images = blocks.filter((b): b is Picture => b.kind === 'image');
+        cells.push({ paragraphs, ...(gridSpan > 1 ? { colSpan: gridSpan } : {}), ...(images.length > 0 ? { images } : {}) });
       }
       rows.push(cells);
     }

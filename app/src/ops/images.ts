@@ -25,38 +25,60 @@ export function sniffImage(head: Uint8Array): ImageKind | null {
 }
 
 /**
+ * Where a JPEG's EXIF orientation value sits in its bytes, and what it is
+ * (1 to 8), or null when it has none.
+ */
+function orientationAt(bytes: Uint8Array): { at: number; little: boolean; value: number } | null {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let offset = 2;
+  while (offset + 4 <= bytes.length) {
+    if (view.getUint8(offset) !== 0xff) return null;
+    const marker = view.getUint8(offset + 1);
+    const length = view.getUint16(offset + 2);
+    if (marker === 0xe1 && offset + 10 <= bytes.length && view.getUint32(offset + 4) === 0x45786966) {
+      const tiff = offset + 10;
+      if (tiff + 8 > bytes.length) return null;
+      const little = view.getUint16(tiff) === 0x4949;
+      const ifd = tiff + view.getUint32(tiff + 4, little);
+      if (ifd + 2 > bytes.length) return null;
+      const entries = view.getUint16(ifd, little);
+      for (let i = 0; i < entries; i++) {
+        const entry = ifd + 2 + i * 12;
+        if (entry + 12 > bytes.length) return null;
+        if (view.getUint16(entry, little) === 0x0112) return { at: entry + 8, little, value: view.getUint16(entry + 8, little) };
+      }
+      return null;
+    }
+    if (marker === 0xda || length < 2) return null;
+    offset += 2 + length;
+  }
+  return null;
+}
+
+/**
  * The EXIF orientation of a JPEG, 1 to 8, or 1 when it has none. Phones store
  * the picture as the sensor saw it and write "rotate me" here; a PDF that
  * embeds the bytes as they are would show the photo on its side.
  */
 export function jpegOrientation(bytes: Uint8Array): number {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let offset = 2;
-  while (offset + 4 <= bytes.length) {
-    if (view.getUint8(offset) !== 0xff) return 1;
-    const marker = view.getUint8(offset + 1);
-    const length = view.getUint16(offset + 2);
-    if (marker === 0xe1 && offset + 10 <= bytes.length && view.getUint32(offset + 4) === 0x45786966) {
-      const tiff = offset + 10;
-      if (tiff + 8 > bytes.length) return 1;
-      const little = view.getUint16(tiff) === 0x4949;
-      const ifd = tiff + view.getUint32(tiff + 4, little);
-      if (ifd + 2 > bytes.length) return 1;
-      const entries = view.getUint16(ifd, little);
-      for (let i = 0; i < entries; i++) {
-        const entry = ifd + 2 + i * 12;
-        if (entry + 12 > bytes.length) return 1;
-        if (view.getUint16(entry, little) === 0x0112) {
-          const value = view.getUint16(entry + 8, little);
-          return value >= 1 && value <= 8 ? value : 1;
-        }
-      }
-      return 1;
-    }
-    if (marker === 0xda || length < 2) return 1;
-    offset += 2 + length;
-  }
-  return 1;
+  const found = orientationAt(bytes);
+  return found !== null && found.value >= 1 && found.value <= 8 ? found.value : 1;
+}
+
+/**
+ * A copy of a JPEG whose EXIF says to stand it up as it is stored. A JPEG
+ * inside a PDF is drawn as stored, whatever its EXIF says, and browsers now
+ * always turn a picture by its EXIF when decoding it (imageOrientation
+ * 'none' became an old name for 'from-image'): a phone photo put in a PDF
+ * by a program that left its EXIF in came out of Compress turned a quarter
+ * and squeezed into its old box.
+ */
+export function asStored(bytes: Uint8Array): Uint8Array {
+  const found = orientationAt(bytes);
+  if (found === null || found.value === 1) return bytes;
+  const copy = bytes.slice();
+  new DataView(copy.buffer, copy.byteOffset, copy.byteLength).setUint16(found.at, 1, found.little);
+  return copy;
 }
 
 /** Whether this worker can decode images itself. False in Node, where the unit tests run. */
@@ -99,8 +121,9 @@ export async function shrink(
 ): Promise<{ bytes: Uint8Array; width: number; height: number } | null> {
   let bitmap: ImageBitmap;
   try {
-    // 'none': the pixels are what the PDF stores, already the right way up.
-    bitmap = await createImageBitmap(new Blob([bytes as Uint8Array<ArrayBuffer>], { type }), { imageOrientation: 'none' });
+    // The pixels as the PDF stores and draws them: any EXIF turn neutralised first (asStored).
+    const stored = type === 'image/jpeg' ? asStored(bytes) : bytes;
+    bitmap = await createImageBitmap(new Blob([stored as Uint8Array<ArrayBuffer>], { type }));
   } catch {
     return null;
   }

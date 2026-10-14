@@ -5,13 +5,13 @@ import type { OpContext, Outcome } from '../../app/src/ops/op';
 import { indianGrouping, monthName, rupeesInWords } from '../../app/src/ops/template-ops';
 import type { PdfEngine } from '../../app/src/pdf/types';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
+import { pdfjsWorkerModule } from '../fixtures/pdfjs-worker';
 
 let engine: PdfEngine;
 
 beforeAll(async () => {
   await import('../../app/src/pdf/shims');
-  const workerModule = 'pdfjs-dist/build/pdf.worker.mjs';
-  (globalThis as Record<string, unknown>).pdfjsWorker = await import(/* @vite-ignore */ workerModule);
+  (globalThis as Record<string, unknown>).pdfjsWorker = await pdfjsWorkerModule();
   const { createEngine } = await import('../../app/src/pdf/engine');
   engine = createEngine();
   await engine.ready;
