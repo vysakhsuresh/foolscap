@@ -12,7 +12,7 @@ export const ORIGIN = `http://127.0.0.1:${process.env['E2E_PORT'] ?? '4173'}`;
 export const TOOL_IDS: readonly ToolId[] = LIVE_TOOLS.map((t) => t.id);
 /** The reading pages; the guides are sampled (seo.spec.ts opens every one). */
 export const READING_PAGES = ['/guides/', ...GUIDES.slice(0, 3).map((g) => `/guides/${g.slug}/`), '/about/', '/terms/', '/contact/', '/404.html'];
-export const ALL_PAGES = ['/', '/private/', ...READING_PAGES, ...TOOL_IDS.map((id) => `/tools/${id}/`)];
+export const ALL_PAGES = ['/', '/private/', '/open/', ...READING_PAGES, ...TOOL_IDS.map((id) => `/tools/${id}/`)];
 
 /** A tool page, once the engine and the job runner have both come up. Nothing is fetched after this. */
 export async function openTool(page: Page, id: ToolId): Promise<void> {

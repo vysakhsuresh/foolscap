@@ -507,3 +507,22 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   as the fingers move and redraws on release. Organise's − and + size the
   thumbnails (wheel only: two fingers there move pages). Scan shows a
   magnifier with cross hairs over the corner being dragged.
+- **2026-10-17** Open a file, recipes, folders, shared batches. `/open/` is a
+  page of its own with the strict policy, because the home page carries the
+  ad policy and documents must never be where a third-party script could
+  run: the home page only links to it. Files dropped there are read on the
+  device and `ui/suggest.ts` (pure, tested) picks the likeliest tools; a
+  suggestion hands the files over by id like "Then…". Share → Foolscap
+  (manifest `share_target`) posts to `/open/`, which the service worker
+  answers itself — the files are held in memory until the page asks, never
+  cached or sent; Open with Foolscap (`file_handlers`) reads the launch
+  queue only in `files/launch.ts`, a File once per handle, handle dropped.
+  Recipes (`ui/recipe-model.ts`, `ui/recipes.ts`) are tool ids and settings
+  in localStorage, never a file or a password; a step with nothing to do
+  passes the file on. Multi-file tools take a whole folder
+  (`webkitdirectory`, the files still enter through DocumentStore), and an
+  each-file batch is shared between up to four workers (`jobs/pool.ts`;
+  the first is the page's own, the rest are made when a batch needs them).
+  The worker reports how many network requests it made during a job and
+  every result says the total. Home: recent tools (ids only), two tools to
+  a row on a phone, and the coffee pill steps aside while scrolling down.

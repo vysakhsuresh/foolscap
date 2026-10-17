@@ -20,6 +20,17 @@ All forty-five tools, in five families:
 | Protect | Remove areas (or find and remove: Aadhaar, PAN, phone, email, card numbers, any words) · Add a password (or restrict only) · Digital signature (your .pfx certificate) · Remove a password · Clean hidden data · Attachments |
 | Read | Read · Compare two versions · Summarise and translate (on-device AI only) · Scan a document · Make searchable · Extract text |
 
+**Open a file** (`/open/`) takes anything — PDFs, photos, Word or Excel, a
+whole folder — reads it on the device and suggests the likeliest tools
+(locked? unlock it; a scan? make it searchable; 18 MB? make it smaller),
+carrying the files there in one tap. It is also where **Share → Foolscap**
+on a phone and **Open with Foolscap** on a computer land once the site is
+installed, and where **recipes** live: steps saved once ("compress, number
+the pages, lock") and run on any number of PDFs. Tools that take many files
+take a **whole folder**, share a big batch between the device's cores, and
+say under every result how many network requests were made while they
+worked (0 on a tool page).
+
 **Read** is a viewer: zoom that redraws, find, the document's own contents,
 night mode, a list of the document's comments, print, read aloud (with a
 voice on the device only), and Then…
