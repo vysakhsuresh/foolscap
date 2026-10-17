@@ -507,3 +507,19 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   as the fingers move and redraws on release. Organise's − and + size the
   thumbnails (wheel only: two fingers there move pages). Scan shows a
   magnifier with cross hairs over the corner being dragged.
+- **2026-10-17** Putting files in order, seeing what came out, and sending it.
+  Every file row shows its first page small (an image shows itself), drawn
+  once by the page-thread engine `inspect()` already opens and moved from row
+  to row as the list redraws (`ui/thumbs.ts`, canvas only: no blob URL leaves
+  the exporter). Where the order matters and there are two files or more, a
+  row drags: a mouse at once, a finger after the organise grid's hold, so a
+  swipe still scrolls; rows shift live, the page scrolls near the edges,
+  Escape puts it back, and each move is said in a polite live line. The
+  shared constants and the landing rule live in `ui/drag.ts`; the arrows stay
+  for the keyboard, and with one file there are none. The Done box previews
+  the first six results (PDF first page, or the image) after it is on screen,
+  and shows the rest and non-pictures as a type tile ("DOCX", "TXT"). Each
+  result has Send beside Save, and a batch Send all, only where
+  `navigator.canShare` accepts those files: it hands the share sheet File
+  objects from the workspace (read once per result, so the sheet opens while
+  the tap still counts) and fetches nothing.

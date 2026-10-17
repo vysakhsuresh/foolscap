@@ -4,8 +4,14 @@ import { LIVE_TOOLS, type ToolId, type ToolMeta } from '../ops/tools';
 import { SHARE_URL } from '../site/config';
 import { el } from './dom';
 import { formatSize, plural } from './format';
+import { typeLabel, type Box } from './thumbs';
 
 export const TOO_LARGE = "This file is too big for this device's memory. Try splitting it first.";
+
+/** The preview box in CSS pixels, a portrait page's shape. */
+export const RESULT_THUMB: Box = { width: 52, height: 70 };
+/** A big batch previews its first few; the rest show their type, which is all a glance needs. */
+export const MAX_PREVIEWS = 6;
 
 export interface ResultDeps {
   readonly tool: ToolMeta;
@@ -14,6 +20,8 @@ export interface ResultDeps {
   nameOf(id: string): string;
   /** Page counts of the outputs, by id, where the engine could read them. */
   readonly pages: ReadonlyMap<string, number>;
+  /** A small picture of a PDF's first page or of an image, drawn on demand; null for anything else. */
+  preview(file: FoolscapFile, box: Box): Promise<HTMLCanvasElement | null>;
   /** Null when files cannot survive navigation (the memory backend): no "Then…". */
   readonly handoff: ((tool: ToolId, files: readonly FoolscapFile[]) => void) | null;
   startOver(): void;
@@ -35,11 +43,11 @@ const saveWords = (outcome: SaveOutcome): { text: string; error: boolean } => {
 const shareWords = (outcome: ShareOutcome): { text: string; error: boolean } => {
   switch (outcome.kind) {
     case 'shared':
-      return { text: 'Shared.', error: false };
+      return { text: 'Sent.', error: false };
     case 'cancelled':
-      return { text: 'Not shared.', error: false };
+      return { text: 'Not sent.', error: false };
     case 'unsupported':
-      return { text: 'This browser cannot share files. Save it instead.', error: true };
+      return { text: 'This browser cannot send files. Save it instead.', error: true };
     case 'failed':
       return { text: outcome.reason, error: true };
   }
@@ -65,11 +73,27 @@ export function renderResult(outcomes: readonly Outcome[], deps: ResultDeps): HT
   };
   status.hidden = true;
 
+  // The picture slot of each result: its type in letters until (and unless) a preview is drawn.
+  const slots: Array<{ file: FoolscapFile; slot: HTMLElement }> = [];
+  // Send buttons, shown once the browser says it can send that file.
+  const sends: Array<{ file: FoolscapFile; button: HTMLButtonElement }> = [];
+
   const items = produced.map((outcome) => {
     const { file } = outcome;
     const pages = deps.pages.get(file.id);
     const itemStatus = el('p', { class: 'result-item__status' });
     itemStatus.hidden = true;
+    const slot = el('div', { class: 'thumb result-item__preview' }, [el('span', { class: 'thumb__type', testid: 'result-type', text: typeLabel(file.name) })]);
+    slots.push({ file, slot });
+    const send = el('button', {
+      class: 'button button--ghost button--small',
+      testid: 'share-button',
+      text: 'Send',
+      attrs: { type: 'button' },
+      on: { click: async () => say(shareWords(await deps.exporter.share([file])), itemStatus) },
+    });
+    send.hidden = true;
+    sends.push({ file, button: send });
     return el(
       'li',
       {
@@ -83,18 +107,22 @@ export function renderResult(outcomes: readonly Outcome[], deps: ResultDeps): HT
         },
       },
       [
+        slot,
         el('div', { class: 'file-item__main' }, [
           el('span', { class: 'result-item__name', text: file.name }),
           el('span', { class: 'file-item__meta', text: [pages === undefined ? null : plural(pages, 'page'), formatSize(file.size)].filter(Boolean).join(' · ') }),
           el('span', { class: 'result-item__detail', testid: 'result-detail', text: outcome.detail }),
         ]),
-        el('button', {
-          class: 'button button--small',
-          testid: 'save-button',
-          text: 'Save',
-          attrs: { type: 'button' },
-          on: { click: async () => say(saveWords(await deps.exporter.save(file)), itemStatus) },
-        }),
+        el('div', { class: 'result-item__buttons' }, [
+          el('button', {
+            class: 'button button--small',
+            testid: 'save-button',
+            text: 'Save',
+            attrs: { type: 'button' },
+            on: { click: async () => say(saveWords(await deps.exporter.save(file)), itemStatus) },
+          }),
+          send,
+        ]),
         itemStatus,
       ],
     );
@@ -176,21 +204,40 @@ export function renderResult(outcomes: readonly Outcome[], deps: ResultDeps): HT
       : null,
   ]);
 
-  // Share only where the browser can share files; the button appears once we know.
-  if (files.length > 0) {
+  // Send only where the browser can hand that file to another app (on a phone,
+  // straight into WhatsApp or mail); each button appears once the browser says so.
+  for (const { file, button } of sends) {
+    void deps.exporter.canShare([file]).then((ok) => (button.hidden = !ok));
+  }
+  if (files.length > 1) {
     void deps.exporter.canShare(files).then((ok) => {
       if (!ok) return;
-      actions.prepend(
-        el('button', {
-          class: 'button button--small',
-          testid: 'share-button',
-          text: files.length === 1 ? 'Share' : 'Share all',
-          attrs: { type: 'button' },
-          on: { click: async () => say(shareWords(await deps.exporter.share(files))) },
-        }),
-      );
+      const saveAll = actions.querySelector('[data-testid="save-all-button"]');
+      const sendAll = el('button', {
+        class: 'button button--ghost button--small',
+        testid: 'share-all',
+        text: `Send all ${files.length}`,
+        attrs: { type: 'button' },
+        on: { click: async () => say(shareWords(await deps.exporter.share(files))) },
+      });
+      if (saveAll) saveAll.after(sendAll);
+      else actions.prepend(sendAll);
     });
   }
+
+  // Pictures last, one at a time, once the box is on screen: the buttons never wait for them.
+  void (async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    for (const { file, slot } of slots.slice(0, MAX_PREVIEWS)) {
+      if (!root.isConnected) return;
+      try {
+        const picture = await deps.preview(file, RESULT_THUMB);
+        if (picture) slot.replaceChildren(picture);
+      } catch {
+        // The type stays in the slot; a result that cannot be drawn can still be saved.
+      }
+    }
+  })();
 
   return root;
 }

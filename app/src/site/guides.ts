@@ -44,7 +44,7 @@ export const GUIDES: readonly Guide[] = [
       'Choose To a size under How to squeeze.',
       'Pick 100 KB.',
       'Press Compress it and read the line under the result, which gives the new size.',
-      'Save the file, or tap Share to send it to another app.',
+      'Save the file, or tap Send to hand it to another app.',
     ],
     sections: [
       {
@@ -346,7 +346,7 @@ export const GUIDES: readonly Guide[] = [
       'Choose Balanced, or Strong if the file is very large.',
       'Press Compress it and check the new size.',
       'Tap Then and choose Split by size if the result is still over the email limit.',
-      'Attach the file, or tap Share on a phone to send it straight from the result.',
+      'Attach the file, or tap Send on a phone to send it straight from the result.',
     ],
     sections: [
       {
@@ -776,7 +776,7 @@ export const GUIDES: readonly Guide[] = [
     description: 'Make a PDF from photos on an Android phone or iPhone in the browser, with no app to install. Free, no sign-up, and the photos never leave your phone.',
     tool: 'images-to-pdf',
     related: ['scan', 'compress', 'merge'],
-    intro: 'Open Images to PDF in your phone’s browser, tap to choose photos from the gallery, and press Make a PDF. Then tap Share to send it to WhatsApp or email.',
+    intro: 'Open Images to PDF in your phone’s browser, tap to choose photos from the gallery, and press Make a PDF. Then tap Send to send it to WhatsApp or email.',
     steps: [
       'Open Images to PDF in Chrome, Safari or any current phone browser.',
       'Tap the drop zone and choose the photos from your gallery.',
@@ -954,7 +954,7 @@ export const GUIDES: readonly Guide[] = [
       { q: 'Are my files uploaded?', a: 'No. Nothing leaves your device.' },
       { q: 'What does 12- mean in a range?', a: 'Page 12 to the last page. You can mix ranges and single pages, separated by commas: 1-3, 7, 12-.' },
       { q: 'Does splitting change the original?', a: 'No. Each part is a new file; the PDF you picked stays whole.' },
-      { q: 'Can I split a PDF on my phone?', a: 'Yes. It runs in the phone’s browser. Share all sends the parts to another app, or Save all keeps them.' },
+      { q: 'Can I split a PDF on my phone?', a: 'Yes. It runs in the phone’s browser. Send all hands the parts to another app, or Save all keeps them.' },
       { q: 'How do I join the parts back together?', a: 'Add them to [Merge](/tools/merge/) in order and press Merge into one file.' },
     ],
   },
@@ -2006,7 +2006,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Pages on WhatsApp',
         paragraphs: [
-          'Sending a page as a picture lets the person see it straight away in the chat, without opening a file. Sharing sharpness, 150 dpi, is plenty for a phone screen. WhatsApp shrinks pictures sent as photos, so for a page with small print, send the image as a document instead, which keeps it sharp. Share all sends every page in one go.',
+          'Sending a page as a picture lets the person see it straight away in the chat, without opening a file. Sharing sharpness, 150 dpi, is plenty for a phone screen. WhatsApp shrinks pictures sent as photos, so for a page with small print, send the image as a document instead, which keeps it sharp. Send all sends every page in one go.',
           'On a computer, Save all puts every page into a folder you pick, named with the page numbers so they stay in order; where the browser cannot save into a folder, it makes one ZIP instead. To send only a few pages, type them in Pages, such as 1, 3-4, before pressing the button, rather than converting the whole file.',
         ],
       },
