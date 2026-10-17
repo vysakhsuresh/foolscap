@@ -10,6 +10,7 @@
  */
 import { createDocumentStore, createExporter, createWorkspace, type FoolscapFile, type Workspace } from '../files';
 import { JobCrashed, createJobRunner, type JobHandle, type JobRunner } from '../jobs';
+import { createJobPool, type JobPool } from '../jobs/pool';
 import { opMeta } from '../ops/meta';
 import { ArityError, OpCancelled, type MergeParams, type Outcome } from '../ops/op';
 import { LIVE_TOOLS, toolById, toolPath, type ToolId } from '../ops/tools';
@@ -22,9 +23,11 @@ import { renderFileList, type Entry } from '../ui/file-list';
 import type { EditorMode } from '../ui/page-editor';
 import { createPageGrid, type PageGrid } from '../ui/page-grid';
 import type { ScanPanel } from '../ui/scan-panel';
+import { watchNetwork, type NetworkWatch } from '../ui/network-proof';
 import { createProgress } from '../ui/progress';
 import { TOO_LARGE, renderResult } from '../ui/result';
 import { mountShell } from '../ui/shell';
+import '../ui/flow.css';
 import { createToolOptions, type ToolOptions } from '../ui/tool-options';
 
 mountShell();
@@ -62,8 +65,20 @@ function takeHandoff(): string[] {
   }
 }
 
+/** Remembers this tool as recently used, for the home page's row: tool ids only, never a file. */
+function remember(id: ToolId): void {
+  try {
+    const kept: unknown = JSON.parse(localStorage.getItem('foolscap.recent') ?? '[]');
+    const ids = Array.isArray(kept) ? kept.filter((x): x is string => typeof x === 'string' && x !== id) : [];
+    localStorage.setItem('foolscap.recent', JSON.stringify([id, ...ids].slice(0, 6)));
+  } catch {
+    // No storage, no row: nothing else depends on it.
+  }
+}
+
 async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, input: HTMLInputElement | null): Promise<void> {
   const tool = toolById(id);
+  remember(id);
   const several = tool.input !== 'one-pdf';
   // A viewer (Read) has no Op: it takes one file and shows it.
   const arity = tool.viewer ? ({ kind: 'one' } as const) : opMeta(id).arity;
@@ -147,6 +162,8 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
   let job: JobHandle | null = null;
   let ws: Workspace | null = null;
   let runner: JobRunner | null = null;
+  let pool: JobPool | null = null;
+  let network: NetworkWatch | null = null;
   const enginePromise = loadEngine();
 
   const nameOf = (fileId: string): string => entries.find((e) => e.file.id === fileId)?.file.name ?? '';
@@ -245,10 +262,22 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     await inspect(entry);
   }
 
-  async function addFiles(files: readonly File[]): Promise<void> {
+  async function addFiles(files: readonly File[], fromFolder = false): Promise<void> {
     if (!ws) return;
     say('');
     clearResult();
+    // A folder holds all sorts: only what this tool takes is picked up from it, and the rest is counted.
+    let skipped = 0;
+    if (fromFolder) {
+      const wanted = takesImages ? /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif|tiff?)$/i : tool.input === 'office' ? /\.(docx|xlsx)$/i : tool.input === 'pdf-and-files' ? /./ : /\.pdf$/i;
+      const kept = files.filter((f) => wanted.test(f.name) && !f.name.startsWith('.'));
+      skipped = files.length - kept.length;
+      files = kept;
+      if (files.length === 0) {
+        say(`Nothing in that folder is ${takesImages ? 'a picture' : tool.input === 'office' ? 'a Word or Excel file' : 'a PDF'}.`, 'error');
+        return;
+      }
+    }
     if (!several) files = files.slice(0, 1);
     const store = createDocumentStore(ws, takesImages ? 'image' : tool.input === 'pdf-and-files' || tool.input === 'office' ? 'any' : 'pdf');
     const results = await store.import(files);
@@ -267,6 +296,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
       }
     }
     if (problems.length > 0) say(problems.join(' '), 'error');
+    else if (skipped > 0) say(`${added.length} from the folder; ${skipped} other ${skipped === 1 ? 'file was' : 'files were'} left out.`);
     refresh();
     for (const entry of added) await inspect(entry);
   }
@@ -343,6 +373,8 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     const workspace = ws;
     const exporter = createExporter(workspace);
     clearResult();
+    const proof = network?.stop() ?? null;
+    network = null;
     resultSlot.append(
       renderResult(outcomes, {
         tool,
@@ -352,6 +384,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
         handoff: workspace.backend === 'opfs' ? handoff : null,
         startOver: () => void startOver(),
       }),
+      ...(proof ? [proof] : []),
     );
     resultSlot.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -364,10 +397,13 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     for (const entry of entries) if (entry.password !== undefined) passwords.set(entry.file.id, entry.password);
 
     const progress = createProgress(() => job?.cancel());
+    const watch = watchNetwork();
+    network = watch;
     let handle: JobHandle;
     try {
-      handle = runner.run(id, entries.map((e) => e.file), params(), {
+      handle = (pool ?? runner).run(id, entries.map((e) => e.file), params(), {
         onProgress: (p) => progress.update(p),
+        onRequests: (n) => watch.add(n),
         ...(passwords.size > 0 ? { passwords } : {}),
       });
     } catch (error) {
@@ -400,7 +436,14 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
   }
 
   runButton.addEventListener('click', () => void run());
+  keepHomeClear(runButton);
   if (zone && input) bindDropZone(zone, input, (files) => void addFiles(files));
+  const folderInput = document.querySelector<HTMLInputElement>('[data-testid="folder-input"]');
+  folderInput?.addEventListener('change', () => {
+    const files = folderInput.files ? [...folderInput.files] : [];
+    folderInput.value = '';
+    if (files.length > 0) void addFiles(files, true);
+  });
 
   // ---- Bring the machinery up ----
   const handoffIds = takeHandoff();
@@ -412,6 +455,9 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     ocr: !tool.viewer && opMeta(id).ocr === true,
   });
   runner = jobRunner;
+  // A big batch for a tool that works on each file alone is shared between workers.
+  const workerOptions = { engine: !tool.viewer && opMeta(id).engine === true, ocr: !tool.viewer && opMeta(id).ocr === true };
+  pool = createJobPool(jobRunner, () => createJobRunner(workspace, workerOptions));
 
   // Nothing stays behind from a previous visit, except the files a "Then…" just handed over.
   if (handoffIds.length > 0) {
@@ -437,4 +483,36 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     devlog('ready', error);
     say('This browser could not start the tools. Try a current version of Chrome, Edge, Firefox or Safari.', 'error');
   }
+}
+
+/**
+ * On a phone the way home rides just above the pinned main button. With only
+ * a file or two the button is not pinned yet but sits higher up the page, in
+ * the spot the circle would take: then the circle rises to sit above it, so
+ * it never covers the button. Read each frame the page scrolls or resizes.
+ */
+function keepHomeClear(button: HTMLElement): void {
+  const fab = document.querySelector<HTMLElement>('[data-testid="home-fab"]');
+  if (!fab) return;
+  const narrow = window.matchMedia('(max-width: 819px)');
+  let queued = false;
+  const place = () => {
+    queued = false;
+    fab.style.removeProperty('bottom');
+    if (!narrow.matches || button.offsetParent === null) return;
+    const b = button.getBoundingClientRect();
+    const f = fab.getBoundingClientRect();
+    if (b.bottom > f.top && b.top < f.bottom && b.bottom > 0 && b.top < window.innerHeight) {
+      fab.style.setProperty('bottom', `${Math.round(window.innerHeight - b.top + 12)}px`);
+    }
+  };
+  const later = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(place);
+  };
+  window.addEventListener('scroll', later, { passive: true });
+  window.addEventListener('resize', later);
+  new ResizeObserver(later).observe(document.body);
+  later();
 }

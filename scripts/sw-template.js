@@ -1,8 +1,13 @@
 /*
  * Foolscap's service worker, written by scripts/vite-sw.ts at build time.
  * It keeps this site's own files so every tool works with no connection.
- * It never fetches anything from anywhere else, and it never sees a
- * document: documents are opened from your device, not requested.
+ * It never fetches anything from anywhere else.
+ *
+ * The one document it ever touches is one shared to Foolscap from another
+ * app ("Share → Foolscap" on a phone): the share arrives as a post to
+ * /open/, which is answered here and never reaches the network. The files
+ * are held in memory only until the Open a file page asks for them, then
+ * let go. They are never cached or stored.
  */
 const VERSION = '__VERSION__';
 const BASE = '__BASE__';
@@ -29,11 +34,35 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/** Files shared to Foolscap, waiting for the Open a file page. */
+let shared = [];
+
+self.addEventListener('message', (event) => {
+  if (!event.data || event.data.type !== 'foolscap:shared?' || !event.source) return;
+  event.source.postMessage({ type: 'foolscap:shared', files: shared });
+  shared = [];
+});
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || !url.pathname.startsWith(BASE)) return;
+  if (request.method === 'POST' && url.pathname === `${BASE}open/`) {
+    // "Share → Foolscap": take the files, then show the page that will ask for them.
+    event.respondWith(
+      request
+        .formData()
+        .then((data) => {
+          shared = data.getAll('files').filter((file) => file instanceof File);
+        })
+        .catch(() => {
+          shared = [];
+        })
+        .then(() => Response.redirect(`${BASE}open/?shared`, 303)),
+    );
+    return;
+  }
+  if (request.method !== 'GET') return;
 
   if (request.mode === 'navigate') {
     // Pages: the newest when online, the kept copy when not.

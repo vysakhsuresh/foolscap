@@ -6,9 +6,51 @@
 import { loadAds } from '../ui/ads';
 import { mountJumps } from '../ui/jumps';
 import { mountShell } from '../ui/shell';
+import '../ui/flow.css';
 
 mountShell();
 loadAds();
+showRecent();
+
+/**
+ * The tools this browser used last, as a row of chips at the top: tool ids
+ * only, kept by the tool pages (pages/tool.ts), never a file or its name.
+ */
+function showRecent(): void {
+  const box = document.querySelector<HTMLElement>('[data-recent]');
+  const row = document.querySelector<HTMLElement>('[data-recent-list]');
+  if (!box || !row) return;
+  let ids: unknown = [];
+  try {
+    ids = JSON.parse(localStorage.getItem('foolscap.recent') ?? '[]');
+  } catch {
+    return;
+  }
+  if (!Array.isArray(ids)) return;
+  const chips = ids.flatMap((id) => {
+    if (typeof id !== 'string' || !/^[a-z-]+$/.test(id)) return [];
+    const card = document.querySelector<HTMLAnchorElement>(`a.tool-card[data-testid="tool-card-${id}"]`);
+    if (!card) return [];
+    const chip = document.createElement('a');
+    chip.className = 'related__item';
+    chip.href = card.href;
+    chip.dataset['testid'] = `recent-${id}`;
+    const glyph = card.querySelector('.tool-card__icon svg')?.cloneNode(true);
+    if (glyph instanceof SVGElement) {
+      glyph.classList.add('related__icon');
+      chip.append(glyph);
+    }
+    const name = document.createElement('span');
+    name.textContent = card.querySelector('.tool-card__title')?.textContent ?? id;
+    chip.append(name);
+    const group = card.closest<HTMLElement>('[data-group]')?.dataset['group'];
+    if (group) chip.dataset['group'] = group;
+    return [chip];
+  });
+  if (chips.length === 0) return;
+  row.replaceChildren(...chips.slice(0, 6));
+  box.hidden = false;
+}
 
 const finder = document.querySelector<HTMLElement>('[data-finder]');
 const input = document.querySelector<HTMLInputElement>('[data-testid="tool-search"]');

@@ -24,6 +24,7 @@ interface Job {
   readonly params: unknown;
   readonly passwords: ReadonlyArray<readonly [string, string]>;
   readonly onProgress: ((p: Progress) => void) | undefined;
+  readonly onRequests: ((count: number) => void) | undefined;
   readonly resolve: (outcomes: Outcome[]) => void;
   readonly reject: (error: Error) => void;
   readonly produced: FoolscapFile[];
@@ -125,6 +126,7 @@ export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean
         job.produced.push(message.file);
         break;
       case 'done':
+        job.onRequests?.(message.requests ?? 0);
         if (job.cancelled) finishCancelled(job);
         else finish(job, () => job.resolve(message.outcomes));
         break;
@@ -245,6 +247,7 @@ export function createJobRunner(ws: Workspace, opts: { readonly engine?: boolean
         params,
         passwords: opts?.passwords ? [...opts.passwords].map(([id, pw]) => [id, pw] as const) : [],
         onProgress: opts?.onProgress,
+        onRequests: opts?.onRequests,
         resolve,
         reject,
         produced: [],

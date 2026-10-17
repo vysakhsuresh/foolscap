@@ -41,7 +41,8 @@ export type FromWorker =
   | { readonly type: 'progress'; readonly jobId: string; readonly progress: Progress }
   /** Posted as each output is finalised, so a cancel can remove what was already written. */
   | { readonly type: 'produced'; readonly jobId: string; readonly file: FoolscapFile }
-  | { readonly type: 'done'; readonly jobId: string; readonly outcomes: Outcome[] }
+  /** `requests`: how many network requests the worker made while the job ran (all to this site: its policy allows nothing else). */
+  | { readonly type: 'done'; readonly jobId: string; readonly outcomes: Outcome[]; readonly requests?: number }
   | { readonly type: 'failed'; readonly jobId: string; readonly reason: string; readonly code?: PdfErrorCode }
   | { readonly type: 'cancelled'; readonly jobId: string }
   | { readonly type: 'read-done'; readonly readId: string; readonly words: OcrWord[] }

@@ -1,0 +1,331 @@
+/*
+  Open a file, recipes, folders and the network proof: the ways into and
+  through the tools that are not one tool. Colours come from tokens.css only,
+  so they follow the theme.
+*/
+
+/* ---- A whole folder, under a drop zone ---- */
+
+.open__folder {
+  display: flex;
+  justify-content: center;
+  margin-top: calc(-1 * var(--space-2));
+}
+
+/* ---- Open a file ---- */
+
+.open__looking {
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.open__looking:empty {
+  display: none;
+}
+
+.open__files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.open__files:empty {
+  display: none;
+}
+
+.open__file {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--glass);
+  border: 1px solid var(--line);
+}
+
+.open__file--more {
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.open__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.open__meta {
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.open__ideas,
+.recipes {
+  display: grid;
+  gap: var(--space-4);
+  scroll-margin-top: calc(var(--space-3) + 46px + var(--space-3));
+}
+
+.open__ideas-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.open__title {
+  font-size: var(--text-xl);
+}
+
+.open__all {
+  margin: 0;
+}
+
+.suggest-grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+}
+
+/* A suggestion is a tool card that is a button: it carries the files with it. */
+button.tool-card {
+  width: 100%;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.suggest .tool-card__summary {
+  color: var(--text);
+  opacity: 0.86;
+}
+
+/* ---- Recipes ---- */
+
+.recipe-list {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+}
+
+.recipe-list__empty {
+  color: var(--muted);
+}
+
+.recipe,
+.recipe-builder {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-l);
+  background: var(--glass);
+  border: 1px solid var(--line);
+}
+
+.recipe__name {
+  font-size: var(--text-l);
+}
+
+.recipe__steps {
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.recipe__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.recipe-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.recipe-steps:empty {
+  display: none;
+}
+
+.recipe-step {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--line-strong);
+  border-inline-start: 3px solid var(--icon-ink);
+}
+
+.recipe-step__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.recipe-step__title {
+  font-weight: 700;
+}
+
+.recipe-builder__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.recipe-builder__add .field {
+  flex: 1 1 14rem;
+}
+
+/* ---- The proof under a result ---- */
+
+.net-proof {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.net-proof__mark {
+  color: var(--ok);
+  font-size: 0.7em;
+}
+
+/* ---- Home: the way into Open a file ---- */
+
+.open-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-l);
+  border: 1px dashed color-mix(in srgb, var(--cyan) 55%, transparent);
+  background: color-mix(in srgb, var(--cyan) 7%, var(--glass));
+  color: var(--text);
+  font-weight: 400;
+  transition:
+    transform var(--motion) var(--spring),
+    border-color var(--motion);
+}
+
+.open-card:hover,
+.open-card:focus-visible {
+  color: var(--text);
+  border-color: var(--cyan);
+  transform: translateY(-2px);
+}
+
+.open-card__icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-m);
+  color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 12%, transparent);
+}
+
+.open-card__icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.open-card__title {
+  display: block;
+  font-weight: 700;
+  font-size: var(--text-l);
+}
+
+.open-card__hint {
+  display: block;
+  color: var(--muted);
+  font-size: var(--text-s);
+}
+
+.open-card__go {
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 1.4rem;
+}
+
+/* ---- Home: tools you used lately ---- */
+
+.recent {
+  margin-bottom: var(--space-4);
+}
+
+.recent__title {
+  margin: 0 0 var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-s);
+  font-weight: 600;
+}
+
+.recent__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ---- Home on a phone: two tools to a row, icon and name ----
+   The summaries stay for screen readers and the finder; on a laptop the
+   cards keep them. 45 tools fit in a few screens instead of many. */
+@media (max-width: 600px) {
+  .family .tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .family .tool-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'icon'
+      'title';
+    grid-template-rows: auto auto;
+    row-gap: var(--space-2);
+    padding: var(--space-3);
+    min-height: 96px;
+  }
+
+  .family .tool-card__title {
+    font-size: var(--text-m);
+    line-height: 1.25;
+  }
+
+  .family .tool-card__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+  }
+
+  .family .tool-card__icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .family .tool-card__summary {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .open-card {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: var(--space-4);
+  }
+
+  .open-card__go {
+    display: none;
+  }
+}

@@ -3103,6 +3103,21 @@ select.input option {
   background: rgb(20 22 30 / 0.88);
 }
 
+/* Scrolling down, the pill steps up out of the way (ui/pinned.ts); scrolling up brings it back. */
+.support.is-tucked {
+  transform: translateY(calc(-100% - var(--space-5)));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.support {
+  transition:
+    transform var(--motion) var(--ease),
+    opacity var(--motion),
+    border-color var(--motion),
+    box-shadow var(--motion);
+}
+
 /* The way home sits at the bottom-left: the footer leaves it room. */
 body:has(.home-fab) .site-footer {
   padding-bottom: calc(var(--space-6) + 76px);

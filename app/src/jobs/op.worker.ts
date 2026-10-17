@@ -79,9 +79,12 @@ async function run(message: Extract<ToWorker, { type: 'run' }>): Promise<void> {
     signal: controller.signal,
     progress: (progress) => post({ type: 'progress', jobId, progress }),
   };
+  // What this worker fetched while the job ran, counted from its own timeline: the page shows it.
+  const since = performance.now();
   try {
     const outcomes = await getOp(message.tool).run(message.inputs, message.params, ctx);
-    post({ type: 'done', jobId, outcomes });
+    const requests = performance.getEntriesByType('resource').filter((e) => e.startTime >= since).length;
+    post({ type: 'done', jobId, outcomes, requests });
   } catch (error) {
     if (error instanceof OpCancelled || controller.signal.aborted) post({ type: 'cancelled', jobId });
     else post({ type: 'failed', jobId, ...failureFor(error) });

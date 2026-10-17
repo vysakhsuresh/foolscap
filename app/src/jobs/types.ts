@@ -40,6 +40,8 @@ export interface JobHandle {
 
 export interface RunOptions {
   readonly onProgress?: (p: Progress) => void;
+  /** How many network requests the worker made while the job ran: shown as proof nothing went anywhere. */
+  readonly onRequests?: (count: number) => void;
   /** By input file id. Forwarded to the op, never stored, never logged. */
   readonly passwords?: ReadonlyMap<string, string>;
 }

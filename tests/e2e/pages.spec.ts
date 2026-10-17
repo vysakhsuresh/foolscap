@@ -169,6 +169,24 @@ test('every tool page has a way home, bottom-left, that lands where you left the
   await expect(page.getByTestId('tool-card-sign')).toBeInViewport();
 });
 
+test('on a phone, the way home never covers the main button, however few files there are', async ({ page }, info) => {
+  test.skip(info.project.name !== 'phone', 'a phone layout');
+  await openTool(page, 'merge');
+  await page.getByTestId('file-input').setInputFiles([
+    { name: 'a.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await pagesPdf(1)) },
+    { name: 'b.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await pagesPdf(1)) },
+  ]);
+  await expect(page.getByTestId('file-item')).toHaveCount(2);
+  for (const top of [0, 120, 260, 400]) {
+    await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), top);
+    await page.waitForTimeout(120);
+    const run = (await page.getByTestId('run-button').boundingBox())!;
+    const fab = (await page.getByTestId('home-fab').boundingBox())!;
+    const overlaps = run.y < fab.y + fab.height && fab.y < run.y + run.height && run.x < fab.x + fab.width && fab.x < run.x + run.width;
+    expect(overlaps, `scrolled to ${top}`).toBe(false);
+  }
+});
+
 test('arriving at a tool from elsewhere, the way home still finds its card', async ({ page }) => {
   await openTool(page, 'ocr');
   await page.evaluate(() => sessionStorage.clear());
@@ -177,9 +195,18 @@ test('arriving at a tool from elsewhere, the way home still finds its card', asy
   await expect(page.getByTestId('tool-card-ocr')).toHaveClass(/is-back/);
 });
 
-test('Buy me a coffee stays on screen as the page scrolls', async ({ page }) => {
+test('Buy me a coffee steps aside while the page scrolls down, and comes back as it scrolls up', async ({ page }) => {
   await openPage(page, '/');
+  await expect(page.getByTestId('support')).toBeInViewport();
   await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
+  // Out of the way of whatever scrolls under it: a file's ×, a result's Save.
+  await expect(page.getByTestId('support')).not.toBeInViewport();
+  await page.evaluate(() => window.scrollBy({ top: -200, behavior: 'instant' }));
+  await expect(page.getByTestId('support')).toBeInViewport();
+  // The keyboard always finds it.
+  await page.evaluate(() => window.scrollBy({ top: 400, behavior: 'instant' }));
+  await expect(page.getByTestId('support')).not.toBeInViewport();
+  await page.getByTestId('support').focus();
   await expect(page.getByTestId('support')).toBeInViewport();
   // Layerbit's cup: Lucide's coffee, three lines of steam, drawn at 18px.
   const cup = page.locator('[data-testid="support"] svg');

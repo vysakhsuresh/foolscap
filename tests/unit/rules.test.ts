@@ -210,9 +210,18 @@ describe('rule 2a: a document enters only as a File through DocumentStore.import
       ...hits(s, word('showOpenFilePicker')),
       ...hits(s, word('getAsFileSystemHandle')),
       ...hits(s, word('webkitGetAsEntry')),
-      ...hits(s, word('launchQueue')),
     ]);
     expectNone(found, 'Each of these hands over a handle that can be written to. Foolscap never writes to a file the user picked.');
+  });
+
+  it('"Open with Foolscap" reads the launch queue in one place, inside files/, and keeps no handle', () => {
+    const LAUNCH = 'app/src/files/launch.ts';
+    const found = TS_FILES.filter((s) => s.file !== LAUNCH && s.file !== 'app/src/files/fs-access.d.ts').flatMap((s) => hits(s, word('launchQueue')));
+    expectNone(found, 'Only app/src/files/launch.ts may read the launch queue: it turns each handle into a File once and drops the handle.');
+    const launch = TS_FILES.find((s) => s.file === LAUNCH);
+    expect(launch, LAUNCH).toBeDefined();
+    // The handle is only ever asked for its file: never written to, never kept.
+    expectNone([...hits(launch!, word('createWritable')), ...hits(launch!, word('requestPermission'))], 'The launch queue hands over writable handles; launch.ts only reads them.');
   });
 });
 

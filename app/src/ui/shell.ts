@@ -6,9 +6,11 @@
 import './tokens.css';
 import './components.css';
 import './content.css';
+import { tuckWhileScrolling } from './pinned';
 
 export function mountShell(): void {
   keepForOffline();
+  tuckWhileScrolling();
 }
 
 /**

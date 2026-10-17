@@ -8,8 +8,70 @@
   "background_color": "#0a0c10",
   "theme_color": "#0a0c10",
   "icons": [
-    { "src": "brand/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
+    {
+      "src": "brand/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "share_target": {
+    "action": "open/",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "files",
+          "accept": [
+            "application/pdf",
+            ".pdf",
+            "image/*",
+            ".docx",
+            ".xlsx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          ]
+        }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "open/",
+      "accept": {
+        "application/pdf": [
+          ".pdf"
+        ],
+        "image/jpeg": [
+          ".jpg",
+          ".jpeg"
+        ],
+        "image/png": [
+          ".png"
+        ],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+          ".docx"
+        ],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+          ".xlsx"
+        ]
+      }
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-new"
+  }
 }

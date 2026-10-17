@@ -49,3 +49,21 @@ interface FileSystemDirectoryHandle {
    */
   keys(): AsyncIterableIterator<string>;
 }
+
+/**
+ * "Open with Foolscap" on a computer (the manifest's file_handlers). Only
+ * app/src/files/launch.ts reads it: each handle is turned into a File once,
+ * with getFile(), and dropped.
+ */
+interface LaunchParams {
+  readonly files: readonly FileSystemHandle[];
+}
+
+interface LaunchQueue {
+  setConsumer(consumer: (params: LaunchParams) => void): void;
+}
+
+interface Window {
+  /** Only app/src/files/launch.ts may read this. */
+  readonly launchQueue?: LaunchQueue;
+}
