@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { poolSize, splitRuns } from '../../app/src/jobs/pool';
+import type { FoolscapFile } from '../../app/src/files';
+import { createJobPool, poolSize, splitRuns } from '../../app/src/jobs/pool';
+import type { JobHandle, JobRunner } from '../../app/src/jobs/types';
+import type { ToolId } from '../../app/src/ops/tools';
 
 describe('sharing a batch between workers', () => {
   it('keeps the order, uses every file once, and gives each run about the same bytes', () => {
@@ -28,5 +31,29 @@ describe('sharing a batch between workers', () => {
     expect(poolSize(2, 8)).toBe(1);
     expect(poolSize(1, 1)).toBe(1);
     expect(poolSize(4, 16)).toBe(3);
+  });
+
+  it('splits a tool that treats each file alone, and never one whose batch is one job', async () => {
+    const calls: { runner: number; tool: ToolId; files: number }[] = [];
+    const fake = (n: number): JobRunner => ({
+      ready: Promise.resolve(),
+      read: async () => [],
+      run: (tool, inputs) => {
+        calls.push({ runner: n, tool, files: inputs.length });
+        return { id: `${n}`, done: Promise.resolve(inputs.map((f) => ({ kind: 'skipped' as const, inputIds: [f.id], reason: '' }))), cancel: () => undefined } as unknown as JobHandle;
+      },
+    });
+    let made = 0;
+    const pool = createJobPool(fake(0), () => fake(++made), 3);
+    const files = Array.from({ length: 6 }, (_, i) => ({ id: `f${i}`, name: `${i}.pdf`, size: 100, kind: 'pdf' }) as unknown as FoolscapFile);
+    for (const tool of ['page-numbers', 'document-details'] as const) {
+      calls.length = 0;
+      await pool.run(tool, files, {}).done;
+      expect(calls, tool).toEqual([{ runner: 0, tool, files: 6 }]);
+    }
+    calls.length = 0;
+    const out = await pool.run('compress', files, {}).done;
+    expect(calls.length).toBe(3);
+    expect(out.map((o) => (o.kind === 'skipped' ? o.inputIds[0] : ''))).toEqual(files.map((f) => f.id));
   });
 });

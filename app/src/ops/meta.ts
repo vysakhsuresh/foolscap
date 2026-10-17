@@ -11,6 +11,12 @@ export interface OpMeta {
   readonly arity: Arity;
   readonly engine?: true;
   readonly ocr?: true;
+  /**
+   * The batch is one job even though each file comes out on its own: Bates
+   * numbers run on from file to file, and Document details treats an empty
+   * box differently for one file and for several. Never split across workers.
+   */
+  readonly whole?: true;
 }
 
 export const OP_META: Partial<Record<ToolId, OpMeta>> = {
@@ -25,11 +31,11 @@ export const OP_META: Partial<Record<ToolId, OpMeta>> = {
   'images-to-pdf': { arity: { kind: 'together', min: 1 } },
   'extract-images': { arity: { kind: 'one' }, engine: true },
   watermark: { arity: { kind: 'each' } },
-  'page-numbers': { arity: { kind: 'each' } },
+  'page-numbers': { arity: { kind: 'each' }, whole: true },
   'header-footer': { arity: { kind: 'each' } },
   'add-password': { arity: { kind: 'each' } },
   'remove-password': { arity: { kind: 'each' } },
-  'document-details': { arity: { kind: 'each' } },
+  'document-details': { arity: { kind: 'each' }, whole: true },
   compress: { arity: { kind: 'each' }, engine: true },
   'pdf-to-images': { arity: { kind: 'one' }, engine: true },
   'extract-text': { arity: { kind: 'each' }, engine: true },

@@ -140,6 +140,8 @@ export interface Op<P = unknown> {
   readonly engine?: true;
   /** True for Make searchable: the worker also loads the OCR engine and model at start. */
   readonly ocr?: true;
+  /** True when the batch is one job even with an 'each' arity (numbering that runs on, a choice that depends on how many files): it is never split between workers. */
+  readonly whole?: true;
   /** What this run is called, including its settings: "Split every 3 pages". */
   title(params: P): string;
   /**

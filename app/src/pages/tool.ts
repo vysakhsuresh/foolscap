@@ -535,23 +535,35 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
 }
 
 /**
- * On a phone the way home rides just above the pinned main button. With only
- * a file or two the button is not pinned yet but sits higher up the page, in
- * the spot the circle would take: then the circle rises to sit above it, so
- * it never covers the button. Read each frame the page scrolls or resizes.
+ * On a phone the way home rides just above the pinned main button, mirroring
+ * Get help. Once there is work on the page (Get help has stepped aside by
+ * then) it would cover what is being used — a signature pad, the options — so
+ * it moves down into the button's own row and the button gives it room. With
+ * only a file or two the button sits higher up the page, not pinned yet: the
+ * circle still never covers it. Read each frame the page scrolls or resizes.
  */
 function keepHomeClear(button: HTMLElement): void {
   const fab = document.querySelector<HTMLElement>('[data-testid="home-fab"]');
-  if (!fab) return;
+  const bar = button.closest<HTMLElement>('.run');
+  if (!fab || !bar) return;
   const narrow = window.matchMedia('(max-width: 819px)');
   let queued = false;
   const place = () => {
     queued = false;
     fab.style.removeProperty('bottom');
+    bar.style.removeProperty('--home-room');
     if (!narrow.matches || button.offsetParent === null) return;
     const b = button.getBoundingClientRect();
+    const onScreen = b.bottom > 0 && b.top < window.innerHeight;
+    if (onScreen && document.querySelector('.file-item') !== null) {
+      // Beside the button, centred on it: the button keeps the rest of the row.
+      const f = fab.getBoundingClientRect();
+      bar.style.setProperty('--home-room', `${Math.round(f.left + f.width + 10 - bar.getBoundingClientRect().left - parseFloat(getComputedStyle(bar).paddingLeft))}px`);
+      fab.style.setProperty('bottom', `${Math.round(window.innerHeight - (b.top + b.height / 2) - f.height / 2)}px`);
+      return;
+    }
     const f = fab.getBoundingClientRect();
-    if (b.bottom > f.top && b.top < f.bottom && b.bottom > 0 && b.top < window.innerHeight) {
+    if (onScreen && b.bottom > f.top && b.top < f.bottom) {
       fab.style.setProperty('bottom', `${Math.round(window.innerHeight - b.top + 12)}px`);
     }
   };

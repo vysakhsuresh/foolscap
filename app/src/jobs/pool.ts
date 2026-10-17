@@ -62,8 +62,9 @@ export function createJobPool(first: JobRunner, make: () => JobRunner, size = po
   return {
     size,
     run<P>(tool: ToolId, inputs: readonly FoolscapFile[], params: P, opts?: RunOptions): JobHandle {
-      // Only a tool that treats each file on its own can share a batch.
-      if (size <= 1 || inputs.length < 2 || opMeta(tool).arity.kind !== 'each') return first.run(tool, inputs, params, opts);
+      // Only a tool that treats each file on its own, whatever else is in the batch, can share it.
+      const meta = opMeta(tool);
+      if (size <= 1 || inputs.length < 2 || meta.arity.kind !== 'each' || meta.whole === true) return first.run(tool, inputs, params, opts);
       const runs = splitRuns(
         inputs.map((f) => f.size),
         size,

@@ -85,7 +85,7 @@ describe('the page-side op table', () => {
     expect(Object.keys(OP_META).sort()).toEqual([...OP_IDS].sort());
     for (const id of OP_IDS) {
       const op = getOp(id);
-      expect(OP_META[id], id).toEqual({ arity: op.arity, ...(op.engine ? { engine: true } : {}), ...(op.ocr ? { ocr: true } : {}) });
+      expect(OP_META[id], id).toEqual({ arity: op.arity, ...(op.engine ? { engine: true } : {}), ...(op.ocr ? { ocr: true } : {}), ...(op.whole ? { whole: true } : {}) });
     }
   });
 });

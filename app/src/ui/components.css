@@ -1446,6 +1446,12 @@ select.input option {
   .run .button {
     width: 100%;
   }
+
+  /* With work on the page the way home sits in this row, left of the button (pages/tool.ts). */
+  .run > .button {
+    width: calc(100% - var(--home-room, 0px));
+    margin-inline-start: var(--home-room, 0px);
+  }
 }
 
 /* ---- Progress ---- */

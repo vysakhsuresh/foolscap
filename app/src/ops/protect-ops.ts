@@ -82,6 +82,7 @@ function strippedParts(before: DocInfo, stripped: StripReport): string[] {
 export const documentDetailsOp: Op<DocumentDetailsParams> = {
   tool: 'document-details',
   arity: { kind: 'each' },
+  whole: true,
   title: (p) => (p.mode === 'strip' ? 'Remove hidden details' : p.mode === 'clean' ? 'Clean hidden data' : 'Edit details'),
   async run(inputs, params, ctx) {
     return forEachPdf(inputs, ctx, async (doc, input) => {

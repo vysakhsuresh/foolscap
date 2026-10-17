@@ -128,6 +128,7 @@ function paperScale(doc: PdfDoc, index: number): number {
 export const pageNumbersOp: Op<PageNumbersParams> = {
   tool: 'page-numbers',
   arity: { kind: 'each' },
+  whole: true,
   title: () => 'Page numbers',
   async run(inputs, params, ctx) {
     const start = Math.floor(params.start);

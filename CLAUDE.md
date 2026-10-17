@@ -529,10 +529,14 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   passes the file on. Multi-file tools take a whole folder
   (`webkitdirectory`, the files still enter through DocumentStore), and an
   each-file batch is shared between up to four workers (`jobs/pool.ts`;
-  the first is the page's own, the rest are made when a batch needs them).
+  the first is the page's own, the rest are made when a batch needs them;
+  never for an op marked `whole` — Bates numbers run on from file to file,
+  and Document details treats an empty box differently for several files).
   The worker reports how many network requests it made during a job and
   every result says the total. Home: recent tools (ids only), two tools to
   a row on a phone, and the coffee pill steps aside while scrolling down.
+  On a phone, once files are in, the way home drops into the pinned button's
+  row and the button gives it room, so it never covers a signature pad.
 - **2026-10-17** A light theme, at the owner's request for office users. Dark
   stays the default and the brand, and is not overridden by the system's
   preference: most office machines say "light", and following them would

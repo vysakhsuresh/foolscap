@@ -172,15 +172,15 @@ test.describe('batches', () => {
 
   test('many files for a tool that works on each alone come back whole and in order, with the proof under them', async ({ page }) => {
     test.setTimeout(120_000);
-    await openTool(page, 'page-numbers');
+    await openTool(page, 'watermark');
     const names = ['a', 'b', 'c', 'd', 'e', 'f'];
     await page.getByTestId('file-input').setInputFiles(files(await Promise.all(names.map(async (n, i) => ({ name: `${n}.pdf`, bytes: await pagesPdf(i + 1) })))));
     await expect(page.getByTestId('file-item')).toHaveCount(6);
     await run(page);
     const items = page.getByTestId('result-item');
     await expect(items).toHaveCount(6, { timeout: 60_000 });
-    const texts = await items.allTextContents();
-    names.forEach((n, i) => expect(texts[i]?.startsWith(`${n} `), `result ${i + 1}: ${texts[i]}`).toBe(true));
+    const got = await items.evaluateAll((rows) => rows.map((r) => r.getAttribute('data-name')));
+    expect(got).toEqual(names.map((n) => `${n} watermarked.pdf`));
     await expect(page.getByTestId('network-proof')).toBeVisible();
   });
 
