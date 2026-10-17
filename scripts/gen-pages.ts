@@ -413,8 +413,6 @@ interface ArticleOptions {
   readonly kind?: 'website' | 'article';
   /** Only the guides carry ads (AD_PAGES in site/config.ts); the policy on every other path refuses them. */
   readonly ads?: boolean;
-  /** Where the way home says you came from: the home page lands where you left it. */
-  readonly from: string;
 }
 
 function articlePage(o: ArticleOptions): string {
@@ -425,7 +423,6 @@ function articlePage(o: ArticleOptions): string {
     ${o.body}
   </main>
   ${FOOTER}
-  ${HOME_FAB(o.from)}
 </body>
 </html>
 `;
@@ -472,7 +469,6 @@ function guidePage(g: Guide): string {
       ${others.length > 0 ? `<h2>More guides</h2>\n      <ul class="guide-links">\n        ${others.map((o) => `<li><a href="/guides/${o.slug}/">${esc(o.h1)}</a></li>`).join('\n        ')}\n      </ul>` : ''}
     </article>`;
   return articlePage({
-    from: 'guide',
     title: `${g.title} — ${SITE_NAME}`.length <= TITLE_MAX ? `${g.title} — ${SITE_NAME}` : g.title,
     description: g.description,
     path,
@@ -502,7 +498,6 @@ function guidesIndex(): string {
     .filter(Boolean)
     .join('\n      ');
   return articlePage({
-    from: 'guides',
     title: 'PDF guides: compress, unlock, convert, sign — Foolscap',
     description: `${GUIDES.length} short guides to the PDF jobs people search for most: compress to 100 KB, open an Aadhaar PDF, bank statement to Excel, sign, merge.`,
     path: '/guides/',
@@ -560,7 +555,6 @@ const openPage = () => `${head('Open a file: Foolscap suggests what to do', 'Dro
 
 const aboutPage = () =>
   articlePage({
-    from: 'about',
     title: 'About Foolscap: free PDF tools that never upload',
     description: 'Who makes Foolscap, why the tools run in your browser instead of on a server, and how a free site with no sign-up and no limits pays for itself.',
     path: '/about/',
@@ -595,7 +589,6 @@ const aboutPage = () =>
 
 const termsPage = () =>
   articlePage({
-    from: 'terms',
     title: 'Terms of use — Foolscap',
     description: 'The terms for using Foolscap: free PDF tools that run in your browser. What we promise, what you are responsible for, and the adverts on some pages.',
     path: '/terms/',
@@ -625,7 +618,6 @@ const termsPage = () =>
 
 const contactPage = () =>
   articlePage({
-    from: 'contact',
     title: 'Contact Foolscap — email or WhatsApp',
     description: 'Get help with Foolscap’s free PDF tools, report a problem or ask for a tool, by email or WhatsApp. Please never send us your documents.',
     path: '/contact/',
@@ -659,7 +651,6 @@ const contactPage = () =>
 
 const notFoundPage = () =>
   articlePage({
-    from: 'not-found',
     title: 'Page not found — Foolscap',
     description: 'That page is not here. Every Foolscap tool is one tap away from the home page.',
     path: null,
@@ -744,8 +735,7 @@ if (writeIfChanged(homePath, shell(home, 'tools', '/', HOME_LD))) changed++;
 
 const privatePath = resolve(APP, 'private', 'index.html');
 const privacy = shell(readFileSync(privatePath, 'utf8'), 'privacy', '/private/', [breadcrumbs([['Home', '/'], ['Privacy', '/private/']])])
-  .replace(/\s*<nav class="home-fab__nav"[\s\S]*?<\/nav>/, '')
-  .replace(/(\s*)<\/body>/, `$1  ${HOME_FAB('privacy')}$1</body>`);
+  .replace(/\s*<nav class="home-fab__nav"[\s\S]*?<\/nav>/, '');
 if (writeIfChanged(privatePath, privacy)) changed++;
 
 // The reading pages, all generated.

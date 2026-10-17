@@ -1494,6 +1494,13 @@ async function fitsTheScreen(page: Page): Promise<void> {
       if (r.width === 0 || r.height === 0 || getComputedStyle(el).visibility === 'hidden') continue;
       if (el.closest('.visually-hidden') || el.classList.contains('visually-hidden')) continue;
       if (el.closest('.reader__pages') || el.closest('.editor__page')) continue;
+      // A row that scrolls sideways (Read's tools on a phone, like the family jumps) holds more than
+      // fits on purpose: the row itself must fit, and the rest is a swipe away.
+      const strip = [...(function* () { for (let p = el.parentElement; p; p = p.parentElement) yield p; })()].find((p) => ['auto', 'scroll'].includes(getComputedStyle(p).overflowX));
+      if (strip) {
+        const s = strip.getBoundingClientRect();
+        if (s.left >= -1 && s.right <= width + 1) continue;
+      }
       if (r.left < -1 || r.right > width + 1) out.push(`${el.tagName.toLowerCase()} "${(el.textContent ?? el.getAttribute('data-testid') ?? '').trim().slice(0, 30)}" runs off the screen (${Math.round(r.left)}–${Math.round(r.right)})`);
     }
     return out;

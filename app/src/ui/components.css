@@ -1447,10 +1447,38 @@ select.input option {
     width: 100%;
   }
 
-  /* With work on the page the way home sits in this row, left of the button (pages/tool.ts). */
-  .run > .button {
-    width: calc(100% - var(--home-room, 0px));
-    margin-inline-start: var(--home-room, 0px);
+  /* One row under the thumb: the way home, the main button, Get help, all on
+     one centre line and the button's height (ui/dock.ts). */
+  .run--dock {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: var(--space-2);
+    align-items: center;
+  }
+
+  .run--dock > :not(.home-fab__nav, .button, .help-orb) {
+    grid-column: 1 / -1;
+  }
+
+  .run--dock .home-fab,
+  .run--dock .help-orb {
+    position: static;
+    width: 54px;
+    min-width: 54px;
+    height: 54px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .run--dock > .button {
+    width: auto;
+    min-width: 0;
+    padding-inline: var(--space-3);
+    font-size: var(--text-m);
+  }
+
+  .run--dock .home-fab__label,
+  .run--dock .help-orb__label {
+    display: none;
   }
 }
 
@@ -2140,14 +2168,12 @@ select.input option {
     display: none;
   }
 
-  body[data-page='tool'] .help-orb {
-    bottom: 104px;
-    width: 50px;
-    height: 50px;
-  }
-
-  body[data-page='tool']:has(.file-item) .help-orb {
-    display: none;
+  /* In the bottom-right corner, on the content's own edge, the way home's twin. */
+  .help-orb {
+    right: var(--gutter);
+    bottom: max(var(--gutter), env(safe-area-inset-bottom));
+    width: 52px;
+    height: 52px;
   }
 }
 
@@ -2300,8 +2326,9 @@ select.input option {
     height: 60px;
   }
 
+  /* The corner circles are 60px, 30px up: the footer's last line ends above them. */
   .site-footer {
-    padding-bottom: var(--space-6);
+    padding-bottom: calc(var(--space-6) + 90px);
   }
 }
 
@@ -3218,17 +3245,17 @@ select.input option {
 }
 
 @media (max-width: 819px) {
-  /* On a phone it rides above the pinned button, mirroring Get help on the
-     right, so the button keeps the full width of the screen. */
-  /* Get help shrinks to 50px above the pinned button on a tool page; so does this. */
-  body[data-page='tool'] .home-fab {
-    bottom: 104px;
-    height: 50px;
-    min-width: 50px;
-    padding-inline: 11px;
+  /* Bottom-left on the content's edge, Get help's twin on the right. On a tool
+     page with a main button both join it in one row (.run--dock, ui/dock.ts). */
+  .home-fab {
+    left: var(--gutter);
+    bottom: max(var(--gutter), env(safe-area-inset-bottom));
+    height: 52px;
+    min-width: 52px;
+    padding-inline: 12px;
   }
 
-  body[data-page='tool'] .home-fab__mark {
+  .home-fab__mark {
     width: 26px;
     height: 26px;
   }
@@ -3277,9 +3304,6 @@ select.input option {
 }
 
 /* The way home sits at the bottom-left: the footer leaves it room. */
-body:has(.home-fab) .site-footer {
-  padding-bottom: calc(var(--space-6) + 76px);
-}
 
 .home-fab__nav {
   display: contents;
@@ -3557,4 +3581,89 @@ html:not([data-theme]) .theme-toggle {
 
 :root[data-theme='light'] .mark {
   filter: drop-shadow(0 4px 12px rgb(37 99 235 / 0.25));
+}
+
+/* ---- Alignment on a phone or tablet ----
+   One column, one right edge: a box that stops 60px short of everything
+   around it reads as a mistake, so on a narrow screen every field spans the
+   column. A long box of words is always full width. */
+textarea.input {
+  max-width: none;
+  line-height: 1.45;
+}
+
+@media (max-width: 819px) {
+  .input {
+    max-width: none;
+  }
+
+  /* The corner circles step aside while the page is read (ui/pinned.ts). */
+  .home-fab,
+  .help-orb {
+    transition:
+      transform var(--motion) var(--ease),
+      opacity var(--motion),
+      border-color var(--motion),
+      box-shadow var(--motion);
+  }
+
+  .home-fab.is-tucked,
+  .help-orb.is-tucked {
+    transform: translateY(calc(100% + var(--space-6)));
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Read's bar is two rows: its tools in one line that scrolls sideways, then find. */
+  .reader__bar {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .reader__group {
+    min-width: 0;
+  }
+
+  .reader__group:not(.reader__group--find) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+
+  .reader__group:not(.reader__group--find)::-webkit-scrollbar {
+    display: none;
+  }
+
+  .reader__group:not(.reader__group--find) > * {
+    flex: none;
+  }
+
+  .reader__group--find {
+    flex: none;
+    flex-wrap: nowrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .proof .button {
+    justify-self: stretch;
+    padding-inline: var(--space-4);
+  }
+}
+
+/* A row of fields inside a card spans the card, like every other box. */
+.finder__body > .field-row {
+  justify-self: stretch;
+}
+
+/* A note that has nothing to say yet takes no room and draws no empty box. */
+.options__note:empty {
+  display: none;
+}
+
+/* The typed signature belongs to the pad above it: the same width. */
+#signature-typed {
+  max-width: none;
 }

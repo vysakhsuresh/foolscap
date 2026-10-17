@@ -218,14 +218,25 @@ steps aside while you scroll down and comes back as you scroll up; a mug with th
 `site/config.ts`) and **Get help** (Layerbit's glowing orb, bottom-right,
 opening a popover with Email and WhatsApp — no script needed) match
 layerbit.co.in. They are plain links: nothing is fetched until tapped, and
-the privacy page says so. On a phone the orb steps aside once files are on a
-tool page; Get help stays in every footer.
+the privacy page says so. Get help stays in every footer too.
 
 **The way home** is Layerbit's bottom-left glass pill with the mark in it, on
-every tool page. It goes to `/#from-<tool>`, and the home page lands where
-you left it (the scroll position is kept for the tab, a number and nothing
-else), or on that tool's card, which glows once. On a phone it sits beside
-the pinned button, never over the page.
+every tool page and Open a file (reading pages have the logo and crumbs). It
+goes to `/#from-<tool>`, and the home page lands where you left it (the
+scroll position is kept for the tab, a number and nothing else), or on that
+tool's card, which glows once.
+
+**The bottom of the screen is one system.** On a laptop the way home and Get
+help are a pair of 60px circles in the bottom corners, 30px in, in the
+margin. On a phone or tablet (≤819px) every tool page with a main button has
+one row under the thumb — way home, the main button, Get help — on one centre
+line and one height (`ui/dock.ts`, `.run--dock`), so nothing floats over the
+page. Where there is no main button (Read, Summarise, Open a file, reading
+pages) the circles are 52px twins on the content's own 16px edges, and step
+aside while the page scrolls down (`ui/pinned.ts`), as the coffee pill does;
+the footer leaves them room at the end. On a phone every field spans its
+column, so the right edge is one line. `tests/e2e/layout.spec.ts` checks all
+of this on every page.
 
 Touch targets at least 44px. Text contrast at least 4.5:1 — muted text is
 `#94a3b8` (7:1 on the ground); dark text on every gradient stop is 7:1 or
@@ -535,8 +546,8 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   The worker reports how many network requests it made during a job and
   every result says the total. Home: recent tools (ids only), two tools to
   a row on a phone, and the coffee pill steps aside while scrolling down.
-  On a phone, once files are in, the way home drops into the pinned button's
-  row and the button gives it room, so it never covers a signature pad.
+  On a phone the way home and Get help join the main button in one row
+  (see "The bottom of the screen is one system" above).
 - **2026-10-17** A light theme, at the owner's request for office users. Dark
   stays the default and the brand, and is not overridden by the system's
   preference: most office machines say "light", and following them would

@@ -200,6 +200,7 @@ button.tool-card {
 /* ---- Home: the way into Open a file ---- */
 
 .open-card {
+  text-align: start;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -327,5 +328,24 @@ button.tool-card {
 
   .open-card__go {
     display: none;
+  }
+}
+
+/* Tools used lately, on a phone: one row that scrolls, like the family jumps. */
+@media (max-width: 600px) {
+  .recent__list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: calc(-1 * var(--gutter));
+    padding-inline: var(--gutter);
+  }
+
+  .recent__list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .recent__list > * {
+    flex: none;
   }
 }

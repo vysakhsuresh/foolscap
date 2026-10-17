@@ -502,7 +502,7 @@ export const GUIDES: readonly Guide[] = [
         heading: 'A worked example',
         paragraphs: [
           'You need twelve monthly statements for a home loan, each locked with the same password. Open Remove a password and add all twelve. Type the password in the box under each and tap Unlock. Press Unlock it, then Save all to keep the unlocked copies in one folder.',
-          'Tap Then to take them to [Merge](/tools/merge/), put them in month order with the arrows, and press Merge into one file, so the lender gets one tidy PDF instead of twelve.',
+          'Tap Then to take them to [Merge](/tools/merge/), drag them into month order, and press Merge into one file, so the lender gets one tidy PDF instead of twelve.',
         ],
       },
       {
@@ -587,10 +587,10 @@ export const GUIDES: readonly Guide[] = [
     description: 'Join several PDFs into one file in the order you choose. Free, no sign-up, no file limit, no watermark, and your files never leave your device.',
     tool: 'merge',
     related: ['organise', 'images-to-pdf', 'compress'],
-    intro: 'Open Merge, add the PDFs, put them in order with the up and down arrows, and press Merge into one file.',
+    intro: 'Open Merge, add the PDFs, drag them into order, and press Merge into one file.',
     steps: [
       'Open Merge and add two or more PDFs.',
-      'Use the up and down arrows to put them in order.',
+      'Drag them into order (on a phone, hold a file a moment first), or use the arrows.',
       'Type the password of any locked file in the box under it and tap Unlock.',
       'Press Merge into one file.',
       'Save the merged PDF, or tap Then to hand it to another tool.',
@@ -716,7 +716,7 @@ export const GUIDES: readonly Guide[] = [
     intro: 'Open Images to PDF, add your pictures, put them in order and press Make a PDF. Each image becomes one page.',
     steps: [
       'Open Images to PDF and add the images.',
-      'Use the up and down arrows to set the page order.',
+      'Drag the pictures into page order, or use the arrows.',
       'Choose a page size: A4, Letter, or Same as each image.',
       'Choose a margin: none, small or large.',
       'Press Make a PDF and save it.',
@@ -780,7 +780,7 @@ export const GUIDES: readonly Guide[] = [
     steps: [
       'Open Images to PDF in Chrome, Safari or any current phone browser.',
       'Tap the drop zone and choose the photos from your gallery.',
-      'Put them in order with the up and down arrows.',
+      'Drag them into order, or use the arrows.',
       'Press Make a PDF.',
       'Tap Share to send it, or Save to keep it in Downloads.',
     ],

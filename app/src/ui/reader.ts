@@ -53,7 +53,7 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   const zoomIn = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-zoom-in', text: '+', attrs: { type: 'button', 'aria-label': 'Zoom in' } });
   const where = el('span', { class: 'reader__where', testid: 'reader-where', attrs: { 'aria-live': 'polite' } });
   const night = el('button', { class: 'button button--ghost button--small', testid: 'reader-night', text: 'Night', attrs: { type: 'button', 'aria-pressed': 'false' } });
-  const find = el('input', { class: 'input reader__find', testid: 'reader-find', attrs: { type: 'search', placeholder: 'Find in the document', 'aria-label': 'Find in the document', enterkeyhint: 'search' } });
+  const find = el('input', { class: 'input reader__find', testid: 'reader-find', attrs: { type: 'search', placeholder: 'Find a word', 'aria-label': 'Find in the document', enterkeyhint: 'search' } });
   const findPrev = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-find-prev', text: '‹', attrs: { type: 'button', 'aria-label': 'Previous match' } });
   const findNext = el('button', { class: 'button button--ghost button--small reader__icon', testid: 'reader-find-next', text: '›', attrs: { type: 'button', 'aria-label': 'Next match' } });
   const findCount = el('span', { class: 'reader__count', testid: 'reader-find-count', attrs: { 'aria-live': 'polite' } });
@@ -88,7 +88,7 @@ export function createReader(handoff: ((target: ToolId) => void) | null): Reader
   const then = handoff ? el('div', { class: 'then reader__then' }, [thenButton, thenMenu]) : null;
 
   const bar = el('div', { class: 'reader__bar', testid: 'reader-bar' }, [
-    el('div', { class: 'reader__group' }, [contentsButton, commentsButton, zoomOut, zoomLabel, zoomIn, night, aloud, printButton, then]),
+    el('div', { class: 'reader__group' }, [zoomOut, zoomLabel, zoomIn, then, contentsButton, commentsButton, night, aloud, printButton]),
     el('div', { class: 'reader__group reader__group--find' }, [find, findPrev, findNext, findCount]),
   ]);
   const outline = el('nav', { class: 'reader__outline', testid: 'reader-outline', attrs: { 'aria-label': 'Contents' } });

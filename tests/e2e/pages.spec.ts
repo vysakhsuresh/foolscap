@@ -142,11 +142,9 @@ test('every tool page has a way home, bottom-left, that lands where you left the
   await expect(fab).toBeVisible();
   const box = (await fab.boundingBox())!;
   const viewport = page.viewportSize()!;
-  expect(box.x).toBeLessThan(40);
-  // At the bottom on a laptop; on a phone just above the pinned button.
-  expect(viewport.height - (box.y + box.height)).toBeLessThan(viewport.width < 820 ? 120 : 40);
-  // The same circle as Get help on the other side, at the same height.
   const orb = (await page.getByTestId('help-orb').boundingBox())!;
+  const run = (await page.getByTestId('run-button').boundingBox())!;
+  // The same circle as Get help, mirrored on the content's edges, at one height.
   expect(Math.round(box.height)).toBe(Math.round(orb.height));
   expect(Math.round(box.width)).toBe(Math.round(orb.width));
   expect(Math.abs(box.y - orb.y)).toBeLessThan(1.5);
@@ -156,12 +154,26 @@ test('every tool page has a way home, bottom-left, that lands where you left the
   expect(mark.width / box.width).toBeGreaterThan(0.4);
   expect(mark.width / box.width).toBeLessThan(0.56);
   expect(Math.abs(mark.x + mark.width / 2 - (box.x + box.width / 2))).toBeLessThan(1.5);
-  // And the main button keeps the whole width it is given.
-  const run = (await page.getByTestId('run-button').boundingBox())!;
-  if (viewport.width < 820) expect(run.width).toBeGreaterThan(viewport.width - 40);
-  // It stays there as the page scrolls.
-  await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
-  expect((await fab.boundingBox())!.y).toBeCloseTo(box.y, 0);
+  if (viewport.width < 820) {
+    // On a phone: one row under the thumb, home | main button | Get help, on
+    // one centre line and one height, the button filling the space between.
+    expect(box.x).toBeLessThan(20);
+    const mid = (r: { y: number; height: number }) => r.y + r.height / 2;
+    expect(Math.abs(mid(box) - mid(run))).toBeLessThan(1);
+    expect(Math.abs(mid(orb) - mid(run))).toBeLessThan(1);
+    expect(Math.abs(box.height - run.height)).toBeLessThan(1);
+    expect(run.x - (box.x + box.width)).toBeGreaterThan(4);
+    expect(run.x - (box.x + box.width)).toBeLessThan(12);
+    expect(orb.x - (run.x + run.width)).toBeGreaterThan(4);
+    expect(orb.x - (run.x + run.width)).toBeLessThan(12);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+  } else {
+    // On a laptop: the bottom-left corner, and it stays there as the page scrolls.
+    expect(box.x).toBeLessThan(40);
+    expect(viewport.height - (box.y + box.height)).toBeLessThan(40);
+    await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
+    expect((await fab.boundingBox())!.y).toBeCloseTo(box.y, 0);
+  }
 
   await fab.click();
   await expect(page).toHaveURL(/\/$/);

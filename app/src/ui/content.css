@@ -531,11 +531,13 @@
   }
 }
 
-/* On a phone the tool pages lift the way home and Get help above the pinned
-   button: the footer leaves room for them at that height too. */
+/* On a phone the search circle is the corner circles' twin: same size, same
+   line, on the content's edge (components.css). */
 @media (max-width: 819px) {
-  body[data-page='tool'] .site-footer {
-    padding-bottom: calc(104px + 56px + var(--space-5));
+  .search-pill {
+    --pill: 52px;
+    left: var(--gutter);
+    bottom: calc(max(var(--gutter), env(safe-area-inset-bottom)) + var(--keyboard, 0px));
   }
 }
 
@@ -581,4 +583,9 @@
     transform: none;
     opacity: 0.85;
   }
+}
+
+/* A list of links is a column of its own, on the heading's edge, not an indented bullet list. */
+.prose .guide-links {
+  padding-inline-start: 0;
 }

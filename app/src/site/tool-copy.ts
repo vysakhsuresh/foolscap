@@ -20,10 +20,10 @@ export interface ToolCopy {
 export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
   // ---- Pages ----
   merge: {
-    about: 'Merge joins two or more PDFs into one, in the order you set with the arrows. The files are joined in your browser, one at a time, so there is no limit on how many or how big. To move single pages afterwards, tap Then and choose [Organise pages](/tools/organise/).',
+    about: 'Merge joins two or more PDFs into one, in the order you set: drag a file by its handle, or use its arrows. The files are joined in your browser, one at a time, so there is no limit on how many or how big. To move single pages afterwards, tap Then and choose [Organise pages](/tools/organise/).',
     steps: [
       'Add two or more PDFs, from your files or by dropping them anywhere on the page.',
-      'Put them in order with the up and down arrows beside each file.',
+      'Put them in order: drag a file up or down (on a phone, hold it a moment first), or use its arrows.',
       'Type the password of any locked file in the box under it and tap Unlock.',
       'Press Merge into one file, then Save the result or tap Then to keep working on it.',
     ],
@@ -369,7 +369,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     about: 'Turns photos and scans into one PDF, one picture per page, in the order you set, or into a separate PDF for each picture. JPEG, PNG, WebP, GIF and BMP work, and photos taken sideways come out the right way up. iPhone HEIC photos work where the browser can read them.',
     steps: [
       'Add the pictures from your gallery or files, as many as you need.',
-      'Put them in order with the up and down arrows: each picture becomes one page.',
+      'Put them in order by dragging, or with the arrows: each picture becomes one page.',
       'Choose the page size, A4, Letter or Same as each image, and a margin of None, Small or Large.',
       'Tick A separate PDF for each image if each picture should be its own file.',
       'Press Make a PDF, then Save it or tap Send.',

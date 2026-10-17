@@ -27,6 +27,7 @@ import { watchNetwork, type NetworkWatch } from '../ui/network-proof';
 import { createProgress } from '../ui/progress';
 import { TOO_LARGE, renderResult } from '../ui/result';
 import { mountShell } from '../ui/shell';
+import { dockWithRun } from '../ui/dock';
 import '../ui/flow.css';
 import { imageThumb, pdfThumb, type Box } from '../ui/thumbs';
 import { createToolOptions, type ToolOptions } from '../ui/tool-options';
@@ -485,7 +486,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
   }
 
   runButton.addEventListener('click', () => void run());
-  keepHomeClear(runButton);
+  dockWithRun(runArea, runButton);
   if (zone && input) bindDropZone(zone, input, (files) => void addFiles(files));
   const folderInput = document.querySelector<HTMLInputElement>('[data-testid="folder-input"]');
   folderInput?.addEventListener('change', () => {
@@ -532,48 +533,4 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     devlog('ready', error);
     say('This browser could not start the tools. Try a current version of Chrome, Edge, Firefox or Safari.', 'error');
   }
-}
-
-/**
- * On a phone the way home rides just above the pinned main button, mirroring
- * Get help. Once there is work on the page (Get help has stepped aside by
- * then) it would cover what is being used — a signature pad, the options — so
- * it moves down into the button's own row and the button gives it room. With
- * only a file or two the button sits higher up the page, not pinned yet: the
- * circle still never covers it. Read each frame the page scrolls or resizes.
- */
-function keepHomeClear(button: HTMLElement): void {
-  const fab = document.querySelector<HTMLElement>('[data-testid="home-fab"]');
-  const bar = button.closest<HTMLElement>('.run');
-  if (!fab || !bar) return;
-  const narrow = window.matchMedia('(max-width: 819px)');
-  let queued = false;
-  const place = () => {
-    queued = false;
-    fab.style.removeProperty('bottom');
-    bar.style.removeProperty('--home-room');
-    if (!narrow.matches || button.offsetParent === null) return;
-    const b = button.getBoundingClientRect();
-    const onScreen = b.bottom > 0 && b.top < window.innerHeight;
-    if (onScreen && document.querySelector('.file-item') !== null) {
-      // Beside the button, centred on it: the button keeps the rest of the row.
-      const f = fab.getBoundingClientRect();
-      bar.style.setProperty('--home-room', `${Math.round(f.left + f.width + 10 - bar.getBoundingClientRect().left - parseFloat(getComputedStyle(bar).paddingLeft))}px`);
-      fab.style.setProperty('bottom', `${Math.round(window.innerHeight - (b.top + b.height / 2) - f.height / 2)}px`);
-      return;
-    }
-    const f = fab.getBoundingClientRect();
-    if (onScreen && b.bottom > f.top && b.top < f.bottom) {
-      fab.style.setProperty('bottom', `${Math.round(window.innerHeight - b.top + 12)}px`);
-    }
-  };
-  const later = () => {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(place);
-  };
-  window.addEventListener('scroll', later, { passive: true });
-  window.addEventListener('resize', later);
-  new ResizeObserver(later).observe(document.body);
-  later();
 }
