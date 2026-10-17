@@ -354,6 +354,7 @@ describe('the headers', () => {
       '/terms/',
       '/contact/',
       '/sw.js',
+      '/theme.js',
     ];
     for (const path of paths) expect(policyAt(path), path).toBe(STRICT);
   });

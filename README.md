@@ -112,6 +112,10 @@ npm test           # typecheck, unit tests, then e2e against the built site
   on every path, tap targets, overflow, the display font, awkward files
   dropped on the tool pages, every sitemap page's search tags, and ads
   loading on the real domain only, on the home page and guides only.
+  `theme.spec.ts` checks the light/dark switch (kept across reloads and
+  pages, set before first paint, fitting the header at 360, 768 and 1280)
+  and measures the contrast of every word on the home page, Merge with files
+  in it and a guide in light, and home and Merge in dark.
 
 Fixtures are generated at test time with pdf-lib; no binaries are committed.
 `tests/fixtures/README.md` explains why stage-1 fixtures avoid fonts and
@@ -150,11 +154,12 @@ app/
   index.html, tools/<id>/index.html, private/index.html   the pages
   public/_headers                                         the CSP and friends
   public/fonts/                                           Space Grotesk + OFL
+  public/theme.js                                         light or dark, set before first paint
   src/pdf/    the seam: pdf.js engine, pdf-lib surgeon, PageSelection, shims
   src/files/  DocumentStore, Workspace (OPFS via a storage worker; memory fallback), Exporter
   src/ops/    the one Op shape, the tool registry, merge / split / organise
   src/jobs/   JobRunner and the op worker
-  src/ui/     tokens, components, the shell
+  src/ui/     tokens (dark and light), components, the shell, the theme switch
   src/pages/  one entry per page
   src/site/   config: name, domain (unset until bought), feedback address
 scripts/      font fetch, pdf.js asset copy, the Cloudflare-headers preview plugin

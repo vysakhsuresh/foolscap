@@ -54,7 +54,7 @@
 
 .faq__item p {
   padding: 0 var(--space-4) var(--space-4);
-  color: #cbd5e1;
+  color: var(--soft);
 }
 
 /* ---- Below each tool ---- */
@@ -73,7 +73,7 @@
 }
 
 .tool-help__about {
-  color: #cbd5e1;
+  color: var(--soft);
 }
 
 .tool-help__subtitle {
@@ -222,7 +222,7 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--target);
-  color: var(--whatsapp);
+  color: var(--whatsapp-ink);
 }
 
 /* Inline links in running text keep a tap height of at least 24px. */
@@ -245,7 +245,7 @@
   padding-inline-start: 1.4em;
   display: grid;
   gap: var(--space-2);
-  color: #cbd5e1;
+  color: var(--soft);
 }
 
 .tool-help__steps li::marker {
@@ -285,7 +285,7 @@
   border: 1px solid var(--line-strong);
   color: var(--text);
   cursor: pointer;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 0.45);
+  box-shadow: var(--shadow-float);
   animation: jumps-nudge 1.6s ease-in-out 0.6s 2;
 }
 
@@ -355,9 +355,9 @@
   height: var(--pill);
   border-radius: 999px;
   /* Solid: nothing behind it may show through the words typed. */
-  background: rgb(17 19 26);
+  background: var(--float-solid);
   border: 1px solid var(--line-strong);
-  box-shadow: 0 8px 25px rgb(0 0 0 / 0.5);
+  box-shadow: var(--shadow-float);
   overflow: hidden;
   transition:
     width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
@@ -461,9 +461,9 @@
   padding: 6px;
   list-style: none;
   border-radius: var(--radius-l);
-  background: rgb(17 19 26);
+  background: var(--float-solid);
   border: 1px solid var(--line-strong);
-  box-shadow: 0 16px 40px rgb(0 0 0 / 0.55);
+  box-shadow: var(--shadow-deep);
 }
 
 .search-pill__results[hidden] {
@@ -485,7 +485,7 @@
   width: 20px;
   height: 20px;
   flex: none;
-  color: var(--tool-b);
+  color: var(--icon-ink);
 }
 
 .search-pill__result:hover,

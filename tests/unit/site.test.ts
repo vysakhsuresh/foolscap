@@ -114,6 +114,31 @@ describe('ads', () => {
   });
 });
 
+describe('the theme', () => {
+  it('public/theme.js reads the key the switch writes, and paints the light ground the tokens use', async () => {
+    const { THEME_KEY, THEME_COLOUR } = await import('../../app/src/ui/theme');
+    const early = readFileSync(join(APP, 'public', 'theme.js'), 'utf8');
+    expect(early).toContain(`'${THEME_KEY}'`);
+    expect(early).toContain(THEME_COLOUR.light);
+    const tokens = readFileSync(join(APP, 'src', 'ui', 'tokens.css'), 'utf8');
+    expect(tokens).toContain(`--bg: ${THEME_COLOUR.dark};`);
+    expect(tokens).toContain(`--bg: ${THEME_COLOUR.light};`);
+  });
+
+  it('every page loads it as a plain script in its <head>, before any module, with the switch in its header', () => {
+    const pages = [join(APP, 'index.html'), join(APP, '404.html'), join(APP, 'private', 'index.html'), join(APP, 'guides', 'index.html'), ...LIVE_TOOLS.map((t) => join(APP, 'tools', t.id, 'index.html'))];
+    for (const file of pages) {
+      const html = readFileSync(file, 'utf8');
+      const early = html.indexOf('<script src="/theme.js"></script>');
+      expect(early, file).toBeGreaterThan(0);
+      expect(early, file).toBeLessThan(html.indexOf('<script type="module"'));
+      expect(early, file).toBeLessThan(html.indexOf('</head>'));
+      expect(html, file).toContain('<meta name="color-scheme" content="dark">');
+      expect(html, file).toContain('data-testid="theme-toggle"');
+    }
+  });
+});
+
 describe('what a search result shows', () => {
   const pages = (dir: string): string[] =>
     readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
