@@ -56,6 +56,22 @@ const HOME_FAB = (id: string) =>
   `<nav class="home-fab__nav" aria-label="Back to all tools"><a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools"><svg class="home-fab__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">${CAP_GRADIENT('fab-g')}${CAP_DRAWING('url(#fab-g)')}</svg><span class="home-fab__label">All tools</span></a></nav>`;
 
 
+// The theme switch: Lucide's sun and moon. The sun shows on the dark page (tap
+// for light), the moon on the light one; app/src/ui/theme.ts does the switching
+// and public/theme.js applies the choice before the page paints.
+const SUN =
+  '<svg class="theme-toggle__sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></g></svg>';
+const MOON =
+  '<svg class="theme-toggle__moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const THEME_TOGGLE = `<button class="theme-toggle" type="button" data-theme-toggle data-testid="theme-toggle" aria-label="Light theme" aria-pressed="false" title="Switch to the light theme">${SUN}${MOON}</button>`;
+
+// In every <head>, before anything paints: the page says it is dark, and
+// public/theme.js turns it light if that was the visitor's choice. A plain
+// script, not a module, so it runs before the first paint (no dark flash).
+const THEME_HEAD = `<meta name="theme-color" content="#0a0c10">
+  <meta name="color-scheme" content="dark">
+  <script src="/theme.js"></script>`;
+
 type Section = 'tools' | 'guides' | 'privacy' | 'none';
 
 function header(current: Section): string {
@@ -70,6 +86,7 @@ function header(current: Section): string {
         <a href="/guides/"${g}>Guides</a>
         <a href="/private/"${p}>Privacy</a>
       </nav>
+      ${THEME_TOGGLE}
       <a class="support" data-testid="support" href="${HELP.coffee}" target="_blank" rel="noopener" aria-label="Buy me a coffee">${CUP}<span class="support__text">Buy me a coffee</span></a>
     </div>
   </header>`;
@@ -154,7 +171,7 @@ function head(title: string, description: string, o: HeadOptions): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0a0c10">
+  ${THEME_HEAD}
   <meta name="google-adsense-account" content="${ADSENSE.client}">
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}">
@@ -688,7 +705,9 @@ const unescape = (s: string) => s.replace(/&quot;/g, '"').replace(/&lt;/g, '<').
 function shell(html: string, current: Section, path: string, ld: readonly object[] = []): string {
   const title = unescape(/<title>([\s\S]*?)<\/title>/.exec(html)?.[1] ?? SITE_NAME);
   const description = unescape(/<meta name="description" content="([^"]*)">/.exec(html)?.[1] ?? DESCRIPTION);
-  return (html.includes('google-adsense-account') ? html : html.replace('<meta name="theme-color" content="#0a0c10">', `<meta name="theme-color" content="#0a0c10">\n  ${ADSENSE_META}`))
+  const withAds = html.includes('google-adsense-account') ? html : html.replace('<meta name="theme-color" content="#0a0c10">', `<meta name="theme-color" content="#0a0c10">\n  ${ADSENSE_META}`);
+  return withAds
+    .replace(/<meta name="theme-color" content="#0a0c10">(?:\s*<meta name="color-scheme"[^>]*>)?(?:\s*<script src="\/theme\.js"><\/script>)?/, THEME_HEAD)
     .replace(/<!-- seo:start[\s\S]*?<!-- seo:end -->\s*/, '')
     .replace(/<meta property="og:[^"]*" content="[^"]*">\s*/g, '')
     .replace(/(?:<link rel="(?:icon|apple-touch-icon|manifest)"[^>]*>\s*)+/, `${seo(title, description, { path, ld })}\n  ${ICONS}\n  `)

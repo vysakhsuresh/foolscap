@@ -193,7 +193,14 @@ coral→pink, Mark up violet→fuchsia, Protect lime→emerald, Read yellow→am
 that colours its cards, its tools' drop zones, titles and main buttons, so
 thirty-one tools read as five calm groups rather than a rainbow. Professional means restraint
 everywhere else: one accent per screen, generous space, no decoration that
-does not confirm something. Dark only, matching Layerbit.
+does not confirm something. Dark by default, matching Layerbit, with a light
+theme one tap away (a sun/moon switch in every header) for offices and bright
+rooms. Light is designed, not inverted: white glass on `#f6f7fb`, ink
+`#0f172a`, muted `#475569`; each family keeps its neon for buttons, fills and
+glows, and draws its titles, icons and edges in a deeper ink of the same hue
+(`--deep-a`/`--deep-b` → `--ink-a`/`--ink-b`). Every colour is a token in
+`tokens.css`; components never hard-code one, except the marks drawn on the
+white paper of a document, which is white in both themes.
 
 Efficiency is part of the design. Under the headline: a finder ("join",
 "lock", "jpg" all work, from `KEYWORDS` in tools.ts), a row of family jumps,
@@ -207,7 +214,7 @@ drop zone shrinks to one line once files are in.
 every one has the button focus ring. A test checks every page.
 
 **Buy me a coffee** (a gold pill pinned top-right as on Layerbit, so it
-stays as you scroll; a mug with three lines of steam; `HELP.coffee` in
+steps aside while you scroll down and comes back as you scroll up; a mug with three lines of steam; `HELP.coffee` in
 `site/config.ts`) and **Get help** (Layerbit's glowing orb, bottom-right,
 opening a popover with Email and WhatsApp — no script needed) match
 layerbit.co.in. They are plain links: nothing is fetched until tapped, and
@@ -526,3 +533,23 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   The worker reports how many network requests it made during a job and
   every result says the total. Home: recent tools (ids only), two tools to
   a row on a phone, and the coffee pill steps aside while scrolling down.
+- **2026-10-17** A light theme, at the owner's request for office users. Dark
+  stays the default and the brand, and is not overridden by the system's
+  preference: most office machines say "light", and following them would
+  quietly make light the default. A sun/moon switch (44px, `aria-pressed`,
+  label "Light theme") sits in every header beside the nav, clear of the
+  coffee pill at 360px. The choice is the word `light` or `dark` under
+  `foolscap.theme` in localStorage (wrapped in try/catch): a preference, not
+  anything a visitor typed, so promise 8 holds, and the privacy page says so.
+  It is applied by `public/theme.js`, a plain blocking script in every
+  `<head>` (inline is forbidden by the CSP; a module would run after first
+  paint and flash dark), served under the strict policy; it also sets
+  `color-scheme` and `theme-color`. `ui/theme.ts` is the switch and follows
+  other tabs. Every hard-coded colour in components.css and content.css went
+  into a token (`--wash`, `--field`, `--panel`, `--float`, `--soft`,
+  `--code-*`, `--shadow-float` …) so light is designed rather than inverted.
+  Neon on white cannot be read, so each family gained a deeper ink
+  (`--deep-a/b`) that light uses for titles, crumbs, icons and edges; buttons
+  keep the neon gradient with dark text. Document pages stay white paper;
+  Read's night mode is unchanged. `tests/e2e/theme.spec.ts` measures contrast
+  on real rendered pages in both themes.

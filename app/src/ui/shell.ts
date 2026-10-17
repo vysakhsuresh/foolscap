@@ -7,8 +7,10 @@ import './tokens.css';
 import './components.css';
 import './content.css';
 import { tuckWhileScrolling } from './pinned';
+import { mountThemeToggle } from './theme';
 
 export function mountShell(): void {
+  mountThemeToggle();
   keepForOffline();
   tuckWhileScrolling();
 }

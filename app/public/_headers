@@ -78,6 +78,12 @@
   Cross-Origin-Opener-Policy: same-origin
   Referrer-Policy: no-referrer
 
+# The light/dark choice, applied in every page's <head> before it paints.
+/theme.js
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
 # The ad pages: the home page and the guides, which take no files. Google's
 # ad and consent scripts need https, inline styles and a referrer that names
 # the site. Nothing here applies to a tool page.

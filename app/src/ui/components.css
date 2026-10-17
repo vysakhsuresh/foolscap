@@ -15,7 +15,7 @@
 }
 
 .gradient-text {
-  background: var(--tool-gradient);
+  background: var(--text-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -91,7 +91,7 @@
 .site-nav a:hover,
 .site-nav a:focus-visible {
   color: var(--text);
-  background: rgb(255 255 255 / 0.06);
+  background: var(--wash);
 }
 
 /* On a narrow phone the name and the coffee need the room; the name goes home anyway. */
@@ -118,7 +118,7 @@
   padding: 0 var(--space-3);
   border-radius: var(--radius-pill);
   background: var(--glass);
-  border: 1px solid rgb(255 193 7 / 0.35);
+  border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   color: var(--text);
@@ -143,7 +143,7 @@
   color: var(--text);
   transform: translateY(-2px);
   border-color: var(--gold);
-  box-shadow: 0 12px 30px rgb(255 193 7 / 0.2);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--gold) 20%, transparent);
 }
 
 .support__text {
@@ -267,8 +267,8 @@ main {
 .button--ghost:hover {
   color: var(--text);
   background: var(--glass-hover);
-  border-color: color-mix(in srgb, var(--tool-b) 60%, transparent);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  border-color: color-mix(in srgb, var(--ink-b) 60%, transparent);
+  box-shadow: var(--shadow);
   filter: none;
 }
 
@@ -303,7 +303,7 @@ main {
 
 .icon-button:hover {
   color: var(--text);
-  background: rgb(255 255 255 / 0.06);
+  background: var(--wash);
   border-color: var(--line);
 }
 
@@ -334,7 +334,7 @@ main {
 }
 
 .hero__title mark {
-  background: linear-gradient(120deg, #00f2fe 0%, #4facfe 45%, #b69bff 75%, #ff7ac6 100%);
+  background: var(--hero-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -361,7 +361,7 @@ main {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #cbd5e1;
+  color: var(--soft);
   font-weight: 500;
   font-size: var(--text-s);
 }
@@ -444,7 +444,7 @@ main {
 
 .finder__box:focus-within {
   border-color: var(--cyan);
-  box-shadow: 0 0 0 3px rgb(56 189 248 / 0.25), 0 0 30px rgb(56 189 248 / 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cyan) 25%, transparent), 0 0 30px color-mix(in srgb, var(--cyan) 15%, transparent);
 }
 
 .finder__box svg {
@@ -505,7 +505,7 @@ main {
   min-height: var(--target);
   padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 0.04);
+  background: var(--chip);
   border: 1px solid var(--line);
   color: var(--text);
   font-size: var(--text-s);
@@ -515,12 +515,12 @@ main {
 .family-jump svg {
   width: 18px;
   height: 18px;
-  color: var(--tool-b);
+  color: var(--icon-ink);
 }
 
 .family-jump:hover {
   color: var(--text);
-  border-color: color-mix(in srgb, var(--tool-b) 60%, transparent);
+  border-color: color-mix(in srgb, var(--ink-b) 60%, transparent);
 }
 
 .family {
@@ -614,7 +614,7 @@ a.tool-card:focus-visible {
   color: var(--text);
   transform: translateY(-4px);
   background: var(--glass-hover);
-  border-color: color-mix(in srgb, var(--tool-b) 60%, transparent);
+  border-color: color-mix(in srgb, var(--ink-b) 60%, transparent);
   box-shadow:
     var(--shadow-lift),
     0 0 28px var(--tool-glow);
@@ -685,7 +685,7 @@ a.tool-card:focus-visible .tool-card__icon {
   margin-top: var(--space-2);
   font-size: var(--text-s);
   font-weight: 700;
-  color: var(--tool-b);
+  color: var(--ink-b);
   transition: letter-spacing var(--motion) var(--ease);
 }
 
@@ -698,7 +698,7 @@ a.tool-card:hover .tool-card__go {
   align-items: center;
   padding: 3px var(--space-2);
   border-radius: var(--radius-pill);
-  background: rgb(56 189 248 / 0.12);
+  background: color-mix(in srgb, var(--cyan) 12%, transparent);
   color: var(--cyan);
   font-size: 0.6875rem;
   font-weight: 700;
@@ -730,16 +730,22 @@ a.tool-card:hover .tool-card__go {
 .steps li:nth-child(1) {
   --tool-a: #00f2fe;
   --tool-b: #4facfe;
+  --deep-a: #0369a1;
+  --deep-b: #1d4ed8;
 }
 
 .steps li:nth-child(2) {
   --tool-a: #ff9a62;
   --tool-b: #ff6ec7;
+  --deep-a: #c2410c;
+  --deep-b: #be185d;
 }
 
 .steps li:nth-child(3) {
   --tool-a: #c4f05a;
   --tool-b: #34d399;
+  --deep-a: #3f6212;
+  --deep-b: #047857;
 }
 
 .steps li::before {
@@ -776,7 +782,7 @@ a.tool-card:hover .tool-card__go {
   display: grid;
   gap: var(--space-3);
   justify-items: start;
-  box-shadow: 0 0 40px rgb(56 189 248 / 0.12);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--cyan) 12%, transparent);
 }
 
 .proof__title {
@@ -819,7 +825,7 @@ a.tool-card:hover .tool-card__go {
   gap: var(--space-2);
   justify-self: start;
   min-height: var(--target);
-  color: var(--tool-b);
+  color: var(--ink-b);
   font-size: var(--text-s);
 }
 
@@ -872,7 +878,7 @@ a.tool-card:hover .tool-card__go {
 .related__item:hover {
   color: var(--text);
   transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--tool-b) 60%, transparent);
+  border-color: color-mix(in srgb, var(--ink-b) 60%, transparent);
 }
 
 .related__icon {
@@ -936,7 +942,7 @@ a.tool-card:hover .tool-card__go {
   font-size: var(--text-s);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-m);
-  background: rgb(255 255 255 / 0.03);
+  background: var(--wash-faint);
   border: 1px solid var(--line);
 }
 
@@ -994,7 +1000,7 @@ a.tool-card:hover .tool-card__go {
   margin-inline-end: var(--space-2);
   border-radius: 50%;
   background: var(--swatch);
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.35);
+  box-shadow: 0 0 0 1px var(--ring);
   flex: none;
 }
 
@@ -1018,7 +1024,7 @@ a.tool-card:hover .tool-card__go {
   height: 22px;
   margin: 0;
   flex: none;
-  accent-color: var(--tool-b);
+  accent-color: var(--ink-b);
 }
 
 .check__label {
@@ -1029,19 +1035,19 @@ select.input {
   appearance: none;
   padding-right: var(--space-6);
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center / 18px,
-    rgb(0 0 0 / 0.35);
+    var(--chevron) no-repeat right 10px center / 18px,
+    var(--field);
 }
 
 select.input option {
-  background: #14161e;
+  background: var(--panel);
   color: var(--text);
 }
 
 .tool__title {
   font-size: var(--text-2xl);
   letter-spacing: -0.035em;
-  background: var(--tool-gradient);
+  background: var(--text-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -1065,7 +1071,7 @@ select.input option {
   background:
     radial-gradient(400px 160px at 50% 0%, color-mix(in srgb, var(--tool-b) 14%, transparent), transparent),
     var(--glass);
-  border: 1.5px dashed color-mix(in srgb, var(--tool-b) 55%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--ink-b) 55%, transparent);
   color: var(--text);
   cursor: pointer;
   transition:
@@ -1077,7 +1083,7 @@ select.input option {
 }
 
 .drop-zone:hover {
-  border-color: var(--tool-b);
+  border-color: var(--ink-b);
   box-shadow: 0 0 30px var(--tool-glow);
 }
 
@@ -1085,12 +1091,12 @@ select.input option {
 .drop-zone:has(input:focus-visible) {
   outline: 2px solid var(--cyan);
   outline-offset: 3px;
-  border-color: var(--tool-b);
+  border-color: var(--ink-b);
 }
 
 .drop-zone.is-over {
   border-style: solid;
-  border-color: var(--tool-a);
+  border-color: var(--ink-a);
   transform: scale(1.015);
   box-shadow: 0 0 44px var(--tool-glow);
 }
@@ -1240,7 +1246,7 @@ select.input option {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-s);
-  background: rgb(0 0 0 / 0.35);
+  background: var(--field);
   color: var(--text);
   font-size: var(--text-m);
   width: 100%;
@@ -1256,8 +1262,8 @@ select.input option {
 
 .input:focus-visible {
   outline: none;
-  border-color: var(--tool-b);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tool-b) 30%, transparent);
+  border-color: var(--ink-b);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink-b) 28%, transparent);
 }
 
 .options {
@@ -1297,7 +1303,7 @@ select.input option {
 }
 
 .choice:has(input:checked) {
-  border-color: color-mix(in srgb, var(--tool-b) 70%, transparent);
+  border-color: color-mix(in srgb, var(--ink-b) 70%, transparent);
   background: color-mix(in srgb, var(--tool-b) 10%, var(--glass));
   box-shadow: 0 0 22px color-mix(in srgb, var(--tool-b) 18%, transparent);
 }
@@ -1306,7 +1312,7 @@ select.input option {
   width: 20px;
   height: 20px;
   margin: 2px 0 0;
-  accent-color: var(--tool-b);
+  accent-color: var(--ink-b);
 }
 
 .choice__title {
@@ -1346,7 +1352,7 @@ select.input option {
     bottom: 0;
     margin-inline: calc(-1 * var(--gutter));
     padding: var(--space-5) var(--gutter) max(var(--space-3), env(safe-area-inset-bottom));
-    background: linear-gradient(to bottom, rgb(10 12 16 / 0), var(--bg) 38%);
+    background: linear-gradient(to bottom, transparent, var(--bg) 38%);
   }
 
   .run .button {
@@ -1383,7 +1389,7 @@ select.input option {
 .progress__track {
   height: 10px;
   border-radius: var(--radius-pill);
-  background: rgb(255 255 255 / 0.06);
+  background: var(--wash);
   overflow: hidden;
 }
 
@@ -1483,7 +1489,7 @@ select.input option {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--ok);
+  background: var(--ok-fill);
   color: var(--on-neon);
   font-size: 1.05rem;
   font-weight: 700;
@@ -1505,7 +1511,7 @@ select.input option {
   align-items: center;
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   border-radius: var(--radius-m);
-  background: rgb(255 255 255 / 0.03);
+  background: var(--wash-faint);
   border: 1px solid var(--line);
 }
 
@@ -1536,8 +1542,8 @@ select.input option {
 .failure-item {
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-m);
-  border: 1px solid rgb(248 113 113 / 0.4);
-  background: rgb(248 113 113 / 0.08);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
   color: var(--danger);
 }
 
@@ -1581,7 +1587,7 @@ select.input option {
 }
 
 .then__menu button:hover {
-  background: rgb(255 255 255 / 0.07);
+  background: var(--wash);
   color: var(--cyan);
 }
 
@@ -1610,7 +1616,7 @@ select.input option {
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-m);
   background: color-mix(in srgb, var(--tool-b) 10%, var(--glass));
-  border: 1px solid color-mix(in srgb, var(--tool-b) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink-b) 40%, transparent);
 }
 
 .grid-tools__count {
@@ -1636,7 +1642,7 @@ select.input option {
   width: 28px;
   height: 28px;
   margin: 0;
-  accent-color: var(--tool-b);
+  accent-color: var(--ink-b);
   cursor: pointer;
 }
 
@@ -1648,8 +1654,8 @@ select.input option {
 }
 
 .page-tile[data-selected='true'] {
-  border-color: var(--tool-b);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tool-b) 70%, transparent), 0 0 20px var(--tool-glow);
+  border-color: var(--ink-b);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink-b) 70%, transparent), 0 0 20px var(--tool-glow);
 }
 
 .page-tile:focus-visible {
@@ -1666,8 +1672,8 @@ select.input option {
 .page-tile--dragging {
   opacity: 0.55;
   transform: scale(1.04);
-  border-color: var(--tool-b);
-  box-shadow: 0 16px 40px rgb(0 0 0 / 0.55), 0 0 24px var(--tool-glow);
+  border-color: var(--ink-b);
+  box-shadow: var(--shadow-deep), 0 0 24px var(--tool-glow);
   cursor: grabbing;
   z-index: 2;
 }
@@ -1707,8 +1713,8 @@ select.input option {
 .page-tile:hover,
 .page-tile:focus-within {
   transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--tool-b) 55%, transparent);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.4), 0 0 20px var(--tool-glow);
+  border-color: color-mix(in srgb, var(--ink-b) 55%, transparent);
+  box-shadow: var(--shadow-lift), 0 0 20px var(--tool-glow);
 }
 
 .page-tile[data-deleted='true'] {
@@ -1731,7 +1737,7 @@ select.input option {
   justify-content: center;
   min-width: 0;
   border-radius: var(--radius-s);
-  background: rgb(0 0 0 / 0.3);
+  background: var(--well);
   overflow: hidden;
 }
 
@@ -1744,7 +1750,7 @@ select.input option {
   min-height: 0;
   background: #fff;
   border-radius: 3px;
-  box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
+  box-shadow: var(--shadow-paper);
   transition: transform var(--motion) var(--spring);
 }
 
@@ -1788,7 +1794,7 @@ select.input option {
   max-width: 70ch;
   display: grid;
   gap: var(--space-4);
-  color: #cbd5e1;
+  color: var(--soft);
 }
 
 .prose h1 {
@@ -1838,9 +1844,9 @@ select.input option {
   display: block;
   padding: var(--space-4) var(--space-5);
   border-radius: var(--radius-m);
-  background: rgb(0 0 0 / 0.45);
+  background: var(--code-bg);
   border: 1px solid var(--line-strong);
-  color: #a7f3d0;
+  color: var(--code-ink);
   font-family: var(--mono);
   font-size: 0.875rem;
   line-height: 1.7;
@@ -1871,13 +1877,13 @@ select.input option {
   height: 56px;
   padding: 0;
   border-radius: 50%;
-  background: rgb(20 22 30 / 0.94);
-  border: 1px solid rgb(56 189 248 / 0.5);
+  background: var(--float);
+  border: 1px solid color-mix(in srgb, var(--cyan) 50%, transparent);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   box-shadow:
-    0 8px 25px rgb(0 0 0 / 0.5),
-    inset 0 0 15px rgb(56 189 248 / 0.2);
+    var(--shadow-float),
+    inset 0 0 15px color-mix(in srgb, var(--cyan) 20%, transparent);
   cursor: pointer;
   animation: orb-bloom 3s ease-in-out infinite;
   transition:
@@ -1923,7 +1929,7 @@ select.input option {
   right: 68px;
   padding: 6px 14px;
   border-radius: var(--radius-pill);
-  background: rgb(10 12 16 / 0.85);
+  background: var(--float);
   border: 1px solid var(--cyan);
   color: var(--cyan);
   font-size: 0.75rem;
@@ -1950,14 +1956,14 @@ select.input option {
   0%,
   100% {
     box-shadow:
-      0 8px 25px rgb(0 0 0 / 0.5),
-      0 0 0 rgb(56 189 248 / 0);
+      var(--shadow-float),
+      0 0 0 transparent;
   }
 
   50% {
     box-shadow:
-      0 8px 25px rgb(0 0 0 / 0.5),
-      0 0 22px rgb(56 189 248 / 0.35);
+      var(--shadow-float),
+      0 0 22px color-mix(in srgb, var(--cyan) 35%, transparent);
   }
 }
 
@@ -1997,12 +2003,12 @@ select.input option {
   width: min(calc(100vw - 32px), 380px);
   padding: var(--space-6) var(--space-5) var(--space-5);
   border-radius: 24px;
-  background: #14161e;
-  border: 1px solid rgb(56 189 248 / 0.4);
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--cyan) 40%, transparent);
   color: var(--text);
   box-shadow:
-    0 20px 50px rgb(0 0 0 / 0.6),
-    0 0 30px rgb(56 189 248 / 0.12);
+    var(--shadow-deep),
+    0 0 30px color-mix(in srgb, var(--cyan) 12%, transparent);
   text-align: center;
   opacity: 0;
   transform: translateY(12px) scale(0.98);
@@ -2026,7 +2032,7 @@ select.input option {
 }
 
 .help-panel::backdrop {
-  background: rgb(0 0 0 / 0.7);
+  background: var(--scrim, rgb(0 0 0 / 0.7));
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -2051,8 +2057,8 @@ select.input option {
   margin-top: var(--space-2);
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-s);
-  background: rgb(255 255 255 / 0.05);
-  border: 1px solid rgb(255 255 255 / 0.1);
+  background: var(--wash);
+  border: 1px solid var(--float-line);
   color: var(--text);
   font-weight: 600;
   transition:
@@ -2087,7 +2093,7 @@ select.input option {
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: #94a3b8;
+  color: var(--muted);
   font-size: 26px;
   line-height: 1;
   cursor: pointer;
@@ -2095,7 +2101,7 @@ select.input option {
 
 .help-panel__close:hover {
   color: var(--text);
-  background: rgb(255 255 255 / 0.06);
+  background: var(--wash);
 }
 
 /* ---- Layout at larger widths ---- */
@@ -2284,7 +2290,7 @@ select.input option {
 
 .editor__item.is-selected,
 .editor__item:focus-visible {
-  box-shadow: 0 0 0 2px var(--tool-b), 0 0 0 5px color-mix(in srgb, var(--tool-b) 30%, transparent);
+  box-shadow: 0 0 0 2px var(--ink-b), 0 0 0 5px color-mix(in srgb, var(--ink-b) 30%, transparent);
 }
 
 .editor__item--cover {
@@ -2464,7 +2470,7 @@ select.input option {
 .editor__line-hint {
   position: absolute;
   border-radius: 3px;
-  outline: 1px dashed color-mix(in srgb, var(--tool-b) 55%, transparent);
+  outline: 1px dashed color-mix(in srgb, var(--ink-b) 55%, transparent);
   outline-offset: 1px;
 }
 
@@ -2805,7 +2811,7 @@ select.input option {
 }
 
 .reader__entry:hover {
-  background: rgb(255 255 255 / 0.07);
+  background: var(--wash);
   color: var(--cyan);
 }
 
@@ -2844,11 +2850,11 @@ select.input option {
 }
 
 .reader__page.is-hit {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tool-b) 55%, transparent), var(--shadow-lift);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink-b) 55%, transparent), var(--shadow-lift);
 }
 
 .reader__page.is-current {
-  box-shadow: 0 0 0 3px var(--tool-b), 0 0 30px var(--tool-glow);
+  box-shadow: 0 0 0 3px var(--ink-b), 0 0 30px var(--tool-glow);
 }
 
 .reader__canvas {
@@ -2912,7 +2918,7 @@ select.input option {
   width: 112px;
   height: 112px;
   border-radius: 50%;
-  border: 2px solid var(--tool-b);
+  border: 2px solid var(--ink-b);
   box-shadow: var(--shadow-lift), 0 0 18px var(--tool-glow);
   pointer-events: none;
 }
@@ -2985,11 +2991,11 @@ select.input option {
   min-width: 56px;
   padding: 0 13px;
   border-radius: 999px;
-  background: rgb(20 22 30 / 0.94);
-  border: 1px solid rgb(255 255 255 / 0.12);
+  background: var(--float);
+  border: 1px solid var(--float-line);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
-  box-shadow: 0 8px 25px rgb(0 0 0 / 0.5);
+  box-shadow: var(--shadow-float);
   color: var(--text);
   font-weight: 600;
   font-size: var(--text-s);
@@ -3024,7 +3030,7 @@ select.input option {
   transform: translateY(-3px);
   border-color: rgb(139 92 246 / 0.6);
   box-shadow:
-    0 12px 30px rgb(0 0 0 / 0.55),
+    var(--shadow-deep),
     0 0 24px rgb(139 92 246 / 0.25);
 }
 
@@ -3054,7 +3060,7 @@ select.input option {
   }
   30% {
     box-shadow:
-      0 0 0 2px var(--tool-b),
+      0 0 0 2px var(--ink-b),
       0 0 34px var(--tool-glow);
   }
 }
@@ -3089,7 +3095,7 @@ select.input option {
 @media (prefers-reduced-motion: reduce) {
   .tool-card.is-back {
     animation: none;
-    box-shadow: 0 0 0 2px var(--tool-b);
+    box-shadow: 0 0 0 2px var(--ink-b);
   }
 }
 
@@ -3100,7 +3106,7 @@ select.input option {
 /* Pinned buttons float over the page as it scrolls: give them a solid enough
    ground that words behind them never show through. */
 .support {
-  background: rgb(20 22 30 / 0.88);
+  background: var(--float);
 }
 
 /* Scrolling down, the pill steps up out of the way (ui/pinned.ts); scrolling up brings it back. */
@@ -3287,4 +3293,116 @@ body:has(.home-fab) .site-footer {
   width: 100%;
   max-width: none;
   min-height: 14rem;
+}
+
+/* ---- The theme switch, in the header of every page ----
+   A sun while the page is dark (tap for light), a moon while it is light.
+   Hidden until public/theme.js has run, because without a script it could
+   not do anything. */
+
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--target);
+  height: var(--target);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--chip);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color var(--motion-fast),
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    transform var(--motion) var(--spring);
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  background: var(--wash);
+  border-color: var(--line-strong);
+}
+
+.theme-toggle:active {
+  transform: scale(0.92);
+  transition-duration: 80ms;
+}
+
+.theme-toggle:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.theme-toggle svg {
+  width: 20px;
+  height: 20px;
+  transition: transform var(--motion) var(--spring);
+}
+
+.theme-toggle__moon,
+:root[data-theme='light'] .theme-toggle__sun,
+html:not([data-theme]) .theme-toggle {
+  display: none;
+}
+
+:root[data-theme='light'] .theme-toggle__moon {
+  display: block;
+}
+
+.theme-toggle:hover svg {
+  transform: rotate(-12deg);
+}
+
+/* A narrow phone: the switch keeps 44px, the gaps around it give a little. */
+@media (max-width: 379px) {
+  .site-nav a {
+    padding-inline: var(--space-2);
+  }
+}
+
+/* ---- Light theme: the few things a token cannot carry ---- */
+
+/* The search box's own clear button is drawn dark already. */
+:root[data-theme='light'] .finder__input::-webkit-search-cancel-button {
+  filter: none;
+}
+
+/* Get help's bubble and bars are cyan on a dark orb; on a white one, a deeper blue. */
+:root[data-theme='light'] .help-orb svg path {
+  fill: var(--cyan);
+  stroke: var(--cyan);
+}
+
+:root[data-theme='light'] .help-orb__bar {
+  fill: #0284c7;
+}
+
+:root[data-theme='light'] .help-orb__bar:nth-of-type(2) {
+  fill: var(--cyan);
+}
+
+:root[data-theme='light'] .help-orb:hover {
+  border-color: var(--cyan);
+}
+
+/* The way home's mark: the brand gradient, a shade deeper so the line holds on white. */
+:root[data-theme='light'] .home-fab__mark stop:nth-child(1) {
+  stop-color: #0891b2;
+}
+
+:root[data-theme='light'] .home-fab__mark stop:nth-child(2) {
+  stop-color: #2563eb;
+}
+
+:root[data-theme='light'] .home-fab__mark stop:nth-child(3) {
+  stop-color: #7c3aed;
+}
+
+:root[data-theme='light'] .home-fab__mark {
+  filter: drop-shadow(0 2px 6px rgb(124 58 237 / 0.25));
+}
+
+:root[data-theme='light'] .mark {
+  filter: drop-shadow(0 4px 12px rgb(37 99 235 / 0.25));
 }
