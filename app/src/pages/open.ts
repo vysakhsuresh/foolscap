@@ -24,6 +24,7 @@ import '../ui/flow.css';
 import { officeByName, suggest, type FileFacts } from '../ui/suggest';
 import { TOOL_ICONS } from '../ui/tool-icons';
 import { mountRecipes, type RecipesPanel } from '../ui/recipes';
+import { imageThumb, pdfThumb, type Box } from '../ui/thumbs';
 
 mountShell();
 
@@ -72,6 +73,18 @@ async function mount(body: HTMLElement, zone: HTMLElement, input: HTMLInputEleme
   let opened: Opened[] = [];
   let recipes: RecipesPanel | null = null;
   const enginePromise = loadEngine();
+
+  /** A result's first page, small, for the Done box under a recipe. */
+  async function preview(workspace: Workspace, file: FoolscapFile, box: Box): Promise<HTMLCanvasElement | null> {
+    if (file.kind === 'image') return imageThumb(await workspace.read(file), box, 'result-preview');
+    if (file.kind !== 'pdf') return null;
+    const view = await (await enginePromise).open(await workspace.read(file));
+    try {
+      return await pdfThumb(view, box, 'result-preview');
+    } finally {
+      await view.close();
+    }
+  }
 
   /** What a file is, read on this device: pages, a lock, a scan, a form. */
   async function factsOf(file: FoolscapFile): Promise<FileFacts> {
@@ -189,7 +202,7 @@ async function mount(body: HTMLElement, zone: HTMLElement, input: HTMLInputEleme
 
   ws = await createWorkspace();
   await ws.clear();
-  recipes = mountRecipes(recipesSlot, ws, () => opened.map((o) => o.file));
+  recipes = mountRecipes(recipesSlot, ws, () => opened.map((o) => o.file), (file, box) => preview(ws, file, box));
   // Arriving from "Share → Foolscap" or "Open with Foolscap": the files come in as if dropped.
   listenForLaunchedFiles((files) => void add(files));
   try {

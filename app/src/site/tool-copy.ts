@@ -209,7 +209,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
       'Choose To a size for an upload limit, or Light, Balanced or Strong for a general squeeze.',
       'Pick 100 KB, 200 KB, 500 KB or 1 MB, or choose Other and type the size in KB.',
       'Press Compress it and read the result line, which gives the old and new size.',
-      'Save the smaller file, or tap Share to send it on.',
+      'Save the smaller file, or tap Send to send it on.',
     ],
     notes: [
       'Nearly all of a big PDF’s weight is usually its photos and scanned pages, so that is where Compress works. Typed text, lines and drawings are left exactly as they were and stay sharp at any zoom. A file that is mostly text is often small already, and the tool tells you so rather than give back a copy that is barely different.',
@@ -372,7 +372,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
       'Put them in order with the up and down arrows: each picture becomes one page.',
       'Choose the page size, A4, Letter or Same as each image, and a margin of None, Small or Large.',
       'Tick A separate PDF for each image if each picture should be its own file.',
-      'Press Make a PDF, then Save it or tap Share.',
+      'Press Make a PDF, then Save it or tap Send.',
     ],
     notes: [
       'JPEG and PNG pictures go into the PDF exactly as they are, with no loss. WebP, BMP and HEIC pictures, and phone photos that need turning upright, are saved again as high-quality JPEGs, and GIFs as PNGs. A photo taken sideways comes out the right way up because the tool reads the direction the phone recorded.',
@@ -398,7 +398,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     notes: [
       'Each page is drawn the way a PDF reader shows it, text and pictures together, and saved as one image named with its page number. Screen is 72 dpi, Sharing 150 dpi and Print 300 dpi: an A4 page at Print is about 2,480 pixels across, enough to print it again at full size.',
       'PNG is chosen at first because it keeps small print and thin lines perfectly crisp, but its files are bigger, especially for photos. JPEG is better for pages full of photos and for the smallest file, so a portal that wants a page as a JPG under a size limit is best served by JPEG at Screen or Sharing.',
-      'Many pages arrive as many files. On a computer, Save all puts them in a folder you pick, or makes one ZIP where the browser cannot save to a folder. On a phone that can share files, Share all sends them to WhatsApp, Gmail or any app that takes pictures.',
+      'Many pages arrive as many files. On a computer, Save all puts them in a folder you pick, or makes one ZIP where the browser cannot save to a folder. On a phone that can share files, Send all sends them to WhatsApp, Gmail or any app that takes pictures.',
     ],
     faq: [
       { q: 'JPEG or PNG?', a: 'JPEG for smaller files and pages with photos; PNG for crisp text and diagrams.' },
@@ -889,7 +889,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
       'Check that the round handles sit on the paper’s corners, and drag any that do not.',
       'Turn any page that is the wrong way up with its turn button.',
       'Choose Colour, Grey or Black and white, and A4, Letter or As photographed.',
-      'Press Make the PDF, then Save it or tap Share.',
+      'Press Make the PDF, then Save it or tap Send.',
     ],
     notes: [
       'For the best scan, lay the paper on a darker surface so its edges stand out, hold the phone straight above it, and use daylight rather than the flash, which leaves a bright patch. Each photo is worked on at about 250 dots per inch for an A4 page, sharp enough to read small print and to print again.',

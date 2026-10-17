@@ -19,7 +19,7 @@ import { HANDOFF_KEY } from '../site/config';
 import { devlog } from '../ui/devlog';
 import { el } from '../ui/dom';
 import { bindDropZone } from '../ui/drop-zone';
-import { renderFileList, type Entry } from '../ui/file-list';
+import { FILE_THUMB, createFileList, type Entry } from '../ui/file-list';
 import type { EditorMode } from '../ui/page-editor';
 import { createPageGrid, type PageGrid } from '../ui/page-grid';
 import type { ScanPanel } from '../ui/scan-panel';
@@ -28,6 +28,7 @@ import { createProgress } from '../ui/progress';
 import { TOO_LARGE, renderResult } from '../ui/result';
 import { mountShell } from '../ui/shell';
 import '../ui/flow.css';
+import { imageThumb, pdfThumb, type Box } from '../ui/thumbs';
 import { createToolOptions, type ToolOptions } from '../ui/tool-options';
 
 mountShell();
@@ -88,14 +89,32 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
   // ---- Static parts of the page below the drop zone ----
   const notice = el('div', { class: 'notice', attrs: { role: 'status', 'aria-live': 'polite' } });
   notice.hidden = true;
-  const fileList = el('ol', { class: 'file-list', testid: 'file-list', attrs: { 'aria-label': 'Your files' } });
+  const fileList = createFileList({
+    move: (index, delta) => {
+      const to = index + delta;
+      const a = entries[index];
+      const b = entries[to];
+      if (!a || !b) return;
+      entries[index] = b;
+      entries[to] = a;
+      refresh();
+    },
+    reorder: (from, to) => {
+      const [entry] = entries.splice(from, 1);
+      if (!entry) return;
+      entries.splice(Math.max(0, Math.min(entries.length, to)), 0, entry);
+      refresh();
+    },
+    remove: (index) => void removeEntry(index),
+    password: (index, password) => void unlock(index, password),
+  });
   const optionsSlot = el('div');
   const runButton = el('button', { class: 'button button--block', testid: 'run-button', text: tool.action, attrs: { type: 'button', disabled: '' } });
   const runNote = el('p', { class: 'run__note' });
   const runArea = el('div', { class: 'run' }, [runButton, runNote]);
   const progressSlot = el('div');
   const resultSlot = el('div');
-  body.append(notice, fileList, optionsSlot, runArea, progressSlot, resultSlot);
+  body.append(notice, fileList.root, optionsSlot, runArea, progressSlot, resultSlot);
   body.classList.add('tool__body');
 
   const say = (text: string, kind: 'error' | 'ok' | 'info' = 'info') => {
@@ -199,19 +218,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
   }
 
   function refresh(): void {
-    renderFileList(fileList, entries, several, {
-      move: (index, delta) => {
-        const to = index + delta;
-        const a = entries[index];
-        const b = entries[to];
-        if (!a || !b) return;
-        entries[index] = b;
-        entries[to] = a;
-        refresh();
-      },
-      remove: (index) => void removeEntry(index),
-      password: (index, password) => void unlock(index, password),
-    });
+    fileList.render(entries, several);
     if (scanner && ws) scanner.sync(entries.map((e) => e.file), ws);
     runButton.disabled = !runnable();
     runNote.textContent = blocker();
@@ -228,8 +235,30 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
   }
 
   /** Opens the file once on the page-thread engine for its page count (and, for organise, its grid). */
+  /** The row's small picture of the first page, drawn once the page count is on screen. */
+  async function thumbOf(entry: Entry, view: PdfView): Promise<void> {
+    if (entry.thumb) return;
+    refresh();
+    try {
+      entry.thumb = await pdfThumb(view, FILE_THUMB, 'file-thumb');
+    } catch (error) {
+      // The row keeps its "PDF" tile; nothing else depends on the picture.
+      devlog('thumb', error);
+    }
+  }
+
   async function inspect(entry: Entry): Promise<void> {
-    if (!ws || entry.file.kind !== 'pdf') return;
+    if (!ws) return;
+    if (entry.file.kind === 'image') {
+      try {
+        entry.thumb ??= await imageThumb(await ws.read(entry.file), FILE_THUMB, 'file-thumb');
+      } catch (error) {
+        devlog('thumb', error);
+      }
+      refresh();
+      return;
+    }
+    if (entry.file.kind !== 'pdf') return;
     try {
       const engine = await enginePromise;
       const blob = await ws.read(entry.file);
@@ -237,10 +266,16 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
       entry.pages = view.pageCount;
       delete entry.error;
       delete entry.errorCode;
-      if (grid && entries[0] === entry) await grid.load(view);
-      else if (panel && entries[0] === entry) await panel.load(view);
-      else {
+      // The grid and the panels own the view from here, and keep it open while they show it.
+      if (grid && entries[0] === entry) {
+        await grid.load(view);
+        await thumbOf(entry, view);
+      } else if (panel && entries[0] === entry) {
+        await panel.load(view);
+        await thumbOf(entry, view);
+      } else {
         if (options?.load && entries[0] === entry) await options.load(view).catch((error: unknown) => devlog('options', error));
+        await thumbOf(entry, view);
         await view.close();
       }
     } catch (error) {
@@ -368,6 +403,19 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     input?.focus();
   }
 
+  /** A result's first page or picture, drawn after the result is on screen. Null for anything else. */
+  async function preview(workspace: Workspace, file: FoolscapFile, box: Box): Promise<HTMLCanvasElement | null> {
+    if (file.kind === 'image') return imageThumb(await workspace.read(file), box, 'result-preview');
+    if (file.kind !== 'pdf') return null;
+    const engine = await enginePromise;
+    const view = await engine.open(await workspace.read(file));
+    try {
+      return await pdfThumb(view, box, 'result-preview');
+    } finally {
+      await view.close();
+    }
+  }
+
   function showOutcomes(outcomes: readonly Outcome[], counts: ReadonlyMap<string, number>): void {
     if (!ws) return;
     const workspace = ws;
@@ -381,6 +429,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
         exporter,
         nameOf,
         pages: counts,
+        preview: (file, box) => preview(workspace, file, box),
         handoff: workspace.backend === 'opfs' ? handoff : null,
         startOver: () => void startOver(),
       }),

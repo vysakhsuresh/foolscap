@@ -29,7 +29,7 @@ import {
   type RecipeStep,
   type RecipeTool,
 } from './recipe-model';
-import { TOO_LARGE, renderResult } from './result';
+import { TOO_LARGE, renderResult, type ResultDeps } from './result';
 import { createToolOptions, type ToolOptions } from './tool-options';
 
 export interface RecipesPanel {
@@ -56,7 +56,12 @@ const keep = (recipes: readonly Recipe[]): boolean => {
 
 const stepsLine = (recipe: Recipe) => recipe.steps.map((s) => toolById(s.tool).title).join(' → ');
 
-export function mountRecipes(slot: HTMLElement, ws: Workspace, current: () => readonly FoolscapFile[]): RecipesPanel {
+export function mountRecipes(
+  slot: HTMLElement,
+  ws: Workspace,
+  current: () => readonly FoolscapFile[],
+  preview: ResultDeps['preview'],
+): RecipesPanel {
   let recipes = load();
   let files: readonly FoolscapFile[] = [];
   let pool: JobPool | null = null;
@@ -269,6 +274,7 @@ export function mountRecipes(slot: HTMLElement, ws: Workspace, current: () => re
         exporter: createExporter(ws),
         nameOf: (id) => names.get(id) ?? '',
         pages: new Map(),
+        preview,
         handoff: null,
         startOver: () => resultSlot.replaceChildren(),
       });

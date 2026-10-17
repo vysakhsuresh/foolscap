@@ -17,6 +17,7 @@
 import type { OrganiseParams } from '../ops/op';
 import type { PdfView, Rotation } from '../pdf/types';
 import { ICONS, clear, el, icon } from './dom';
+import { DRAG_SLOP, HOLD_MS, TOUCH_SLOP, edgeScroll } from './drag';
 import { stepZoom, watchZoomGestures, zoomButtons } from './zoom';
 
 interface Tile {
@@ -51,12 +52,6 @@ const MAX_DPR = 2;
 /** How much bigger than 100% the − and + make a tile (its narrowest width is in the CSS). */
 const SIZES = [1, 1.5, 2, 3];
 const RENDER_CONCURRENCY = 2;
-/** How long a finger rests on a page before it lifts to be dragged; a swipe sooner than this scrolls. */
-const HOLD_MS = 350;
-/** How far a mouse moves with its button down before that is a drag rather than a click. */
-const DRAG_SLOP = 6;
-/** How near the top or bottom of the screen a dragged page starts the page scrolling. */
-const EDGE = 90;
 
 export function createPageGrid(onChange: () => void): PageGrid {
   const list = el('ol', { class: 'page-grid', testid: 'page-grid', attrs: { 'aria-label': 'Pages', 'aria-describedby': 'page-grid-help' } });
@@ -312,12 +307,9 @@ export function createPageGrid(onChange: () => void): PageGrid {
     if (!d || !d.active) return;
     const dt = lastFrame === 0 ? 16 : Math.min(64, now - lastFrame);
     lastFrame = now;
-    const top = EDGE - d.y;
-    const bottom = d.y - (window.innerHeight - EDGE);
-    const closeness = Math.min(1, Math.max(top, bottom, 0) / EDGE);
-    if (closeness > 0) {
-      const perSecond = 250 + closeness * Math.max(900, window.innerHeight * 1.5);
-      window.scrollBy({ top: (top > 0 ? -1 : 1) * Math.ceil((perSecond * dt) / 1000), behavior: 'instant' });
+    const by = edgeScroll(d.y, window.innerHeight, dt);
+    if (by !== 0) {
+      window.scrollBy({ top: by, behavior: 'instant' });
       track(d);
     }
     d.frame = requestAnimationFrame(tick);
@@ -374,7 +366,7 @@ export function createPageGrid(onChange: () => void): PageGrid {
     const far = Math.hypot(d.x - d.startX, d.y - d.startY);
     if (!d.active) {
       // A finger that moves before the hold is up is scrolling, not dragging.
-      if (d.touch && far > 10) endDrag(false);
+      if (d.touch && far > TOUCH_SLOP) endDrag(false);
       else if (!d.touch && far > DRAG_SLOP) beginDrag(d);
       return;
     }

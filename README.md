@@ -50,9 +50,15 @@ file at all. **Compress** shrinks oversized photos, drops objects nothing
 uses and packs uncompressed streams, and says so when a file cannot get
 smaller. A file that needed a password to open keeps the same password.
 
-Every result has **Save**, **Save all** (a folder, or one ZIP), **Share** (on
-phones that can share files — straight into WhatsApp) and **Then…**, which
-hands the result to the next tool without saving in between.
+Every result shows a small picture of its first page (or itself, for an
+image; the first six of a batch) and has **Save**, **Save all** (a folder, or
+one ZIP), **Send** and **Send all** (only where the browser can share files —
+on a phone, straight into WhatsApp) and **Then…**, which hands the result to
+the next tool without saving in between.
+
+Where the order matters, files are put in order by dragging them (a mouse at
+once, a finger after holding a moment, so a swipe still scrolls) or with
+each row's arrows; each row shows its first page small.
 
 Every page has **Get help** (Email or WhatsApp, the same as
 layerbit.co.in) and **Buy me a coffee**. Both are ordinary links; nothing is

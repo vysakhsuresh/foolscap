@@ -121,7 +121,19 @@ function download(blob: Blob, name: string): void {
 const SAVE_FAILED = "The file couldn't be saved there. Try saving it somewhere else.";
 
 export function createExporter(ws: Workspace): Exporter {
-  const asFile = async (file: FoolscapFile): Promise<File> => new File([await ws.read(file)], file.name, { type: typeOf(file.name).mime });
+  // Made once per result: asking whether a file can be sent and then sending
+  // it read it once, so the share sheet opens while the tap still counts.
+  const made = new Map<string, Promise<File>>();
+  const asFile = (file: FoolscapFile): Promise<File> => {
+    let ready = made.get(file.id);
+    if (!ready) {
+      ready = ws.read(file).then((blob) => new File([blob], file.name, { type: typeOf(file.name).mime }));
+      // A read that failed is tried again next time, not remembered.
+      ready.catch(() => made.delete(file.id));
+      made.set(file.id, ready);
+    }
+    return ready;
+  };
 
   const save = async (file: FoolscapFile): Promise<SaveOutcome> => {
     const blob = await ws.read(file);
