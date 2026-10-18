@@ -10,6 +10,7 @@
  */
 import { PDFDocument, PDFString, StandardFonts, rgb, type PDFFont, type PDFPage } from '@cantoo/pdf-lib';
 import { PAGE_COUNT, PAGE_NUMBER, type Block, type FlowDocument, type PageFurniture, type Paragraph, type Picture, type Run, type Table } from '../convert/model';
+import { writeInvisible } from './surgeon-unicode';
 import type { LinePainter } from './types';
 
 const A4 = { width: 595.28, height: 841.89, margin: 56 };
@@ -38,8 +39,8 @@ interface Line {
   readonly width: number;
   readonly height: number;
   readonly ascent: number;
-  /** A line the PDF fonts cannot draw, drawn by the browser instead. */
-  readonly picture?: { png: Uint8Array; width: number; height: number };
+  /** A line the PDF fonts cannot draw, drawn by the browser instead; its words go underneath as invisible text. */
+  readonly picture?: { png: Uint8Array; width: number; height: number; text: string };
   /** A picture standing on a line of its own, in a table cell. */
   readonly image?: Picture;
 }
@@ -191,7 +192,7 @@ async function build(flow: FlowDocument, picture: LinePainter | null, knownTotal
       if (made) {
         const w = Math.min(width, made.width / 3);
         const h = (made.height / 3) * (w / (made.width / 3));
-        out.push({ words: [], width: w, height: Math.max(h, size * LINE), ascent: size * 0.8, picture: made });
+        out.push({ words: [], width: w, height: Math.max(h, size * LINE), ascent: size * 0.8, picture: { ...made, text: words.slice(start, end).join(' ') } });
       }
       start = end;
     }
@@ -216,6 +217,7 @@ async function build(flow: FlowDocument, picture: LinePainter | null, knownTotal
         const image = await doc.embedPng(line.picture.png);
         const h = line.picture.height * (line.width / line.picture.width);
         page.drawImage(image, { x: x + Math.max(0, offset), y: y - h, width: line.width, height: h });
+        writeInvisible(doc, page, [{ text: line.picture.text, x: x + Math.max(0, offset), y: y - h + h * 0.22, width: line.width, size: h * 0.72 }]);
         y -= line.height;
         continue;
       }

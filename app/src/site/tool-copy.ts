@@ -320,7 +320,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
     faq: [
       { q: 'Does it read old .doc and .xls files?', a: 'No. Save them as .docx or .xlsx first.' },
-      { q: 'Does Malayalam or Hindi text work?', a: 'It shows correctly: lines the PDF fonts cannot draw are drawn by your browser and placed as pictures, so those lines cannot be selected or searched.' },
+      { q: 'Does Malayalam or Hindi text work?', a: 'Yes. Lines the PDF fonts cannot draw are drawn by your browser, so they look exactly right, and the same words are written invisibly underneath, so they can still be searched, selected and copied.' },
       { q: 'Can I convert several files at once?', a: 'Yes. Each becomes its own PDF; join them with [Merge](/tools/merge/) afterwards if you need one file.' },
       { q: 'More help?', a: 'See [Word to PDF](/guides/word-to-pdf/). To go the other way, use [PDF to Word](/tools/pdf-to-word/).' },
     ],
@@ -460,7 +460,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     notes: [
       'The words go on in bold grey, set at an angle. Once, across the middle is sized to the page and to your words, so DRAFT and a long line such as FOR OFFICE USE ONLY both cross the page without running off it. Repeated all over sets smaller copies in rows across the whole page, which is much harder to crop out or cover up.',
       'Light lets the page read almost as normal, Medium is clearly visible without getting in the way, and Strong is for when the mark matters more than easy reading. The watermark is laid over the page, so it shows on scanned pages and photos as well as on typed text.',
-      'Words in English letters go on as real text. Malayalam, Hindi, Tamil and other scripts go on too, drawn by your browser as a picture of the words in the same place, so they cannot be selected. Every file you add gets the same mark, and a locked file comes back locked with its own password.',
+      'Words in English letters go on as real text. Malayalam, Hindi, Tamil and other scripts go on too, drawn by your browser in the same place, with the words written invisibly underneath so they can still be searched. Every file you add gets the same mark, and a locked file comes back locked with its own password.',
     ],
     faq: [
       { q: 'Can I watermark an ID copy?', a: 'Yes. Something like FOR BANK KYC ONLY, repeated and light, is a common habit. See [add a watermark](/guides/add-watermark-to-pdf/).' },
@@ -543,7 +543,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     notes: [
       'Each change paints over the old words in the colour behind them and writes the new words in the same place and size, in the font the document already uses when it can draw every letter, and otherwise in the closest built-in one. Longer words are squeezed a little, then made smaller, so a changed cell never runs into the next. Amounts and dates keep their right edge, so a changed figure still lines up in its column, and the ink colour is read from the print, so black stays black.',
       'The old words are not deleted. They sit under the paint, and anyone who copies or searches the text can find them. That is fine for correcting a typo or updating a date, and wrong for hiding anything: for that, Remove areas takes the words out of the file.',
-      'A scanned page is a picture, so its words are read first, on this device, by the same reader as [Make searchable](/tools/ocr/) (fetched from this site the first time). Then only the words you change are painted over and written again, bold where they were bold, and the rest stays exactly as scanned; check names and numbers, as they were read from a picture. Words in Malayalam, Hindi or another script go in as a picture of the words. For a long rewrite, [PDF to Word](/tools/pdf-to-word/) is the better route.',
+      'A scanned page is a picture, so its words are read first, on this device, by the same reader as [Make searchable](/tools/ocr/) (fetched from this site the first time). Then only the words you change are painted over and written again, bold where they were bold, and the rest stays exactly as scanned; check names and numbers, as they were read from a picture. Words in Malayalam, Hindi or another script are drawn by your browser, with the words written invisibly underneath so they can still be searched and copied. For a long rewrite, [PDF to Word](/tools/pdf-to-word/) is the better route.',
     ],
     faq: [
       { q: 'Can I edit a scanned PDF?', a: 'Yes. Tap Read the words on this page, then tap a line. Only the words you change are repainted, in a plain font close to the original; the rest stays as scanned.' },
@@ -554,7 +554,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   'add-text': {
-    about: 'Tap a page and type: a name on a blank line, a date beside a signature, a note on a form with no fields. Tap the words again to change them, or drag to move them. Malayalam, Hindi and other scripts go in as a picture of the words, drawn by your browser, until real text in those scripts arrives.',
+    about: 'Tap a page and type: a name on a blank line, a date beside a signature, a note on a form with no fields. Tap the words again to change them, or drag to move them. Malayalam, Hindi and other scripts are drawn by your browser, so they look right, and written invisibly underneath, so they can be searched and copied.',
     steps: [
       'Add the PDF, typing its password if it asks.',
       'Type what to write in the box: a name, a date or an answer.',
@@ -564,12 +564,12 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
     notes: [
       'Add text is for forms that are only printed pages: a blank line for your name, a box for a date, a space marked Office use. On a phone, zoom in before placing small words, and sit them just above the printed line rather than on it. Put as many pieces of text as you need on any page.',
-      'English letters and numbers go in as real text, which can be selected and searched. Malayalam, Hindi, Tamil and other scripts are drawn by your browser and placed as a picture of the words, so they look right but cannot be selected or searched yet.',
+      'English letters and numbers go in as real text, which can be selected and searched. Malayalam, Hindi, Tamil and other scripts are drawn by your browser so they look right, and the same words go in invisibly underneath, so they can be searched, selected and copied too.',
       'The words become part of the page when you save. If the PDF has real fields, [Fill in a form](/tools/fill-form/) is neater and keeps answers editable; to change words that are already printed, use [Edit text](/tools/edit-text/).',
     ],
     faq: [
       { q: 'Can I fill in a form with this?', a: 'Yes, if it has no fields. If it does, Fill in a form is quicker.' },
-      { q: 'Can I write in Malayalam?', a: 'Yes. The words show correctly, as a picture, so they cannot be selected or searched yet.' },
+      { q: 'Can I write in Malayalam?', a: 'Yes. The words show correctly, drawn by your browser, and they are written invisibly underneath too, so search and copy find them.' },
       { q: 'Can I change the words after placing them?', a: 'Yes, until you save: tap them to change them, or drag to move them. After saving, start again from your original.' },
     ],
   },
@@ -687,7 +687,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     notes: [
       '{page} becomes each page’s number, {total} the number of pages, {date} today’s date written like 12 Oct 2026, and {name} the file’s name without .pdf. So a footer of {name}, page {page} of {total} gives every page its own line, which helps when printed pages get shuffled or a single page is photocopied on its own.',
       'The line is small and plain, set a short way in from the edge of every page. If a page already has something printed there, such as a letterhead, try the other edge, or line it up on the other side. Every file you add gets the same header and footer, each filled in with its own name and page count.',
-      'Words in English letters go on as real text; Malayalam, Hindi and other scripts, including a file name in them used through {name}, go on as a picture of the words in the same place. For page numbers alone, with more styles and Bates numbering, use [Page numbers](/tools/page-numbers/).',
+      'Words in English letters go on as real text; Malayalam, Hindi and other scripts, including a file name in them used through {name}, are drawn by your browser in the same place, with the words written invisibly underneath so they can be searched. For page numbers alone, with more styles and Bates numbering, use [Page numbers](/tools/page-numbers/).',
     ],
     faq: [
       { q: 'What does {name} put in?', a: 'The file’s name, without .pdf.' },
@@ -903,7 +903,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
   },
   ocr: {
-    about: 'Reads the words in scanned pages and lays them invisibly over the pictures, so you can search, select and copy them; the pages look exactly the same. English is ready at once; Malayalam, Hindi, Tamil and seventeen more are fetched from this site the first time you pick them. Words in scripts other than Latin letters also come out as a .txt beside the PDF for now.',
+    about: 'Reads the words in scanned pages and lays them invisibly over the pictures, so you can search, select and copy them; the pages look exactly the same. English is ready at once; Malayalam, Hindi, Tamil and seventeen more are fetched from this site the first time you pick them. Every script goes into the PDF itself, so a Malayalam or Hindi scan becomes searchable like an English one.',
     steps: [
       'Add one or more scanned PDFs.',
       'Pick the main language of the scan, and up to two more if the pages mix languages.',
@@ -912,7 +912,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
     notes: [
       'Each page with no text of its own is drawn at 300 dpi and read; pages that already have text are left alone. The words go back in as an invisible layer lined up with the picture, so the reader’s find, select and copy work on them while the page looks exactly as before.',
-      'The invisible layer can hold Latin letters, the ones used for English, French, German, Spanish, Portuguese and Italian. Malayalam, Hindi, Tamil, Arabic and the other scripts are read just as well, but for now their words come out in a .txt file beside the PDF, and the result says which file holds what.',
+      'Every script goes into the invisible layer: Malayalam, Hindi, Tamil, Arabic and the rest are searched, selected and copied in the PDF exactly as English is.',
       'Clean, straight, printed pages read best. Handwriting, faint photocopies and unusual fonts read worse, so check names and numbers before relying on them. If a page is a crooked photo, run it through [Scan](/tools/scan/) first for a straighter, sharper page.',
     ],
     faq: [

@@ -1395,7 +1395,7 @@ export const GUIDES: readonly Guide[] = [
       { q: 'Can I watermark many files at once?', a: 'Yes. Add them all and each gets the same watermark.' },
       { q: 'Will the watermark hide my text?', a: 'Light and Medium let the page show through clearly. Strong is for when the mark matters more than easy reading.' },
       { q: 'Are my files uploaded?', a: 'No. The watermark is added in your browser.' },
-      { q: 'Can I watermark in Malayalam or Hindi?', a: 'Yes. Words in those scripts are drawn by your browser and go on as a picture of the words, in the same place a typed watermark would sit, so they cannot be selected.' },
+      { q: 'Can I watermark in Malayalam or Hindi?', a: 'Yes. Words in those scripts are drawn by your browser, in the same place a typed watermark would sit, and written invisibly underneath once, so a search still finds them.' },
       { q: 'Can I use a watermark and a password together?', a: 'Yes. Add the watermark first, then lock the result with [Add a password](/tools/add-password/).' },
     ],
   },
@@ -1457,7 +1457,7 @@ export const GUIDES: readonly Guide[] = [
       { q: 'Will the new text match the old font?', a: 'It uses the nearest of the built-in fonts, so it is close but not always identical, especially with decorative fonts.' },
       { q: 'Does find and replace match parts of words?', a: 'No. It matches whole words and whole numbers, so 5,000.00 does not change 15,000.00.' },
       { q: 'Can I edit a scanned PDF?', a: 'Not with this tool; a scan has no text in it. Add new words over it with [Add text](/tools/add-text/).' },
-      { q: 'Can I change Malayalam or Hindi text?', a: 'Yes. The old words are covered and the new ones go in as a picture of the words, drawn by your browser, so they read correctly but cannot be selected. Words in English letters go in as real text.' },
+      { q: 'Can I change Malayalam or Hindi text?', a: 'Yes. The old words are covered and the new ones are drawn by your browser, so they read correctly, with the same words written invisibly underneath so they can be searched and copied. Words in English letters go in as real text.' },
       { q: 'Does it work on a locked PDF?', a: 'Yes. Type its password when asked; the edited copy keeps the same password.' },
       { q: 'Can I undo a change?', a: 'Before saving, change the words back. After saving, start again from your original, which is never changed.' },
     ],
@@ -2112,9 +2112,9 @@ export const GUIDES: readonly Guide[] = [
         ],
       },
       {
-        heading: 'Indian scripts, honestly',
+        heading: 'Indian scripts, searchable too',
         paragraphs: [
-          'The invisible layer inside the PDF can hold Latin letters only for now: the ones English, French, German, Spanish, Portuguese and Italian use. When you pick Malayalam, Hindi or another language written in a different script, everything read also comes out as a .txt file beside the PDF, so you can copy and search it there. The result says which file holds what.',
+          'Every word read goes into the invisible layer inside the PDF, in whatever script it is written: Malayalam, Hindi, Tamil, Bengali, Arabic. Search, select and copy work on them in any PDF reader, just as for English. Check names and numbers, as they were read from a picture.',
         ],
       },
       {

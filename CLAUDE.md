@@ -292,10 +292,10 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
 3. The reader, deeper: re-rendering zoom, find, outline, night mode, resume.
 4. Complex-script text drawn as real text (harfbuzzjs). Until then Add text
    puts Malayalam, Hindi and the like in as a picture of the words, shaped
-   by the browser.
+   by the browser — ✅ with the same words written invisibly underneath
+   (glyphless font), so they search, select and copy.
 5. ✅ More OCR languages: twenty, each a model fetched from this site only
-   when picked. Non-Latin words also come out as a .txt until the text
-   layer gets a glyphless font.
+   when picked, every script searchable in the PDF itself.
 6. The design pass, as a system.
 7. SEO: one fast page per tool × intent, generated from `tools.ts`.
 8. PWA: ✅ install and offline (`scripts/vite-sw.ts` writes `dist/sw.js`,
@@ -584,3 +584,13 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   `navigator.canShare` accepts those files: it hands the share sheet File
   objects from the workspace (read once per result, so the sheet opens while
   the tap still counts) and fetches nothing.
+- **2026-10-18** Every script is searchable. `pdf/surgeon-unicode.ts` writes
+  invisible text (render mode 3) in a glyphless font of our own (620 bytes,
+  `scripts/gen-glyphless.py`, no licence to carry): Type0, Identity-H, every
+  code to one blank glyph, a ToUnicode map of each code to itself, so what
+  is copied out is exactly what went in; right-to-left words are stored in
+  drawn order, as PDF makers do. Make searchable now puts Malayalam, Hindi,
+  Tamil, Arabic… into the PDF's own layer (no more .txt beside it), and
+  everything the browser draws as a picture of words — Add text, Edit text,
+  stamps, watermarks, headers and footers, Word and Excel to PDF — carries
+  the same words underneath. Emoji (outside the BMP) are left out.

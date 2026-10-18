@@ -297,6 +297,8 @@ export interface PictureStamp extends Omit<TextStamp, 'text' | 'size' | 'bold'> 
   /** Its size on the page, in points, before any shrinking to fit. */
   readonly width: number;
   readonly height: number;
+  /** The words the picture shows: written once underneath as invisible text, so they can be searched and copied. */
+  readonly words?: string;
 }
 
 export type DocInfoField = 'title' | 'author' | 'subject' | 'keywords' | 'creator' | 'producer';
@@ -412,6 +414,8 @@ export type Mark =
       readonly png: Uint8Array;
       /** What the picture stands in for, when it is words in a script the PDF fonts cannot draw: so the result can say "1 stamp", not "1 picture". */
       readonly stands?: 'stamp' | 'text' | 'text-box';
+      /** The words the picture shows, when it stands for words: written underneath as invisible text, so they can be searched and copied. */
+      readonly text?: string;
     }
   /** Lines of text whose first line's top is the area's top; `size` is a fraction of the page width. */
   | {

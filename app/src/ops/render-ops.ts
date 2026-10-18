@@ -8,9 +8,8 @@ import type { PdfDoc, PdfView } from '../pdf';
 import { PageSelection } from '../pdf/page-selection';
 import { baseName, failed, forEachPdf, megabytes, ordinal, passwordFor, plural, readInput, refused, saveKeepingLock, store } from './common';
 import { canDecode, shrink } from './images';
-import { allLatin, languageName, PRELOADED_LANGUAGE } from '../ocr/languages';
+import { languageName, PRELOADED_LANGUAGE } from '../ocr/languages';
 import { readsLanguages } from '../ocr/reader';
-import { documentText } from '../ocr/text';
 import { checkOcrParams, type OcrParams } from './ocr-params';
 import { checkCancelled, type CompressParams, type NoParams, type OcrReader, type OcrWord, type Op, type OpContext, type Outcome, type PdfToImagesParams } from './op';
 import { PAGES_HELP } from './pages-ops';
@@ -381,13 +380,10 @@ const onlyEnglish = (languages: readonly string[]) => languages.length === 1 && 
  * and read in the languages picked; the words go back in as invisible text
  * over the pictures, so the pages look exactly the same.
  *
- * The invisible layer is written with the PDF's built-in Helvetica, which
- * has Latin letters only (WinAnsi). Words in other scripts cannot go into it
- * as they are, and a layer of empty boxes would be worse than none, so when
- * a picked language is not written in Latin letters every word read also
- * comes out as a .txt beside the PDF, and the detail says which holds what.
- * If no word at all fitted the layer, the PDF would come out unchanged, so
- * only the text file is saved.
+ * Words in Latin letters are written with the PDF's built-in Helvetica;
+ * words in any other script (Malayalam, Hindi, Tamil, Arabic…) with a
+ * glyphless font (pdf/surgeon-unicode.ts) that draws nothing and maps every
+ * code to itself, so they are searched and copied exactly as they were read.
  */
 export const ocrOp: Op<OcrParams> = {
   tool: 'ocr',
@@ -402,8 +398,6 @@ export const ocrOp: Op<OcrParams> = {
     const checked = checkOcrParams(params);
     if (!checked.ok) return inputs.map((input) => refused([input], checked.reason));
     const { languages } = checked;
-    const latin = allLatin(languages);
-    const otherScripts = languages.filter((code) => !allLatin([code]));
     const outcomes: Outcome[] = [];
     let reader: OcrReader | null = null;
     try {
@@ -501,39 +495,11 @@ export const ocrOp: Op<OcrParams> = {
       try {
         let placed = 0;
         for (const [index, list] of found) placed += doc.addTextLayer(index, list);
-        const text = latin ? null : new TextEncoder().encode(documentText(found, pageCount));
-        const textName = `${baseName(input.name)} (text).txt`;
-        if (text !== null && placed === 0) {
-          outcomes.push(
-            await store(
-              ctx,
-              'ocr',
-              [input],
-              textName,
-              text,
-              `${plural(read, 'word')} read on ${pages}, saved as text you can search and copy. A PDF can't hold ${namesOf(otherScripts)} letters as searchable text here yet, so the PDF is left as it was`,
-              'text',
-            ),
-          );
-          continue;
-        }
         const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
         const lock = relocked ? ', still locked with the same password' : '';
         outcomes.push(
-          await store(
-            ctx,
-            'ocr',
-            [input],
-            `${baseName(input.name)} (searchable).pdf`,
-            bytes,
-            text === null
-              ? `${plural(placed, 'word')} read on ${pages}. You can now search, select and copy them${lock}`
-              : `${plural(read, 'word')} read on ${pages}. The PDF can search only the ${placed} in Latin letters${lock}; every word is in the text file`,
-          ),
+          await store(ctx, 'ocr', [input], `${baseName(input.name)} (searchable).pdf`, bytes, `${plural(placed, 'word')} read on ${pages}. You can now search, select and copy them${lock}`),
         );
-        if (text !== null) {
-          outcomes.push(await store(ctx, 'ocr', [input], textName, text, `All ${plural(read, 'word')}, page by page, as text you can search and copy`, 'text'));
-        }
       } catch (error) {
         outcomes.push(failed(error, [input]));
       } finally {

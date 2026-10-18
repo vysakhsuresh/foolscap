@@ -20,7 +20,8 @@ const picturePixels = (size: number): number => Math.min(512, Math.max(32, 2 ** 
 /**
  * Stamps words on a page: as real text when the built-in font can draw them,
  * and otherwise (Malayalam, Hindi, Arabic, emoji) as a picture of the words
- * the browser shapes, placed the same way. `cache` keeps one picture per
+ * the browser shapes, placed the same way, with the words written invisibly
+ * underneath so they can still be searched and copied. `cache` keeps one picture per
  * wording for a whole run, so a watermark on 300 pages goes in once.
  */
 export async function stampWords(doc: PdfDoc, index: number, stamp: TextStamp, cache: Map<string, Promise<{ png: Uint8Array; width: number; height: number } | null>>): Promise<void> {
@@ -54,6 +55,7 @@ export async function stampWords(doc: PdfDoc, index: number, stamp: TextStamp, c
     png: picture.png,
     width: picture.width / scale,
     height: picture.height / scale,
+    words: text,
   });
 }
 

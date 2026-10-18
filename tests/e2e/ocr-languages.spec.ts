@@ -6,9 +6,10 @@
  *
  * What is proved: the Hindi model is not fetched when the page opens, only
  * when Hindi is picked and run, and only from this site; the words come back
- * in the text file; and with the network gone, picking a language that was
+ * in the PDF itself, searchable; and with the network gone, picking a language that was
  * never fetched fails in words while English still works.
  */
+import { openPdf } from '../fixtures/inspect';
 import { expect, test, type Page } from '@playwright/test';
 import { pictureOnlyPdf, type Bytes } from '../fixtures/pdfs';
 import { ORIGIN, downloadFrom, openTool, recordRequests, upload, useDownloads } from './helpers';
@@ -39,7 +40,7 @@ async function scanOf(page: Page, lines: readonly string[], font: string): Promi
 
 const HINDI_MODEL = /\/tesseract\/[^/]+\/lang\/hin\.traineddata\.gz$/;
 
-test('reads Hindi, fetching its model from this site only once Hindi is picked, and saves the words as text', async ({ page }) => {
+test('reads Hindi, fetching its model from this site only once Hindi is picked, and makes the PDF searchable in Hindi', async ({ page }) => {
   test.setTimeout(180_000);
   const requests = recordRequests(page);
   await openTool(page, 'ocr');
@@ -49,18 +50,18 @@ test('reads Hindi, fetching its model from this site only once Hindi is picked, 
 
   await page.getByTestId('opt-ocr-lang-1').selectOption('hin');
   await expect(page.getByTestId('ocr-downloads')).toContainText('The Hindi reader is downloaded from this site the first time you use it');
-  await expect(page.getByTestId('ocr-downloads')).toContainText('come out as a text file');
 
   await upload(page, [{ name: 'Letter.pdf', bytes: await scanOf(page, ['भारत सरकार', 'नमस्ते दुनिया'], '72px FreeSans') }]);
   await expect(page.getByTestId('file-item')).toHaveCount(1);
   await page.getByTestId('run-button').click();
   await expect(page.getByTestId('result')).toBeVisible({ timeout: 150_000 });
-  await expect(page.getByTestId('result-detail')).toContainText('read on 1 page, saved as text');
-  await expect(page.getByTestId('result-detail')).toContainText("can't hold Hindi letters");
+  await expect(page.getByTestId('result-detail')).toContainText('read on 1 page. You can now search, select and copy them');
 
   const { name, bytes } = await downloadFrom(page, page.getByTestId('save-button'));
-  expect(name).toBe('Letter (text).txt');
-  const text = new TextDecoder().decode(bytes);
+  expect(name).toBe('Letter (searchable).pdf');
+  const view = await openPdf(bytes);
+  const text = await view.text(0);
+  await view.close();
   expect(text).toContain('भारत');
   expect(text).toContain('नमस्ते');
 

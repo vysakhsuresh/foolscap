@@ -174,6 +174,17 @@ describe('Word or Excel to PDF', () => {
     expect(new TextDecoder('latin1').decode(await h.bytesOf(out.file))).not.toMatch(/pdf-lib|Foolscap/);
   });
 
+  it('a Malayalam line the browser draws is still searchable and copyable in the PDF', async () => {
+    const { noisePng } = await import('../fixtures/pdfs');
+    const flow = { title: 'Leave', blocks: [{ kind: 'paragraph', runs: [{ text: 'അവധി അപേക്ഷ', size: 14 }] }, { kind: 'paragraph', runs: [{ text: 'Kochi, 12 March', size: 11 }] }] };
+    const { bytes } = await createSurgeon().layoutFlow(flow as never, async () => ({ png: noisePng(30), width: 300, height: 60 }));
+    const view = await engine.open(bytes);
+    const text = await view.text(0);
+    await view.close();
+    expect(text).toContain('അവധി അപേക്ഷ');
+    expect(text).toContain('Kochi, 12 March');
+  });
+
   it('puts a wide spreadsheet on a sideways page, and refuses what is not Office', async () => {
     const { toXlsx } = await import('../../app/src/convert/xlsx');
     const h = harness();

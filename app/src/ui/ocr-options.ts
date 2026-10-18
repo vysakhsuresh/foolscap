@@ -8,7 +8,7 @@
  * this site the first time it is used, and the note under the pickers says
  * so, with the size, before anybody presses the button.
  */
-import { OCR_LANGUAGES, PRELOADED_LANGUAGE, allLatin, languageName, ocrLanguage } from '../ocr/languages';
+import { OCR_LANGUAGES, PRELOADED_LANGUAGE, languageName, ocrLanguage } from '../ocr/languages';
 import { MAX_OCR_LANGUAGES, checkOcrParams, type OcrParams } from '../ops/ocr-params';
 import { el } from './dom';
 import { group, note, select } from './fields';
@@ -59,7 +59,7 @@ export function createOcrOptions(onChange: () => void): OcrOptions {
     return { languages };
   };
 
-  /** What picking these costs, said before the run: the downloads, and where non-Latin words end up. */
+  /** What picking these costs, said before the run: the downloads. */
   function explain(): void {
     const { languages } = params();
     const fetched = languages.filter((code) => code !== PRELOADED_LANGUAGE);
@@ -69,12 +69,6 @@ export function createOcrOptions(onChange: () => void): OcrOptions {
       const names = listOf(fetched.map(languageName));
       sentences.push(
         `The ${names} reader${fetched.length > 1 ? 's are' : ' is'} downloaded from this site the first time you use ${fetched.length > 1 ? 'them' : 'it'} (about ${megabytes.toFixed(1)} MB). Nothing of yours is sent.`,
-      );
-    }
-    const unshaped = languages.filter((code) => !allLatin([code]));
-    if (unshaped.length > 0) {
-      sentences.push(
-        `Words in ${listOf(unshaped.map(languageName))} come out as a text file beside the PDF: the PDF's searchable layer can hold Latin letters only, for now.`,
       );
     }
     downloads.textContent = sentences.join(' ');

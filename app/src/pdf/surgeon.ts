@@ -8,6 +8,7 @@
  * what it shows), and a pure reorder moves refs in the page tree without
  * touching the objects (so nothing is cloned).
  */
+import { glyphlessFont, invisibleOperators, unicodeCodes, writeInvisible, type InvisibleRun } from './surgeon-unicode';
 import {
   BlendMode,
   EncryptedPDFError,
@@ -818,6 +819,18 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       );
       const name = page.node.newXObject('Wp', form);
       page.pushOperators(pushGraphicsState(), concatTransformationMatrix(...view.matrix()), drawObject(name), popGraphicsState());
+      // The words once, invisibly, along the first copy's baseline: found by search, copied as words.
+      const first = centres[0];
+      if (stamp.words !== undefined && stamp.words.trim() !== '' && first !== undefined) {
+        const [cx, cy] = first;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        const vx = cx - (cos * width) / 2 + (sin * height) / 2;
+        const vy = cy - (sin * width) / 2 - (cos * height) / 2;
+        const key = page.node.newFontDictionary('GlyphLessFont', glyphlessFont(live()));
+        const ops = invisibleOperators(key, [{ text: stamp.words.trim(), x: vx - sin * height * 0.22, y: vy + cos * height * 0.22, width, size: height * 0.72, rotation: angle }]);
+        if (ops.length > 0) page.pushOperators(pushGraphicsState(), concatTransformationMatrix(...view.matrix()), ...ops, popGraphicsState());
+      }
     },
 
     addBlankPage(width, height) {
@@ -985,17 +998,25 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       drawable ??= new Set(f.getCharacterSet());
       const key = page.node.newFontDictionary(f.name, f.ref);
       const ops = [pushGraphicsState(), beginText(), setTextRenderingMode(TextRenderingMode.Invisible)];
+      // Words in another script (Malayalam, Hindi, Arabic…) go in through the glyphless font instead.
+      const others: InvisibleRun[] = [];
       let placed = 0;
       for (const word of words) {
-        const text = [...word.text].filter((ch) => drawable?.has(ch.codePointAt(0) ?? 0)).join('');
-        if (text.length === 0) continue;
         const height = word.h * view.height;
         const width = word.w * view.width;
         // A word's box runs from the tops of its tall letters to the bottom of its descenders.
         const size = Math.max(1, height * 0.92);
-        const natural = f.widthOfTextAtSize(text, size);
-        if (!(natural > 0) || !(width > 0)) continue;
+        if (!(width > 0)) continue;
         const [px, py] = view.toPage(word.x * view.width, (1 - word.y - word.h) * view.height + height * 0.2);
+        const latin = [...word.text].every((ch) => drawable?.has(ch.codePointAt(0) ?? 0));
+        if (!latin) {
+          if (unicodeCodes(word.text).length > 0) others.push({ text: word.text, x: px, y: py, width, size, rotation: view.rotation });
+          continue;
+        }
+        const text = word.text;
+        if (text.length === 0) continue;
+        const natural = f.widthOfTextAtSize(text, size);
+        if (!(natural > 0)) continue;
         ops.push(
           setFontAndSize(key, size),
           setCharacterSqueeze(Math.min(500, Math.max(10, (100 * width) / natural))),
@@ -1006,7 +1027,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       }
       ops.push(endText(), popGraphicsState());
       if (placed > 0) page.pushOperators(...ops);
-      return placed;
+      return placed + writeInvisible(live(), page, others);
     },
 
     async drawMarks(marks) {
@@ -1097,6 +1118,19 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
             const image = await embedPicture(d, mark.png, 'png');
             const [px, py] = view.toPage(vx, vy);
             page.drawImage(image, { x: px, y: py, width: w, height: h, rotate: degrees(view.rotation) });
+            // Words drawn as a picture are also written underneath as invisible text, so they can be found and copied.
+            if (mark.text !== undefined && mark.text.trim() !== '') {
+              const lines = mark.text.split(/\n/).filter((l) => l.trim() !== '');
+              const lineH = h / Math.max(1, lines.length);
+              writeInvisible(
+                d,
+                page,
+                lines.map((line, i) => {
+                  const [lx, ly] = view.toPage(vx, vy + h - (i + 1) * lineH + lineH * 0.22);
+                  return { text: line.trim(), x: lx, y: ly, width: w, size: lineH * 0.75, rotation: view.rotation };
+                }),
+              );
+            }
             break;
           }
           case 'picture': {

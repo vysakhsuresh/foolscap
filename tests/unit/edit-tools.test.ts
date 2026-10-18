@@ -12,6 +12,7 @@ import type { OpContext, Outcome } from '../../app/src/ops/op';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
 import type { Mark, PdfEngine } from '../../app/src/pdf/types';
 import { TINY_JPEG, formPdf, noisePng, pagesPdf, rotatedPdf, stampsIn } from '../fixtures/pdfs';
+import { openPdf } from '../fixtures/mark-inspect';
 import { pdfjsWorkerModule } from '../fixtures/pdfjs-worker';
 
 let engine: PdfEngine;
@@ -162,9 +163,58 @@ describe('the invisible text layer', () => {
       { text: '4821', x: 0.35, y: 0.1, w: 0.1, h: 0.05 },
       { text: 'ക്ഷ', x: 0.5, y: 0.1, w: 0.1, h: 0.05 },
     ]);
-    expect(placed).toBe(2);
+    expect(placed).toBe(3);
     const view = await engine.open(await pdf.save());
-    expect(await view.text(0)).toMatch(/Invoice\s*4821/);
+    const text = await view.text(0);
+    expect(text).toMatch(/Invoice\s*4821/);
+    // The Malayalam word is in too, through the glyphless font.
+    expect(text).toContain('ക്ഷ');
+    await view.close();
+  });
+
+  it('holds every script a scan is read in, word for word, and the page still looks the same', async () => {
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    doc.addPage([595, 842]);
+    const surgeon = createSurgeon();
+    const pdf = await surgeon.open(await doc.save());
+    const blank = await doc.save();
+    const words = [
+      { text: 'ശമ്പളം', x: 0.1, y: 0.1, w: 0.2, h: 0.03 },
+      { text: 'വിവരങ്ങൾ', x: 0.35, y: 0.1, w: 0.25, h: 0.03 },
+      { text: 'वेतन', x: 0.1, y: 0.2, w: 0.15, h: 0.03 },
+      { text: 'பணம்', x: 0.1, y: 0.3, w: 0.15, h: 0.03 },
+      { text: 'راتب', x: 0.1, y: 0.4, w: 0.15, h: 0.03 },
+      { text: 'Rs.45,000', x: 0.1, y: 0.5, w: 0.2, h: 0.03 },
+    ];
+    expect(pdf.addTextLayer(0, words)).toBe(words.length);
+    const bytes = await pdf.save();
+    const view = await engine.open(bytes.slice());
+    const text = await view.text(0);
+    for (const w of words) expect(text).toContain(w.text);
+    await view.close();
+    // Invisible: the drawn page is the blank page it was.
+    const [a, b] = await Promise.all([openPdf(blank.slice()), openPdf(bytes.slice())]);
+    const [pa, pb] = await Promise.all([a.render(0, 0.5), b.render(0, 0.5)]);
+    expect(Buffer.from(pb.data).equals(Buffer.from(pa.data))).toBe(true);
+    await a.close();
+    await b.close();
+    // No name of ours inside: the font is GlyphLessFont.
+    const raw = Buffer.from(bytes).toString('latin1');
+    expect(raw).not.toMatch(/Foolscap|Sheaf|pdf-lib/);
+  });
+
+  it('a picture of Malayalam words placed by Add text carries the words underneath', async () => {
+    const doc = await PDFDocument.create({ updateMetadata: false });
+    doc.addPage([400, 300]);
+    const surgeon = createSurgeon();
+    const pdf = await surgeon.open(await doc.save());
+    await pdf.drawMarks([{ kind: 'image', area: { page: 0, x: 0.1, y: 0.1, w: 0.5, h: 0.12 }, png: noisePng(40), stands: 'text', text: 'ശമ്പള സർട്ടിഫിക്കറ്റ്\nകൊച്ചി' } as Mark]);
+    await pdf.stampPicture(0, { anchor: 'center', png: noisePng(20), width: 200, height: 40, words: 'രഹസ്യം' } as never);
+    const view = await engine.open(await pdf.save());
+    const text = await view.text(0);
+    expect(text).toContain('ശമ്പള സർട്ടിഫിക്കറ്റ്');
+    expect(text).toContain('കൊച്ചി');
+    expect(text).toContain('രഹസ്യം');
     await view.close();
   });
 });

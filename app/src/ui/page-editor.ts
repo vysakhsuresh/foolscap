@@ -1753,7 +1753,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
           else {
             // Words the PDF font cannot draw: the whole stamp, frame and all, drawn by the browser.
             const png = stampPicture(item.text, item.color, item.area.w * pageWidthPx() * 3, item.area.h * pageWidthPx() * (aspects.get(item.area.page) ?? pageAspect) * 3);
-            if (png) out.push({ kind: 'image', area: { ...item.area }, png, stands: 'stamp' });
+            if (png) out.push({ kind: 'image', area: { ...item.area }, png, stands: 'stamp', text: item.text });
           }
           break;
         case 'link':
@@ -1767,7 +1767,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
           } else {
             // Malayalam, Hindi, Arabic, emoji: the browser shapes them, and they go in as a picture of the words.
             const picture = textPicture(item.text, item.size, item.color, pageWidthPx(), aspects.get(item.area.page) ?? pageAspect, item.boxed);
-            if (picture) out.push({ kind: 'image', area: { ...item.area, w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png, stands: item.boxed ? 'text-box' : 'text' });
+            if (picture) out.push({ kind: 'image', area: { ...item.area, w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png, stands: item.boxed ? 'text-box' : 'text', text: item.text });
           }
           break;
         }
@@ -1783,7 +1783,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
             if (plan.text.trim() === '' || !WIN_ANSI.test(plan.text)) {
               if (plan.text.trim() !== '') {
                 const picture = textPicture(plan.text, item.size, item.color, pageWidthPx(), aspects.get(item.area.page) ?? pageAspect);
-                if (picture) out.push({ kind: 'image', area: { page: item.area.page, x: plan.start, y: Math.max(0, item.area.y), w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png });
+                if (picture) out.push({ kind: 'image', area: { page: item.area.page, x: plan.start, y: Math.max(0, item.area.y), w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png, text: plan.text });
               }
               break;
             }
@@ -1825,7 +1825,7 @@ export function createPageEditor(mode: EditorMode, onChange: () => void, opts: {
             const picture = textPicture(item.text, size, item.color, pageWidthPx(), aspect);
             if (picture) {
               const px = item.align === 'right' ? Math.max(0, x + w - picture.w) : x;
-              out.push({ kind: 'image', area: { page: item.area.page, x: px, y: Math.max(0, item.area.y), w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png });
+              out.push({ kind: 'image', area: { page: item.area.page, x: px, y: Math.max(0, item.area.y), w: Math.min(picture.w, 1), h: Math.min(picture.h, 1) }, png: picture.png, text: item.text });
             }
           }
           break;

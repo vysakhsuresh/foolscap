@@ -1210,7 +1210,6 @@ test.describe('make searchable', () => {
     await openTool(page, 'ocr');
     await page.getByTestId('opt-ocr-lang-2').selectOption('mal');
     await expect(page.getByTestId('ocr-downloads')).toContainText('The Malayalam reader is downloaded from this site the first time you use it');
-    await expect(page.getByTestId('ocr-downloads')).toContainText('Words in Malayalam come out as a text file beside the PDF');
     await page.getByTestId('opt-ocr-lang-2').selectOption('');
     await expect(page.getByTestId('ocr-downloads')).toBeHidden();
     await pick(page, [{ name: 'Mixed.pdf', bytes: mixed }]);

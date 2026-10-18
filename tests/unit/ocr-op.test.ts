@@ -13,6 +13,7 @@ import { getOp } from '../../app/src/ops';
 import type { OcrReader, OcrWord, OpContext, Outcome, Progress } from '../../app/src/ops/op';
 import { createSurgeon } from '../../app/src/pdf/surgeon';
 import type { PdfEngine, PdfView } from '../../app/src/pdf/types';
+import { openPdf } from '../fixtures/mark-inspect';
 import { pagesPdf } from '../fixtures/pdfs';
 
 /** A PNG's first 24 bytes: enough for the op to read the picture's size from its header. */
@@ -80,6 +81,7 @@ function harness(reader: OcrReader) {
   return {
     ctx,
     labels,
+    workspace,
     add: async () => workspace.put('Ration card.pdf', await pagesPdf(1), 'pdf', { kind: 'picked' }),
     textOf: async (file: FoolscapFile) => (await workspace.read(file)).text(),
   };
@@ -115,27 +117,32 @@ describe('make searchable in other languages', () => {
     expect(h.labels.some((l) => l.startsWith('Getting'))).toBe(false);
   });
 
-  it('saves Malayalam words as text, and leaves the PDF alone when none of them fit its layer', async () => {
+  it('makes a Malayalam scan searchable in the PDF itself, word for word', async () => {
     const h = harness(fakeReader(malayalam));
     const outcomes = await getOp('ocr').run([await h.add()], { languages: ['mal'] }, h.ctx);
     const files = produced(outcomes);
     expect(files).toHaveLength(1);
-    const [txt] = files;
-    expect(txt?.file.kind).toBe('text');
-    expect(txt?.file.name).toBe('Ration card (text).txt');
-    expect(txt?.detail).toContain('2 words read on 1 page, saved as text');
-    expect(txt?.detail).toContain("can't hold Malayalam letters");
-    expect(await h.textOf(txt!.file)).toBe('റേഷൻ കാർഡ്\n');
+    expect(files[0]?.file.kind).toBe('pdf');
+    expect(files[0]?.file.name).toBe('Ration card (searchable).pdf');
+    expect(files[0]?.detail).toBe('2 words read on 1 page. You can now search, select and copy them');
+    const view = await openPdf(new Uint8Array(await (await h.workspace.read(files[0]!.file)).arrayBuffer()));
+    const text = await view.text(0);
+    await view.close();
+    expect(text).toContain('റേഷൻ');
+    expect(text).toContain('കാർഡ്');
     expect(h.labels).toContain('Getting the Malayalam reader (first time only)…');
   });
 
-  it('with Malayalam and English, makes the English searchable in the PDF and puts every word in the text file', async () => {
+  it('with Malayalam and English, every word is searchable in the one PDF', async () => {
     const h = harness(fakeReader([...malayalam, ...english]));
     const outcomes = await getOp('ocr').run([await h.add()], { languages: ['mal', 'eng'] }, h.ctx);
     const files = produced(outcomes);
-    expect(files.map((f) => f.file.kind)).toEqual(['pdf', 'text']);
-    expect(files[0]?.detail).toBe('3 words read on 1 page. The PDF can search only the 1 in Latin letters; every word is in the text file');
-    expect(await h.textOf(files[1]!.file)).toBe('റേഷൻ കാർഡ്\nKerala\n');
+    expect(files.map((f) => f.file.kind)).toEqual(['pdf']);
+    expect(files[0]?.detail).toBe('3 words read on 1 page. You can now search, select and copy them');
+    const view = await openPdf(new Uint8Array(await (await h.workspace.read(files[0]!.file)).arrayBuffer()));
+    const text = await view.text(0);
+    await view.close();
+    for (const w of ['റേഷൻ', 'കാർഡ്', 'Kerala']) expect(text).toContain(w);
   });
 
   it('says which reader could not be downloaded, and makes nothing', async () => {
