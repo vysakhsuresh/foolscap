@@ -218,7 +218,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
     ],
     faq: [
       { q: 'How do I get a PDF under 100 KB?', a: 'Choose To a size, then 100 KB. See [compress a PDF to 100 KB](/guides/compress-pdf-to-100kb/).' },
-      { q: 'What does Let pages become pictures do?', a: 'When shrinking photos is not enough, each page is redrawn as one picture. It looks the same, but the words can no longer be selected.' },
+      { q: 'What does Let pages become pictures do?', a: 'When shrinking photos is not enough, each page is redrawn as one picture. It looks the same, and its words are kept invisibly underneath, so search and copy still work.' },
       { q: 'Does a locked PDF stay locked?', a: 'Yes. A file that needed a password to open keeps the same password.' },
       { q: 'Why did my file hardly shrink?', a: 'It probably has few photos, or they are already well compressed. Try Strong, or To a size with Let pages become pictures if the words need not be selectable.' },
       { q: 'Is my file uploaded?', a: 'No. It is compressed in your browser, on your device.' },

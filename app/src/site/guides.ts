@@ -57,7 +57,7 @@ export const GUIDES: readonly Guide[] = [
         heading: 'What gets smaller, and what does not',
         paragraphs: [
           'Compress shrinks the photos inside the PDF, trying the gentlest setting first and stopping at the first one that fits under 100 KB. Typed text and lines are never touched, so they stay crisp. The result says how sharp the photos still are.',
-          'If photos alone cannot get the file under 100 KB, the result says so. Tick Let pages become pictures and run it again: each page is redrawn as one picture, as sharp as the limit allows. It looks the same, but the words can no longer be selected, which an upload portal does not care about.',
+          'If photos alone cannot get the file under 100 KB, the result says so. Tick Let pages become pictures and run it again: each page is redrawn as one picture, as sharp as the limit allows. It looks the same, and its words are kept invisibly underneath, so it can still be searched and copied.',
         ],
       },
       {

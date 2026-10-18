@@ -886,7 +886,7 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
         'pills',
       );
       const custom = field('target-kb', { label: 'Size in KB', type: 'number', min: 10, max: 100000, value: '300' }, onChange);
-      const pictures = check('allow-pictures', 'Let pages become pictures if that is what it takes', false, onChange, 'The words stop being selectable, but the page looks the same.');
+      const pictures = check('allow-pictures', 'Let pages become pictures if that is what it takes', false, onChange, 'Each page becomes one picture that looks the same; its words are kept underneath, so search and copy still work.');
       const targetBox = group([target.root, custom.root, pictures.root]);
       const level = choices<CompressParams['level']>(
         'level',

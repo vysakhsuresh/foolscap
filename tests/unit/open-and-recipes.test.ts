@@ -4,11 +4,29 @@
  */
 import { describe, expect, it } from 'vitest';
 import { needsPassword, problemWith, readRecipes, storable, writeRecipes, type Recipe } from '../../app/src/ui/recipe-model';
-import { officeByName, suggest } from '../../app/src/ui/suggest';
+import { noSuggestion, officeByName, suggest, wordsSay } from '../../app/src/ui/suggest';
 
 const MB = 1024 * 1024;
 
 describe('what Open a file suggests', () => {
+  it('a page of amounts: a spreadsheet first; an Aadhaar or PAN on show: hide it', () => {
+    const statement = ['Date', 'Narration', '12,500.00', '1,200.00', '45,000.00', '(300.00)', '9,99,999.00', '18.00', '2,450.75', '₹ 640.00', '1,00,000.00 Cr'];
+    expect(wordsSay(statement)).toEqual({ amounts: true });
+    expect(wordsSay(['Aadhaar', '1234 5678 9012'])).toEqual({ idNumber: true });
+    expect(wordsSay(['PAN:', 'ABCDE1234F'])).toEqual({ idNumber: true });
+    expect(wordsSay(['Dear Sir,', 'I write to apply for leave', '12 March 2026'])).toEqual({});
+    expect(suggest([{ kind: 'pdf', size: 80_000, pages: 6, amounts: true }])[0]?.tool).toBe('pdf-to-excel');
+    expect(suggest([{ kind: 'pdf', size: 80_000, pages: 1, idNumber: true }]).slice(0, 3).map((s) => s.tool)).toContain('remove-areas');
+  });
+
+  it('when there is nothing to suggest, it says why, and what to do instead', () => {
+    expect(noSuggestion([{ name: 'Bill.pdf', facts: { kind: 'pdf', size: 184, unreadable: true } }])).toMatch(/^This PDF is damaged/);
+    expect(noSuggestion([{ name: 'Deck.pptx', facts: { kind: 'other', size: 4000 } }])).toMatch(/Save as PDF/);
+    expect(noSuggestion([{ name: 'Old.doc', facts: { kind: 'other', size: 4000 } }])).toMatch(/\.docx and \.xlsx/);
+    expect(noSuggestion([{ name: 'song.mp3', facts: { kind: 'other', size: 4000 } }])).toMatch(/^Nothing here is a PDF/);
+  });
+
+
   it('a locked PDF: unlock it first', () => {
     const s = suggest([{ kind: 'pdf', size: 200_000, locked: true }]);
     expect(s[0]?.tool).toBe('remove-password');

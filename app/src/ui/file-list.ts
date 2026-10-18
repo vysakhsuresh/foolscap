@@ -24,6 +24,8 @@ export interface Entry {
   error?: string;
   errorCode?: PdfErrorCode;
   password?: string;
+  /** Opened once for its page count (or found unreadable or locked): until every file is, nothing runs. */
+  checked?: boolean;
   /** The first page or the image, small; drawn once and moved from row to row as the list is redrawn. */
   thumb?: HTMLCanvasElement;
 }

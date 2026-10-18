@@ -199,6 +199,9 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
       return id === 'merge' ? 'Add at least one more PDF to merge.' : `Add ${more} more ${noun}${more === 1 ? '' : 's'}.`;
     }
     if (arity.kind === 'one' && n !== 1) return `${tool.title} works on one file at a time.`;
+    // Each file is opened once first, so a locked one is found and asked for before anything runs.
+    const reading = entries.filter((e) => e.checked !== true).length;
+    if (reading > 0) return n === 1 ? 'Reading the file…' : `Reading the files… ${n - reading} of ${n}`;
     // A locked file is asked for its password on its own row; running first would only fail.
     const locked = entries.filter((e) => e.errorCode === 'encrypted' || e.errorCode === 'wrong-password').length;
     if (locked > 0 && (arity.kind !== 'each' || locked === n)) {
@@ -235,6 +238,37 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     await ws.remove(entry.file).catch(() => undefined);
   }
 
+  /** Rows still waiting for their small picture, drawn one at a time once every file is read. */
+  const thumbsWanted: Entry[] = [];
+  let drawingThumbs = false;
+  async function drawThumbs(): Promise<void> {
+    if (drawingThumbs || !ws) return;
+    drawingThumbs = true;
+    try {
+      for (let entry = thumbsWanted.shift(); entry; entry = thumbsWanted.shift()) {
+        if (entry.thumb || !entries.includes(entry) || entry.error !== undefined) continue;
+        try {
+          const blob = await ws.read(entry.file);
+          if (entry.file.kind === 'image') entry.thumb = await imageThumb(blob, FILE_THUMB, 'file-thumb');
+          else {
+            const view = await (await enginePromise).open(blob, entry.password === undefined ? {} : { password: entry.password });
+            try {
+              entry.thumb = await pdfThumb(view, FILE_THUMB, 'file-thumb');
+            } finally {
+              await view.close();
+            }
+          }
+        } catch (error) {
+          // The row keeps its "PDF" tile; nothing else depends on the picture.
+          devlog('thumb', error);
+        }
+        refresh();
+      }
+    } finally {
+      drawingThumbs = false;
+    }
+  }
+
   /** Opens the file once on the page-thread engine for its page count (and, for organise, its grid). */
   /** The row's small picture of the first page, drawn once the page count is on screen. */
   async function thumbOf(entry: Entry, view: PdfView): Promise<void> {
@@ -250,16 +284,13 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
 
   async function inspect(entry: Entry): Promise<void> {
     if (!ws) return;
-    if (entry.file.kind === 'image') {
-      try {
-        entry.thumb ??= await imageThumb(await ws.read(entry.file), FILE_THUMB, 'file-thumb');
-      } catch (error) {
-        devlog('thumb', error);
-      }
+    if (entry.file.kind !== 'pdf') {
+      // A picture's row shows the picture; anything else needs no reading.
+      entry.checked = true;
+      if (entry.file.kind === 'image') thumbsWanted.push(entry);
       refresh();
       return;
     }
-    if (entry.file.kind !== 'pdf') return;
     try {
       const engine = await enginePromise;
       const blob = await ws.read(entry.file);
@@ -276,8 +307,9 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
         await thumbOf(entry, view);
       } else {
         if (options?.load && entries[0] === entry) await options.load(view).catch((error: unknown) => devlog('options', error));
-        await thumbOf(entry, view);
         await view.close();
+        // The row's picture comes after every file is read, so a long batch is ready to run sooner.
+        thumbsWanted.push(entry);
       }
     } catch (error) {
       if (error instanceof PdfError) {
@@ -288,6 +320,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
         devlog('inspect', error);
       }
     }
+    entry.checked = true;
     refresh();
   }
 
@@ -296,6 +329,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     if (!entry) return;
     entry.password = password;
     await inspect(entry);
+    void drawThumbs();
   }
 
   async function addFiles(files: readonly File[], fromFolder = false): Promise<void> {
@@ -335,6 +369,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     else if (skipped > 0) say(`${added.length} from the folder; ${skipped} other ${skipped === 1 ? 'file was' : 'files were'} left out.`);
     refresh();
     for (const entry of added) await inspect(entry);
+    void drawThumbs();
   }
 
   async function adopt(files: readonly FoolscapFile[]): Promise<void> {
@@ -346,6 +381,7 @@ async function mount(id: ToolId, body: HTMLElement, zone: HTMLElement | null, in
     }
     refresh();
     for (const entry of entries) await inspect(entry);
+    void drawThumbs();
   }
 
   function clearResult(): void {

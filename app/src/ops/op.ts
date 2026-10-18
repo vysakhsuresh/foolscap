@@ -343,7 +343,7 @@ export interface CompressParams {
   readonly targetKb?: number;
   /**
    * For 'target': when shrinking photos is not enough, turn the pages into
-   * pictures too. The words stop being selectable, and the person is told.
+   * pictures too, each page's words kept invisibly underneath so they still search and copy.
    */
   readonly allowPictures?: boolean;
 }

@@ -21,7 +21,7 @@ import { bindDropZone } from '../ui/drop-zone';
 import { formatSize, plural } from '../ui/format';
 import { mountShell } from '../ui/shell';
 import '../ui/flow.css';
-import { officeByName, suggest, type FileFacts } from '../ui/suggest';
+import { noSuggestion, officeByName, suggest, wordsSay, type FileFacts } from '../ui/suggest';
 import { TOOL_ICONS } from '../ui/tool-icons';
 import { mountRecipes, type RecipesPanel } from '../ui/recipes';
 import { imageThumb, pdfThumb, type Box } from '../ui/thumbs';
@@ -99,7 +99,8 @@ async function mount(body: HTMLElement, zone: HTMLElement, input: HTMLInputEleme
         const layout = await view.layout(0).catch(() => null);
         const scanned = layout !== null && (layout.pictureCover ?? 0) >= SCAN_COVER && (layout.items.length === 0 || (layout.hiddenText ?? 0) >= 0.8);
         const forms = (await view.fields().catch(() => [])).length > 0;
-        return { kind: 'pdf', size: file.size, pages, ...(scanned ? { scanned: true } : {}), ...(forms ? { forms: true } : {}) };
+        const said = wordsSay((layout?.items ?? []).map((item) => item.str));
+        return { kind: 'pdf', size: file.size, pages, ...(scanned ? { scanned: true } : {}), ...(forms ? { forms: true } : {}), ...said };
       } finally {
         await view.close();
       }
@@ -145,7 +146,7 @@ async function mount(body: HTMLElement, zone: HTMLElement, input: HTMLInputEleme
     );
     ideasBox.hidden = opened.length === 0;
     ideasTitle.textContent = opened.length === 1 ? 'What to do with it' : `What to do with these ${opened.length}`;
-    if (found.length === 0 && opened.length > 0) say('Nothing here is a PDF, a picture or a Word or Excel file. Pick a tool from the list instead.');
+    if (found.length === 0 && opened.length > 0) say(noSuggestion(opened.map((o) => ({ name: o.file.name, facts: o.facts }))));
     recipes?.files(opened.map((o) => o.file));
   }
 

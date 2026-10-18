@@ -304,9 +304,10 @@ async function compressToTarget(inputs: readonly FoolscapFile[], params: Compres
         );
         continue;
       }
-      // 2. Pages as pictures, sharpest first.
+      // 2. Pages as pictures, sharpest first. Each page's words go back over its picture invisibly, so they still search and copy.
       const engine = await ctx.engine();
       const pictures = new Map<number, Uint8Array>();
+      const wordsOn = new Map<number, Array<{ text: string; x: number; y: number; w: number; h: number }>>();
       const asPictures = async (i: number): Promise<Uint8Array> => {
         const cached = pictures.get(i);
         if (cached) return cached;
@@ -323,6 +324,20 @@ async function compressToTarget(inputs: readonly FoolscapFile[], params: Compres
             const h = sideways ? page.width : page.height;
             const jpeg = await view.encode(p, { width: Math.max(1, Math.round((w / 72) * step.dpi)), format: 'jpeg', quality: step.quality, signal: ctx.signal });
             await out.addImagePage({ bytes: jpeg, kind: 'jpeg' }, { width: w, height: h }, 0);
+            let words = wordsOn.get(p);
+            if (words === undefined) {
+              const layout = await view.layout(p).catch(() => null);
+              // A layout item's y is its baseline, top-left origin; its height the type size.
+              words = (layout?.items ?? []).map((item) => ({
+                text: item.str.trim(),
+                x: item.x / layout!.width,
+                y: (item.y - item.height * 0.8) / layout!.height,
+                w: item.width / layout!.width,
+                h: item.height / layout!.height,
+              })).filter((word) => word.text !== '' && word.w > 0 && word.h > 0);
+              wordsOn.set(p, words);
+            }
+            if (words.length > 0) out.addTextLayer(out.pageCount - 1, words);
           }
           const bytes = (await saveKeepingLock(ctx, out, input, ctx.passwords.has(input.id))).bytes;
           pictures.set(i, bytes);
@@ -337,7 +352,7 @@ async function compressToTarget(inputs: readonly FoolscapFile[], params: Compres
         const step = PICTURE_LADDER[pictureIndex]!;
         const bytes = await asPictures(pictureIndex);
         outcomes.push(
-          await store(ctx, 'compress', [input], `${baseName(input.name)} (under ${kb(limit)}).pdf`, bytes, `${kb(input.size)} → ${kb(bytes.length)}, under ${kb(limit)}; pages are now pictures at ${step.dpi} dpi, so the words can't be selected`),
+          await store(ctx, 'compress', [input], `${baseName(input.name)} (under ${kb(limit)}).pdf`, bytes, `${kb(input.size)} → ${kb(bytes.length)}, under ${kb(limit)}; pages are now pictures at ${step.dpi} dpi, with their words kept underneath to search and copy`),
         );
         continue;
       }

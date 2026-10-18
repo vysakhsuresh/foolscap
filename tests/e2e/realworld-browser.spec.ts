@@ -70,8 +70,9 @@ function watch(page: Page): () => string[] {
   return () => found.splice(0);
 }
 
-/** Unlocks every locked row it knows the password for. */
+/** Unlocks every locked row it knows the password for, once every file has been read. */
 async function unlock(page: Page): Promise<void> {
+  await expect(page.locator('.run__note')).not.toHaveText(/^Reading the file/, { timeout: 120_000 });
   for (const row of await page.getByTestId('file-item').all()) {
     const name = (await row.textContent()) ?? '';
     const known = Object.entries(PASSWORDS).find(([n]) => name.includes(n));
@@ -96,6 +97,7 @@ async function settle(page: Page, tool: ToolId): Promise<void> {
     await fill('opt-confirm', 'tea');
   }
   if (tool === 'split-by-size') await fill('opt-megabytes', '1');
+  if (tool === 'header-footer') await fill('opt-header', 'Confidential');
   if (tool === 'rent-receipts') {
     await fill('opt-tenant', 'Anjali Menon');
     await fill('opt-landlord', 'Joseph Mathew');
@@ -134,7 +136,9 @@ async function runAndRead(page: Page, tool: string, docs: string[], take: () => 
     const [download] = await Promise.all([page.waitForEvent('download'), first.getByTestId('save-button').click()]);
     const path = await download.path();
     try {
-      const view = await openPdf(new Uint8Array(readFileSync(path)));
+      const bytes = new Uint8Array(readFileSync(path));
+      // A locked input comes back locked with its own password; Add a password locks with the one typed.
+      const view = await openPdf(bytes).catch(() => openPdf(bytes, tool === 'add-password' ? 'tea' : 'x'));
       if (view.pageCount < 1) run.problems.push('a result PDF has no pages');
       await view.text(0).catch((e: Error) => run.problems.push(`a result PDF cannot be read: ${e.message}`));
       await view.close();

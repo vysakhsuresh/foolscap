@@ -300,8 +300,8 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
 7. SEO: one fast page per tool × intent, generated from `tools.ts`.
 8. PWA: ✅ install and offline (`scripts/vite-sw.ts` writes `dist/sw.js`,
    precaching every page, script, font and `/pdfjs/**`; OCR models are kept on
-   first use). Still to come: share target and file handler, and the offline
-   e2e adding a non-embedded-font, a CJK-CMap and a JPX fixture.
+   first use). ✅ Share target and file handler (Open a file). Still to come:
+   the offline e2e adding a non-embedded-font, a CJK-CMap and a JPX fixture.
 9. The gate: a corpus of awkward real PDFs run on every build.
 
 ## Working with the owner
