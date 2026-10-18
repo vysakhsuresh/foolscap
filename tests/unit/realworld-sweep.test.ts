@@ -250,7 +250,7 @@ async function variantsFor(tool: ToolId, name: string): Promise<Array<[string, u
 }
 
 /** Tools whose inputs are not single PDFs, or that need more than one. */
-const SPECIAL = new Set<ToolId>(['merge', 'insert-pages', 'compare', 'attachments', 'images-to-pdf', 'scan', 'office-to-pdf', 'rent-receipts']);
+const SPECIAL = new Set<ToolId>(['merge', 'insert-pages', 'compare', 'attachments', 'images-to-pdf', 'compress-image', 'scan', 'office-to-pdf', 'rent-receipts']);
 
 describe.skipIf(!ON)('real-world sweep', () => {
   beforeAll(async () => {
@@ -300,6 +300,11 @@ describe.skipIf(!ON)('real-world sweep', () => {
         case 'images-to-pdf':
           await runOne(tool, 'all-a4', images.map(img), { paper: 'a4', margin: 'small' });
           await runOne(tool, 'separate-fit', images.map(img), { paper: 'fit', margin: 'none', separate: true });
+          break;
+        case 'compress-image':
+          await runOne(tool, 'keep-20', images.map(img), { targetKb: 20, dimensions: 'keep' });
+          await runOne(tool, 'passport-50', images.map(img), { targetKb: 50, dimensions: 'passport' });
+          await runOne(tool, 'custom-200x80-10', images.map(img), { targetKb: 10, dimensions: 'custom', width: 200, height: 80 });
           break;
         case 'scan': {
           const photos = images.filter((n) => /^(photo|wa|grey)-/.test(n)).map(img);

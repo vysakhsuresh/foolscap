@@ -16,6 +16,7 @@ import type {
   PdfToWordParams,
   ScanPages,
   PageLabelsParams,
+  CompressImageParams,
   CompressParams,
   PdfToImagesParams,
   CropParams,
@@ -916,6 +917,77 @@ export function createToolOptions(id: ToolId, onChange: () => void): ToolOptions
             ? { level: 'target', targetKb: target.value() === 'custom' ? custom.number() : Number(target.value()), allowPictures: pictures.checked() }
             : { level: level.value() },
         problem: () => (level.value() === 'target' && target.value() === 'custom' && !(custom.number() >= 10) ? 'Type a size of at least 10 KB.' : null),
+      };
+    }
+
+    case 'compress-image': {
+      const target = choices<'20' | '50' | '100' | '200' | '500' | 'custom'>(
+        'target',
+        'Under',
+        [
+          { value: '20', title: '20 KB' },
+          { value: '50', title: '50 KB' },
+          { value: '100', title: '100 KB' },
+          { value: '200', title: '200 KB' },
+          { value: '500', title: '500 KB' },
+          { value: 'custom', title: 'Other' },
+        ],
+        '50',
+        onChange,
+        'pills',
+      );
+      const custom = field('target-kb', { label: 'Size in KB', type: 'number', min: 2, max: 100000, value: '30', hint: 'Whatever the form asks for, at least 2 KB.' }, onChange);
+      custom.input.setAttribute('step', 'any');
+      const side = (name: 'width' | 'height', caption: string, value: string) => {
+        const f = field(`photo-${name}`, { label: `${caption} in pixels`, type: 'number', min: 16, max: 4096, value, bare: true }, onChange);
+        const box = document.createElement('span');
+        box.className = 'edge-field';
+        const word = document.createElement('span');
+        word.className = 'edge-field__word';
+        word.textContent = `${caption} (px)`;
+        box.append(word, f.input);
+        return { root: box, f };
+      };
+      const width = side('width', 'Width', '300');
+      const height = side('height', 'Height', '400');
+      const pixels = el2([width.root, height.root]);
+      pixels.classList.add('edge-row');
+      const dimensions = choices<CompressImageParams['dimensions']>(
+        'dimensions',
+        'Pixels',
+        [
+          { value: 'keep', title: 'Keep its shape', hint: 'As many pixels as it has, unless it needs fewer to fit.' },
+          { value: 'passport', title: 'Passport photo, 3.5 × 4.5 cm', hint: '413 × 531 pixels (300 dpi), cut from the middle to that shape.' },
+          { value: 'custom', title: 'Width × height in pixels', hint: 'Cut from the middle to that shape, then made exactly that size.', field: pixels },
+        ],
+        'keep',
+        onChange,
+      );
+      const sync = () => {
+        custom.root.hidden = target.value() !== 'custom';
+      };
+      target.root.addEventListener('change', sync);
+      sync();
+      return {
+        root: group([
+          target.root,
+          custom.root,
+          dimensions.root,
+          note('Each picture comes out as a JPEG under the size you choose, as sharp as that allows. Here 1 KB is 1,000 bytes, so it is under the limit however the form counts. The phone’s hidden details, its location too, are left out.'),
+        ]),
+        params: (): CompressImageParams => {
+          const targetKb = target.value() === 'custom' ? custom.number() : Number(target.value());
+          const which = dimensions.value();
+          return which === 'custom' ? { targetKb, dimensions: 'custom', width: width.f.number(), height: height.f.number() } : { targetKb, dimensions: which };
+        },
+        problem: () => {
+          if (target.value() === 'custom' && !(custom.number() >= 2)) return 'Type a size of at least 2 KB.';
+          if (dimensions.value() === 'custom') {
+            const ok = (v: number) => Number.isFinite(v) && v >= 16 && v <= 4096;
+            if (!ok(width.f.number()) || !ok(height.f.number())) return 'Type a width and a height between 16 and 4096 pixels.';
+          }
+          return null;
+        },
       };
     }
 

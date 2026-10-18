@@ -65,6 +65,7 @@ export function suggest(files: readonly FileFacts[], max = 8): Suggestion[] {
 
   if (images.length > 0) {
     add(90, 'images-to-pdf', images.length === 1 ? 'Turn the photo into a PDF' : `Make one PDF of these ${images.length} pictures`, images);
+    add(89, 'compress-image', images.length === 1 ? 'For an upload form? Get it under 20 KB, 50 KB or any size' : `For an upload form? Get all ${images.length} under 20 KB, 50 KB or any size`, images);
     add(70, 'scan', images.length === 1 ? 'A photo of paper? Straighten it and clean it up' : 'Photos of paper? Straighten them and clean them up', images);
   }
   if (office.length > 0) add(90, 'office-to-pdf', office.length === 1 ? 'Turn the Word or Excel file into a PDF' : `Turn these ${office.length} Word or Excel files into PDFs`, office);

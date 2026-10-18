@@ -42,6 +42,7 @@ export const PARAMS: Record<string, (pages: number) => unknown> = {
   'remove-password': () => ({}),
   'document-details': () => ({ mode: 'clean', comments: true, attachments: true }),
   compress: () => ({ level: 'balanced' }),
+  'compress-image': () => ({ targetKb: 20, dimensions: 'keep' }),
   'pdf-to-images': () => ({ format: 'jpeg', dpi: 72, pages: '' }),
   'extract-text': () => ({}),
   sign: () => ({ marks: [{ kind: 'image', area: { page: 0, x: 0.6, y: 0.8, w: 0.3, h: 0.1 }, png: noisePng(24) }] }),

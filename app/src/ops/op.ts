@@ -348,6 +348,21 @@ export interface CompressParams {
   readonly allowPictures?: boolean;
 }
 
+/** Resize photo to KB: a photo or signature for an upload form. */
+export interface CompressImageParams {
+  /** The most each picture may weigh, in kilobytes (1 KB = 1000 bytes, as upload forms count). */
+  readonly targetKb: number;
+  /**
+   * 'keep': its own shape, as many pixels as it has unless it must shrink to
+   * fit. 'passport': cut from the middle to 3.5 × 4.5 cm, 413 × 531 px at
+   * 300 dpi (never enlarged). 'custom': cut from the middle to the shape of
+   * `width` × `height`, then made exactly that size.
+   */
+  readonly dimensions: 'keep' | 'passport' | 'custom';
+  readonly width?: number;
+  readonly height?: number;
+}
+
 export interface PdfToImagesParams {
   readonly format: 'png' | 'jpeg';
   /** Pixels per inch: 72 for a screen, 150 for sharing, 300 for print. */

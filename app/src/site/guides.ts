@@ -3901,4 +3901,134 @@ export const GUIDES: readonly Guide[] = [
       { q: 'How can I check that nothing is uploaded?', a: 'Switch the internet off once a tool page has loaded and run the tool. See [is it safe to upload PDFs online](/guides/is-it-safe-to-upload-pdf-online/) for more ways to check.' },
     ],
   },
+  // ---- Photos and signatures for upload forms ----
+  {
+    slug: 'compress-photo-to-20kb-50kb-for-online-forms',
+    title: 'Compress photo to 20 KB or 50 KB for online forms',
+    h1: 'How to compress a photo or signature to 20 KB or 50 KB',
+    description: 'Get a photo or signature under 20 KB, 50 KB or any size an online form asks for, on your phone. Free, no sign-up, and the picture never leaves your device.',
+    tool: 'compress-image',
+    related: ['scan', 'images-to-pdf', 'compress'],
+    intro: 'Open Resize photo to KB, add the photo or the picture of your signature, pick 20 KB or 50 KB and press Resize it. It is made smaller in your browser, so your face and your signature never leave your phone.',
+    steps: [
+      'Open Resize photo to KB and add the photo, or the picture of your signature.',
+      'Pick the size the form allows: 20 KB, 50 KB, or Other to type your own.',
+      'Leave Keep its shape chosen, or type the width and height if the form gives them in pixels.',
+      'Press Resize it and read the new size and pixels in the result line.',
+      'Save the picture and upload that one, not the original.',
+    ],
+    sections: [
+      {
+        heading: 'What the form is asking for',
+        paragraphs: [
+          'Upload forms for exams, jobs, scholarships, banks and government services usually limit two things about a picture. The weight, in KB, is how much space the file takes. The size in pixels is how many dots wide and tall it is. Some forms give only the weight, some give both, and a few also ask for the JPG format by name.',
+          'A photo straight from a phone camera weighs a few MB and is thousands of pixels across, so it is far over a 20 KB or 50 KB limit before you begin. The numbers you need are on the form itself, usually beside the upload button or in its instructions. Read them there: every form sets its own, and this tool simply meets whatever you choose.',
+        ],
+      },
+      {
+        heading: 'Why under 20 KB usually means fewer pixels',
+        paragraphs: [
+          'A JPEG gets lighter as its quality goes down, but only up to a point. Below a certain quality the picture breaks into square blocks and smudges, and a face or a signature stops looking right long before it gets small enough for 20 KB. A twelve-megapixel phone photo simply holds too many pixels to fit in 20 KB at any quality worth uploading.',
+          'So the tool works in two steps. First it tries the best quality and steps down only as far as the limit needs. If even the lowest quality that still looks right is too heavy, it keeps that quality and takes away pixels instead, only as many as it must. The result line then says so, for example made smaller to fit, with the size the photo was before. A few hundred pixels across is still a clear face on screen, and a signature of that width reads cleanly.',
+          'If the form also gives a size in pixels, choose Width × height and type it. The picture is cut from the middle to that shape and made exactly that size, and the quality is chosen to fit the KB. If those pixels cannot fit under the limit and stay clear, the result says so rather than quietly changing them.',
+        ],
+      },
+      {
+        heading: 'Scanning a signature on white paper',
+        paragraphs: [
+          'Sign on plain white paper with no lines, in black or dark blue ink, with a pen that writes a firm, even line. A ballpoint that skips or a pencil gives a faint, broken signature that gets worse as the picture gets smaller. Leave clear space around it, so nothing else from the page ends up in the photo.',
+          'Photograph it in daylight, holding the phone straight above the paper so the signature is not slanted and your hand casts no shadow. Then crop the photo close around the signature in your phone’s gallery before you add it. Clean white paper costs almost nothing in KB, while a grey, shadowy background costs a great deal, so a tidy photo fits under 20 KB with far more detail to spare. For a whole page of paper rather than one signature, use [Scan](/tools/scan/), which straightens the sheet and cleans up the light.',
+        ],
+      },
+      {
+        heading: 'Check the result before you upload',
+        paragraphs: [
+          'Open the saved picture and zoom in. A face should be sharp around the eyes, and a signature’s lines should be unbroken. The new file’s name ends with the limit, such as (under 20 KB), which makes it easy to pick the right one in the form’s file picker rather than the original from the camera.',
+          'Here 1 KB is 1,000 bytes, slightly smaller than counting in 1,024s, so a picture made under 20 KB here is also under 20 KB on a form that counts the other way. If a form still says the file is too big, check that you chose the new file; then make it again with Other and a slightly lower figure, such as 18. If it says the pixel size is wrong, type the exact width and height it gives.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'An application asks for a recent photo under 50 KB and a signature under 20 KB, both as JPG. Open Resize photo to KB, add the photo, pick 50 KB, keep Keep its shape and press Resize it. The result line gives the old and new size and the pixels, perhaps saying the photo was made smaller to fit. Save it.',
+          'Tap Start over, add the cropped photo of your signature, pick 20 KB and press Resize it again. Save that too, then upload each file to its own box on the form. Neither left your phone until you uploaded it yourself.',
+        ],
+      },
+      {
+        heading: 'What the phone hid in the photo',
+        paragraphs: [
+          'Phones store details inside every photo: the camera, the date and time, and often the exact place it was taken. A form does not need any of that. A picture made here is saved afresh and carries none of it, and the result line says what was taken out, such as location and camera details. That is one less thing about you sitting on somebody else’s server.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Why not just set the quality very low?', a: 'A very low quality turns a face into blocks and a signature into smudges, and an unclear photo is a common reason for an application to be sent back. The tool stops at a quality that still looks right and takes away pixels instead.' },
+      { q: 'Is 1 KB 1,000 or 1,024 bytes here?', a: '1,000 bytes, the smaller of the two. So a picture made under 20 KB here is under 20 KB on any form, however it counts.' },
+      { q: 'Can I do the photo and the signature together?', a: 'Yes, if both need the same limit: add both and each comes out on its own, under the size you chose. For different limits, make one, tap Start over, and make the other.' },
+      { q: 'The form wants a PDF, not a JPG.', a: 'Make the JPG here first, then turn it into a PDF with [Images to PDF](/tools/images-to-pdf/). If a PDF is over its limit, [Compress](/tools/compress/) has a To a size setting; see [compress a PDF to 100 KB](/guides/compress-pdf-to-100kb/).' },
+      { q: 'Does it work on an iPhone?', a: 'Yes, in Safari. Photos are usually handed over as JPEG. If one arrives in the HEIC format and this browser cannot read it, the tool says so; setting Camera, Formats to Most Compatible fixes it for future photos.' },
+      { q: 'Is my photo uploaded anywhere?', a: 'No. It is made smaller in your browser, on your own device, and the tool keeps working with the internet switched off.' },
+    ],
+  },
+  {
+    slug: 'passport-size-photo-from-phone',
+    title: 'Passport size photo from your phone, free and private',
+    h1: 'How to make a passport size photo with your phone',
+    description: 'Take a passport size photo against a plain wall with your phone and cut it to 3.5 × 4.5 cm in your browser. Free, no sign-up, and nothing is uploaded.',
+    tool: 'compress-image',
+    related: ['images-to-pdf', 'scan', 'compress'],
+    intro: 'Stand in front of a plain, light wall and have someone take your photo at eye level. Then open Resize photo to KB, choose Passport photo, 3.5 × 4.5 cm, pick the size in KB the form allows, and press Resize it.',
+    steps: [
+      'Stand a step in front of a plain, light wall, facing a window or soft daylight.',
+      'Have someone hold the phone at your eye level, an arm’s length or two away, and take a few photos.',
+      'Open Resize photo to KB and add the best one.',
+      'Choose Passport photo, 3.5 × 4.5 cm, and pick the size in KB the form allows.',
+      'Press Resize it, check the face is centred and sharp, and save it.',
+    ],
+    sections: [
+      {
+        heading: 'The rules vary, and the form is the one to follow',
+        paragraphs: [
+          'Offices ask for different things in a photo: the colour of the background, how much of the head and shoulders shows, whether glasses are allowed, a plain expression, how recent it must be. Some want a printed photo, others an upload with a limit in KB and sometimes a size in pixels. Those rules belong to the form, and they change, so read them where you apply.',
+          'This guide covers taking a clean, evenly lit photo that suits most of them, and making it the shape and weight you choose. The tool cannot check a photo against any office’s rules, and it does not claim to; it cuts, sizes and saves what you give it.',
+        ],
+      },
+      {
+        heading: 'Taking the photo',
+        paragraphs: [
+          'Find a plain wall in white, off-white or light grey, with nothing on it behind your head. Stand a step away from it, so your shadow does not fall on the wall behind you. Face a window or stand in open shade: soft daylight from the front lights the face evenly, while a bulb overhead leaves dark eyes and a shiny forehead.',
+          'Turn the flash off; it flattens the face, leaves glare on skin and glasses, and can make eyes red. Have someone else take it with the phone’s main camera, held upright at your eye level and straight, not tilted up or down. Keep your face in the middle of the frame with space above your head and around your shoulders, because the tool cuts the passport shape from the middle. Take several and pick the one where you are sharpest and looking straight at the camera.',
+        ],
+      },
+      {
+        heading: 'What Passport photo does',
+        paragraphs: [
+          'It cuts the middle of your photo to the passport shape, 3.5 wide by 4.5 tall, and makes it 413 × 531 pixels, which is 3.5 × 4.5 cm at 300 dots per inch. A photo that has fewer pixels than that is never stretched to fit; it keeps its own, in the same shape, and the result line says so.',
+          'Then it is saved as a JPEG at the best quality that fits under the KB you picked. If 413 × 531 pixels cannot fit under that limit and still look right, it is made a little smaller in pixels, and the result line says that too, with the size it ended up. Any details the phone hid in the photo, such as the place it was taken, are left out.',
+          'Because the cut comes from the middle, a face near one edge of the photo can end up cut off. If that happens, crop the photo in your phone’s gallery first, roughly to a tall shape with your face in the centre, then add the cropped one.',
+        ],
+      },
+      {
+        heading: 'When the form gives pixels instead',
+        paragraphs: [
+          'Some forms state a width and height in pixels rather than centimetres. Choose Width × height in pixels and type the two numbers exactly as the form gives them. The photo is cut from the middle to that shape and made exactly that size. If those pixels cannot fit under the KB you chose and stay clear, the result says so rather than quietly changing the size: try the next size up in KB if the form allows it.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'An online application asks for a recent colour photo with a light background, under 50 KB, as a JPG. Take three or four photos against a white wall by a window, and pick the sharpest. Open Resize photo to KB, add it, choose Passport photo, 3.5 × 4.5 cm, pick 50 KB and press Resize it.',
+          'The result line reads something like passport shape, 413 × 531 px, under 50 KB. Open the saved picture to check your face is centred with a little space above the head, then upload the file whose name ends with (under 50 KB). If the same office also wants a PDF of your documents, [Images to PDF](/tools/images-to-pdf/) and [Scan](/tools/scan/) make those on the phone too.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Will this photo be accepted?', a: 'No tool can promise that. Offices set their own rules on background, size, framing and expression, and they differ. Follow the form’s instructions; the tool makes the shape and size you choose.' },
+      { q: 'What colour should the background be?', a: 'Whatever the form says. When it says nothing, a plain white or light grey wall with no shadow is the usual choice.' },
+      { q: 'Can the tool remove or change the background?', a: 'No. It cuts, resizes and saves the photo as it is, so take it against a plain wall in the first place.' },
+      { q: 'Why is my photo smaller than 413 × 531 pixels?', a: 'Either the original had fewer pixels, and the tool never stretches a photo, or 413 × 531 could not fit under the KB you chose. The result line says which.' },
+      { q: 'Can I get it printed?', a: 'Yes. The saved photo is 413 × 531 pixels, which is 3.5 × 4.5 cm at 300 dpi. Ask a photo shop to print it at 3.5 × 4.5 cm.' },
+      { q: 'Is my photo uploaded anywhere?', a: 'No. It is cut and sized in your browser, on your phone. For photos and signatures under a size, see [compress a photo to 20 KB or 50 KB](/guides/compress-photo-to-20kb-50kb-for-online-forms/).' },
+    ],
+  },
 ];

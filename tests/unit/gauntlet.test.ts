@@ -98,7 +98,7 @@ interface Case {
 const UNLOCKS = new Set<ToolId>(['remove-password', 'pdf-a', 'add-password', 'merge', 'digital-sign']);
 
 /** Tools whose inputs are not PDFs. */
-const IMAGE_TOOLS = new Set<ToolId>(['images-to-pdf', 'scan']);
+const IMAGE_TOOLS = new Set<ToolId>(['images-to-pdf', 'scan', 'compress-image']);
 const OFFICE_TOOLS = new Set<ToolId>(['office-to-pdf']);
 
 let fixtures: Record<string, Uint8Array>;
@@ -507,6 +507,12 @@ describe('the gauntlet, settings people can type', () => {
     ['compress', { level: 'target', targetKb: 5 }, 'too small a target'],
     ['compress', { level: 'target', targetKb: 1, allowPictures: true }, 'one kilobyte'],
     ['compress', { level: 'strong' }, 'strong'],
+    ['compress-image', { targetKb: 0.5, dimensions: 'keep' }, 'half a kilobyte'],
+    ['compress-image', { targetKb: Number.NaN, dimensions: 'keep' }, 'not a number'],
+    ['compress-image', { targetKb: 2, dimensions: 'passport' }, 'two kilobytes, passport'],
+    ['compress-image', { targetKb: 20, dimensions: 'custom', width: 0, height: 400 }, 'no width'],
+    ['compress-image', { targetKb: 20, dimensions: 'custom', width: 99999, height: 400 }, 'too many pixels'],
+    ['compress-image', { targetKb: 3, dimensions: 'custom', width: 2000, height: 2000 }, 'pixels that cannot fit'],
     ['pdf-to-images', { format: 'png', dpi: 150, pages: '99' }, 'a page it has not got'],
     ['pdf-to-images', { format: 'png', dpi: 150, pages: '1, 1, 2' }, 'a page twice'],
     ['sign', { marks: [] }, 'nothing drawn'],
@@ -543,7 +549,8 @@ describe('the gauntlet, settings people can type', () => {
   ];
   for (const [tool, params, label] of tries) {
     it(`${tool}: ${label}`, async () => {
-      const files = tool === 'rent-receipts' ? [] : tool === 'attachments' ? [good()] : tool === 'fill-form' ? [pdf('Form.pdf', fixtures.form!)] : [good()];
+      const photo: Input = { name: 'Page.png', bytes: paperPhotoPng(240, 320), kind: 'image' };
+      const files = tool === 'rent-receipts' ? [] : tool === 'compress-image' ? [photo] : tool === 'attachments' ? [good()] : tool === 'fill-form' ? [pdf('Form.pdf', fixtures.form!)] : [good()];
       const r = await run(tool, files, TIMEOUT, params);
       await check(tool, r, label);
     }, 60_000);

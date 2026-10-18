@@ -24,6 +24,7 @@ const TOOLS = {
   crop: 'crop',
   'split-by-size': 'scissors-line-dashed',
   compress: 'shrink',
+  'compress-image': 'square-user-round',
   'images-to-pdf': 'images',
   'pdf-to-images': 'file-image',
   'n-up': 'grid-2x2',

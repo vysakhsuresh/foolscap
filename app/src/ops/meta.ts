@@ -37,6 +37,7 @@ export const OP_META: Partial<Record<ToolId, OpMeta>> = {
   'remove-password': { arity: { kind: 'each' } },
   'document-details': { arity: { kind: 'each' }, whole: true },
   compress: { arity: { kind: 'each' }, engine: true },
+  'compress-image': { arity: { kind: 'each' } },
   'pdf-to-images': { arity: { kind: 'one' }, engine: true },
   'extract-text': { arity: { kind: 'each' }, engine: true },
   sign: { arity: { kind: 'one' } },

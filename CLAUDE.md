@@ -611,3 +611,21 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   IndexNow (Bing, Yandex, Seznam, Naver) with every page after each publish,
   proved by the key file in app/public. `tests/unit/seo-files.test.ts` and
   `adsense-head.test.ts` keep all of it in step.
+- **2026-10-18** Resize photo to KB (`compress-image`, Convert, 46 live): a
+  photo or signature for an upload form, under 20/50/100/200/500 KB or any
+  size typed (1 KB = 1,000 bytes, so it is under on a form counting 1,024),
+  keeping its shape, cut to a passport photo (3.5 × 4.5 cm, 413 × 531 px at
+  300 dpi, never enlarged) or to exact typed pixels. `ops/photo-ops.ts`, in
+  the op worker: the best JPEG quality that fits (92 down to 50, binary
+  search), then fewer pixels only where allowed and needed (typed pixels are
+  never changed; the result says the limit is too small instead), made
+  smaller by halves so thin signature lines survive. A JPEG decodes as
+  stored (`asStored`) and is turned by its EXIF in one transform of our own,
+  so it is upright the same way in every browser and in Node. Saving afresh
+  drops every hidden detail; the result says which (`hiddenDetails`: location,
+  camera details). A JPEG already under the limit that needs no cutting or
+  turning keeps its picture byte for byte, with only its metadata segments
+  taken out (`withoutDetails`). No portal's rules are stated anywhere: the
+  form says what it needs. Two guides (a photo or signature to 20 or 50 KB;
+  a passport photo from a phone). The shared size formatter now floors, so a
+  file made under 20 KB never reads "20 KB".

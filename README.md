@@ -10,12 +10,12 @@ Android app. `CLAUDE.md` is the brief and the rules; read it first.
 
 ## What is live
 
-All forty-five tools, in five families:
+All forty-six tools, in five families:
 
 | Family | Tools |
 |---|---|
 | Pages | Merge · Split (also at each chapter) · Organise pages · Extract or remove pages · Insert or replace pages · Crop pages · Bookmarks · Page labels · Split by size |
-| Convert and print | Compress (or to a size: 100 KB, 200 KB…) · PDF to Word (scans too) · PDF to Excel · PDF to PowerPoint · PDF to EPUB or web page · Word or Excel to PDF · Archive copy (PDF/A) · Rent receipts (a template: no file needed) · Images to PDF · PDF to images · Pages per sheet · Extract images |
+| Convert and print | Compress (or to a size: 100 KB, 200 KB…) · Resize photo to KB (a photo or signature under 20 KB, 50 KB or any size; passport photo or exact pixels) · PDF to Word (scans too) · PDF to Excel · PDF to PowerPoint · PDF to EPUB or web page · Word or Excel to PDF · Archive copy (PDF/A) · Rent receipts (a template: no file needed) · Images to PDF · PDF to images · Pages per sheet · Extract images |
 | Mark up | Watermark · Page numbers (and Bates) · Sign · Edit text (in the document's own font, cell by cell, scanned pages too; find and replace) · Create a form (finds the blanks for you) · Fill in a form (save and reload answers, Acrobat .xfdf too) · Mark up (highlight, underline, strike out, pen, box, circle, arrow, line, measure, sticky note, text box, stamp, link) · Add image · Edit pictures (move, resize, take out, swap) · Add text · Page background · Header and footer |
 | Protect | Remove areas (or find and remove: Aadhaar, PAN, phone, email, card numbers, any words) · Add a password (or restrict only) · Digital signature (your .pfx certificate) · Remove a password · Clean hidden data · Attachments |
 | Read | Read · Compare two versions · Summarise and translate (on-device AI only) · Scan a document · Make searchable · Extract text |
@@ -49,6 +49,10 @@ picture with the marked parts painted out, so the hidden words are not in the
 file at all. **Compress** shrinks oversized photos, drops objects nothing
 uses and packs uncompressed streams, and says so when a file cannot get
 smaller. A file that needed a password to open keeps the same password.
+**Resize photo to KB** makes a photo or signature fit an upload form's
+limit: the best JPEG quality that fits first, fewer pixels only if it must,
+turned upright, see-through parts on white, and the phone's hidden details
+(its location too) left out.
 
 Every result shows a small picture of its first page (or itself, for an
 image; the first six of a batch) and has **Save**, **Save all** (a folder, or
@@ -204,7 +208,7 @@ code change: build command `npm run build`, output `dist`, `NODE_VERSION=22`;
 **Search and ads.** `SITE_ORIGIN` in `app/src/site/config.ts` writes the
 canonical links, Open Graph tags, `sitemap.xml` and the sitemap line in
 `robots.txt`. Every page carries structured data (WebApplication, HowTo,
-FAQPage, BreadcrumbList) and the link-preview image `brand/og.png`. The 40
+FAQPage, BreadcrumbList) and the link-preview image `brand/og.png`. The 64
 guides (`app/src/site/guides.ts`) and the help under each tool
 (`app/src/site/tool-copy.ts`) are data; `scripts/gen-pages.ts` writes the
 pages. AdSense (`ui/ads.ts`) loads only on the home page and the guides, only

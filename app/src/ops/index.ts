@@ -8,6 +8,7 @@ import { mergeOp } from './merge';
 import { officeToPdfOp, pdfToEpubOp, pdfToExcelOp, pdfToPowerPointOp, pdfToWordOp } from './office-ops';
 import type { Op } from './op';
 import { organiseOp } from './organise';
+import { compressImageOp } from './photo-ops';
 import { cropOp, extractPagesOp, insertPagesOp, nUpOp, splitBySizeOp } from './pages-ops';
 import { addPasswordOp, documentDetailsOp, pdfAOp, removePasswordOp } from './protect-ops';
 import { compressOp, extractTextOp, ocrOp, pdfToImagesOp } from './render-ops';
@@ -42,6 +43,7 @@ const OPS: Partial<Record<ToolId, Op<never>>> = {
   'remove-password': removePasswordOp,
   'document-details': documentDetailsOp,
   compress: compressOp,
+  'compress-image': compressImageOp,
   'pdf-to-images': pdfToImagesOp,
   'extract-text': extractTextOp,
   sign: signOp,

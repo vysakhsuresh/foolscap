@@ -9,7 +9,7 @@
  * The ids are URLs (`/tools/<id>/`) and the keys the SEO pages are generated
  * from. Never rename one once it has shipped.
  *
- * `group` exists because a flat list of forty-five tools stops being a menu
+ * `group` exists because a flat list of forty-six tools stops being a menu
  * and becomes a wall. The groups are by what someone is trying to do, not by
  * which library implements them.
  */
@@ -29,6 +29,7 @@ export type ToolId =
   | 'images-to-pdf'
   | 'pdf-to-images'
   | 'compress'
+  | 'compress-image'
   | 'n-up'
   | 'extract-images'
   | 'watermark'
@@ -104,6 +105,7 @@ export const KEYWORDS: Partial<Record<ToolId, string>> = {
   crop: 'trim margins a4 letter resize page size',
   'split-by-size': 'email attachment limit too big smaller parts mb',
   compress: 'reduce shrink smaller size optimise optimize',
+  'compress-image': 'kb 20kb 50kb 100kb 200kb photo picture image signature resize reduce shrink jpg jpeg png passport size photo upload form exam job application compress',
   'images-to-pdf': 'jpg jpeg png photo picture camera image convert to pdf',
   'pdf-to-images': 'jpg jpeg png image convert pictures',
   'n-up': 'print 2 up 4 up handout booklet',
@@ -155,6 +157,7 @@ export const TOOLS: readonly ToolMeta[] = [
   { id: 'split-by-size', title: 'Split by size', summary: 'Parts that fit a 5, 10 or 25 MB email limit', action: 'Split into parts that fit', input: 'one-pdf', group: 'pages', status: 'live' },
 
   { id: 'compress', title: 'Compress', summary: 'Make a PDF smaller, and say so when it cannot', action: 'Compress it', input: 'several-pdfs', group: 'convert', status: 'live' },
+  { id: 'compress-image', title: 'Resize photo to KB', summary: 'Get a photo or signature under 20 KB, 50 KB or whatever a form asks', action: 'Resize it', input: 'images', group: 'convert', status: 'live' },
   { id: 'pdf-to-word', title: 'PDF to Word', summary: 'An editable .docx with headings, lists and tables, even from a scan', action: 'Make a Word file', input: 'several-pdfs', group: 'convert', status: 'live' },
   { id: 'pdf-to-excel', title: 'PDF to Excel', summary: 'Tables and statements into a spreadsheet you can add up', action: 'Make a spreadsheet', input: 'several-pdfs', group: 'convert', status: 'live' },
   { id: 'pdf-to-powerpoint', title: 'PDF to PowerPoint', summary: 'One slide per page, with the words as text you can edit', action: 'Make the slides', input: 'several-pdfs', group: 'convert', status: 'live' },
@@ -216,6 +219,8 @@ export const SEARCH_NAMES: Record<ToolId, string> = {
   crop: 'Crop PDF',
   'split-by-size': 'Split PDF by file size',
   compress: 'Compress PDF',
+  // A number and its unit never part at the end of a line (the share picture wraps this title).
+  'compress-image': 'Resize photo to 20 KB or 50 KB',
   'images-to-pdf': 'JPG to PDF',
   'pdf-to-images': 'PDF to JPG and PNG',
   'n-up': 'Print several PDF pages per sheet',

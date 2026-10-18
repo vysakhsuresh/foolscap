@@ -1,6 +1,6 @@
 /** The Convert family: images into a PDF, and the images out of one. */
 import { baseName, failed, megabytes, ordinal, plural, refused, stem, store } from './common';
-import { canDecode, jpegOrientation, reencode, sniffImage, type ImageKind } from './images';
+import { NOT_AN_IMAGE, UNREADABLE_IMAGE, canDecode, jpegOrientation, reencode, sniffImage } from './images';
 import type { ExtractedImage, OddImage } from '../pdf';
 import { checkCancelled, type ImagesToPdfParams, type NoParams, type Op, type Outcome } from './op';
 import { openView } from './render-ops';
@@ -8,16 +8,11 @@ import { PAPER } from './pages-ops';
 
 const MARGIN: Record<ImagesToPdfParams['margin'], number> = { none: 0, small: 18, large: 36 };
 
-const UNREADABLE_IMAGE: Partial<Record<ImageKind, string>> = {
-  heic: "This browser can't read iPhone HEIC photos. On the iPhone, share the photo as JPEG (Settings › Camera › Formats › Most Compatible), then add it again.",
-  avif: "This browser can't read AVIF images. Save it as JPEG or PNG first.",
-};
-
 /** An image a PDF can hold as it is (JPEG or PNG), or a sentence saying why this one cannot go in. */
 async function pdfReady(blob: Blob): Promise<{ bytes: Uint8Array; kind: 'jpeg' | 'png' } | string> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const kind = sniffImage(bytes.subarray(0, 32));
-  if (kind === null) return "This isn't an image this tool can read. Use JPEG, PNG, WebP, GIF or BMP.";
+  if (kind === null) return NOT_AN_IMAGE;
   if (kind === 'jpeg' && jpegOrientation(bytes) === 1) return { bytes, kind: 'jpeg' };
   if (kind === 'png') return { bytes, kind: 'png' };
   if (kind === 'jpeg' && !canDecode()) return { bytes, kind: 'jpeg' };

@@ -1,13 +1,13 @@
 {
   "/": {
-    "hash": "7b3b5a599be5391c",
+    "hash": "70e64306ca2b90b1",
     "published": "2026-10-10",
     "modified": "2026-10-18"
   },
   "/about/": {
-    "hash": "9ae9be907ba7e934",
+    "hash": "8a85588d756d624c",
     "published": "2026-10-12",
-    "modified": "2026-10-17"
+    "modified": "2026-10-18"
   },
   "/contact/": {
     "hash": "45fc4531000c92df",
@@ -15,7 +15,7 @@
     "modified": "2026-10-17"
   },
   "/guides/": {
-    "hash": "38e50f313518bb17",
+    "hash": "1b2b5c73cee46d91",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -98,6 +98,11 @@
     "hash": "700cbf229ae9616f",
     "published": "2026-10-12",
     "modified": "2026-10-17"
+  },
+  "/guides/compress-photo-to-20kb-50kb-for-online-forms/": {
+    "hash": "8cb255c2f76addfa",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
   },
   "/guides/convert-pdf-to-pdf-a/": {
     "hash": "b613358209ac3a84",
@@ -213,6 +218,11 @@
     "hash": "ceaba9fbbb8bcd4d",
     "published": "2026-10-12",
     "modified": "2026-10-17"
+  },
+  "/guides/passport-size-photo-from-phone/": {
+    "hash": "0b3bd3d98bddc701",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
   },
   "/guides/password-protect-pdf/": {
     "hash": "ebd5f2d503f356a7",
@@ -345,7 +355,7 @@
     "modified": "2026-10-17"
   },
   "/tools/": {
-    "hash": "6aa4eba871fb3c3d",
+    "hash": "7ed1a70a853ac90c",
     "published": "2026-10-18",
     "modified": "2026-10-18"
   },
@@ -384,8 +394,13 @@
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
+  "/tools/compress-image/": {
+    "hash": "cec3cc9fdefd2f9e",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
   "/tools/compress/": {
-    "hash": "59d3400036e4f729",
+    "hash": "c1113b9aff714f97",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -420,7 +435,7 @@
     "modified": "2026-10-18"
   },
   "/tools/extract-images/": {
-    "hash": "2eebc0fde7130426",
+    "hash": "355fcc5d55c5747c",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -445,7 +460,7 @@
     "modified": "2026-10-18"
   },
   "/tools/images-to-pdf/": {
-    "hash": "a9c98fa637ee79ed",
+    "hash": "3696c1c827db787d",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -465,7 +480,7 @@
     "modified": "2026-10-18"
   },
   "/tools/n-up/": {
-    "hash": "3dbcb1dc8fda0497",
+    "hash": "85df521c4a7922ef",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -475,7 +490,7 @@
     "modified": "2026-10-18"
   },
   "/tools/office-to-pdf/": {
-    "hash": "0cfbf72beb07088f",
+    "hash": "9c58d07f708e62cd",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -495,32 +510,32 @@
     "modified": "2026-10-18"
   },
   "/tools/pdf-a/": {
-    "hash": "9d3f4d370806930c",
+    "hash": "bb90a040234d0e2a",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-epub/": {
-    "hash": "0b65d75b38bfc857",
+    "hash": "4346771da1f98b44",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-excel/": {
-    "hash": "a74904fb9402991e",
+    "hash": "20bff417c2b8e3a2",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-images/": {
-    "hash": "e45d3eb824acc9ab",
+    "hash": "e88ea5d7591f6ee9",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-powerpoint/": {
-    "hash": "4277952c591f9193",
+    "hash": "d71f0cb9497d57a6",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-word/": {
-    "hash": "89729217a958bfc0",
+    "hash": "c7c5d3bb0e2c25c6",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -540,7 +555,7 @@
     "modified": "2026-10-18"
   },
   "/tools/rent-receipts/": {
-    "hash": "8a4d8eba0faa76de",
+    "hash": "75036ffcede2163f",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },

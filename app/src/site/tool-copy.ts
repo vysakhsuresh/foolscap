@@ -224,6 +224,28 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
       { q: 'Is my file uploaded?', a: 'No. It is compressed in your browser, on your device.' },
     ],
   },
+  'compress-image': {
+    about: 'Makes a photo or a signature small enough for an upload form: under 20 KB, 50 KB, 100 KB or any size you type. It can also cut a photo to the passport shape, 3.5 × 4.5 cm, or to the exact pixels a form gives. Each picture comes out as a JPEG, made in your browser, so the photo of your face or your signature never leaves your device.',
+    steps: [
+      'Add the photo or the picture of your signature, or several at once.',
+      'Pick the size the form allows, such as 20 KB or 50 KB, or choose Other and type it.',
+      'Choose Keep its shape or Passport photo, or type the width and height if the form gives them in pixels.',
+      'Press Resize it and read the result line: the new size, and how many pixels.',
+      'Save the picture, or tap Send, and upload that one to the form.',
+    ],
+    notes: [
+      'The best JPEG quality is tried first, and it steps down only as far as the limit needs. Only when the lowest quality that still looks right is too heavy does the picture get fewer pixels, and the result line says so. Here 1 KB is 1,000 bytes, so a picture made under 20 KB is also under it on a form that counts 1,024. A JPEG already under the limit that needs no cutting or turning keeps its picture exactly as it was; only its hidden details come off.',
+      'Phones hide details in every photo: the camera, the time, and often the exact place it was taken. A picture made here carries none of them, and the result line says what was taken out. A photo taken sideways comes out the right way up, and a PNG with a see-through background gets a white one.',
+      'Each form sets its own rules for a photo or a signature: the size in KB, sometimes the pixels, the background, how much of the face shows. Read them on the form itself; this tool meets the numbers you choose and checks nothing else. Step by step: [compress a photo to 20 KB or 50 KB](/guides/compress-photo-to-20kb-50kb-for-online-forms/), and [a passport size photo from your phone](/guides/passport-size-photo-from-phone/).',
+    ],
+    faq: [
+      { q: 'Why did my photo get fewer pixels?', a: 'A full phone photo cannot fit in 20 KB and stay clear, however low the quality. Fewer pixels at a good quality looks far better than all of them broken into blocks, so the tool takes away only as many as it must.' },
+      { q: 'The form says between 20 KB and 50 KB. What do I pick?', a: 'Choose Other and type the top figure, 50. The best quality that fits is used, so the result usually lands near the top. If it still comes out under the lower figure, choose Width × height and type more pixels.' },
+      { q: 'Can I make a passport size photo here?', a: 'Yes. Choose Passport photo: the middle of the photo is cut to 3.5 × 4.5 cm, 413 × 531 pixels at 300 dpi. Take it against a plain, light wall first; see [a passport size photo from your phone](/guides/passport-size-photo-from-phone/).' },
+      { q: 'The form wants a PDF, not a JPG.', a: 'Make the JPG here, then tap Then and choose [Images to PDF](/tools/images-to-pdf/). If that PDF is over the limit, [Compress](/tools/compress/) it to a size.' },
+      { q: 'Is my photo uploaded anywhere?', a: 'No. It is made smaller in your browser, on your device, and the tool works with the internet switched off.' },
+    ],
+  },
   'pdf-to-word': {
     about: 'Turns a PDF into an editable Word .docx, working out headings, paragraphs, lists and tables from where the words sit. Scanned pages can be read too, more slowly. Photos come along where they stood, page numbers and running headers are left out, and fonts become their nearest Word font.',
     steps: [
