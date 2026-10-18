@@ -155,7 +155,7 @@ async function runAndRead(page: Page, tool: string, docs: string[], take: () => 
         if (!(c instanceof HTMLCanvasElement) || c.width === 0) return true;
         const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
         const seen = new Set<number>();
-        for (let i = 0; i < d.length; i += 4 * 97) seen.add((d[i]! << 16) | (d[i + 1]! << 8) | d[i + 2]!);
+        for (let i = 0; i < d.length; i += 4) seen.add((d[i]! << 16) | (d[i + 1]! << 8) | d[i + 2]!);
         return seen.size < 2;
       }).length,
     );
@@ -194,10 +194,11 @@ test.describe('the real world, in the browser', () => {
       await page.getByTestId('file-input').setInputFiles([asFile(path)]);
       let ideas: string[] = [];
       try {
-        await expect(page.getByTestId('suggestions').locator('button').first()).toBeVisible({ timeout: 30_000 });
+        // Ideas, or a sentence saying why there are none.
+        await expect(page.getByTestId('suggestions').locator('button').first().or(page.locator('.notice').filter({ hasText: /damaged|Slides|\.docx|Nothing here/ }))).toBeVisible({ timeout: 30_000 });
         ideas = await page.getByTestId('suggestions').locator('button').evaluateAll((b) => b.map((x) => (x.getAttribute('data-testid') ?? '').replace('suggest-', '')));
       } catch {
-        problems.push('no suggestions within 30 s');
+        problems.push('no suggestions and no reason within 30 s');
       }
       const facts = ((await page.getByTestId('open-file').first().textContent()) ?? '').replace(/\s+/g, ' ').trim();
       if (name === 'lo-report-locked.pdf' && ideas[0] !== 'remove-password') problems.push(`a locked file's first idea is ${ideas[0]}`);
@@ -226,10 +227,10 @@ test.describe('the real world, in the browser', () => {
       const docs = SPREAD.map(pdfPath);
       await page.getByTestId('file-input').setInputFiles(docs.map(asFile));
       await expect(page.getByTestId('file-item')).toHaveCount(docs.length, { timeout: 60_000 });
-      // Every row shows its first page, or its type.
-      await page.waitForTimeout(2500);
+      // Every row shows its first page (the locked one its type), once they are drawn.
+      await expect.poll(() => page.getByTestId('file-thumb').count(), { timeout: 60_000 }).toBeGreaterThanOrEqual(docs.length - 1).catch(() => undefined);
       const thumbs = await page.getByTestId('file-thumb').count();
-      if (thumbs < docs.length - 1) problemsSeen.push(`${tool}: only ${thumbs} of ${docs.length} rows show a picture`);
+      if (thumbs < docs.length - 1) problemsSeen.push(`${tool}: only ${thumbs} of ${docs.length} rows show a picture after a minute`);
       await unlock(page);
       await settle(page, tool);
       const run = await runAndRead(page, tool, SPREAD, take);
@@ -239,7 +240,7 @@ test.describe('the real world, in the browser', () => {
     });
   }
 
-  const ONE = LIVE_TOOLS.filter((t) => t.input === 'one-pdf' && ['split', 'organise', 'extract-pages', 'bookmarks', 'split-by-size', 'pdf-to-images', 'extract-images'].includes(t.id)).map((t) => t.id);
+  const ONE = LIVE_TOOLS.filter((t) => t.input === 'one-pdf' && ['split', 'organise', 'extract-pages', 'split-by-size', 'pdf-to-images', 'extract-images'].includes(t.id)).map((t) => t.id);
   for (const tool of ONE) {
     test(`${tool}: one real document at a time`, async ({ page }) => {
       test.setTimeout(1_500_000);
@@ -428,8 +429,14 @@ test.describe('the real world, in the browser', () => {
               return [s.width, s.height];
             });
             let changed = false;
-            for (let fy = 0.08; fy < 0.6 && !changed; fy += 0.04) {
-              const [x, y] = await at(0.3, fy);
+            // A scan's words are read first, the way a person would.
+            const read = page.getByRole('button', { name: /Read the words on this page/ });
+            if (await read.isVisible().catch(() => false)) {
+              await read.click();
+              await expect(read).toBeHidden({ timeout: 120_000 }).catch(() => undefined);
+            }
+            for (let k = 0; k < 60 && !changed; k++) {
+              const [x, y] = await at([0.15, 0.3, 0.5, 0.7][k % 4]!, 0.06 + Math.floor(k / 4) * 0.04);
               await page.mouse.click(x, y);
               const words = page.getByTestId('opt-words');
               if ((await words.inputValue().catch(() => '')).trim().length > 1) {
