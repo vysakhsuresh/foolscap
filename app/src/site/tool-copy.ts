@@ -449,16 +449,16 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
 
   // ---- Mark up ----
   watermark: {
-    about: 'Stamps your words, such as DRAFT, COPY or a name, across every page, once across the middle or repeated all over, light, medium or strong. A watermark discourages copying; it does not prevent it. The text takes English letters and numbers for now.',
+    about: 'Stamps your words, such as DRAFT, COPY or a name, across every page: once diagonally, once straight across, or repeated all over, light, medium or strong, in any language your keyboard types. A watermark discourages copying; it does not prevent it.',
     steps: [
       'Add one or more PDFs.',
       'Type the watermark text, such as DRAFT, COPY or FOR BANK KYC ONLY.',
       'Choose Light, Medium or Strong.',
-      'Choose Once, across the middle, or Repeated all over.',
+      'Choose Once, diagonally, Once, straight across, or Repeated all over.',
       'Press Add the watermark and save the files.',
     ],
     notes: [
-      'The words go on in bold grey, set at an angle. Once, across the middle is sized to the page and to your words, so DRAFT and a long line such as FOR OFFICE USE ONLY both cross the page without running off it. Repeated all over sets smaller copies in rows across the whole page, which is much harder to crop out or cover up.',
+      'The words go on in bold grey. Once, diagonally runs them corner to corner and Once, straight across runs them level through the middle; both are sized to the page and to your words, so DRAFT and a long line such as FOR OFFICE USE ONLY both cross the page without running off it. Repeated all over sets smaller copies in rows across the whole page, which is much harder to crop out or cover up.',
       'Light lets the page read almost as normal, Medium is clearly visible without getting in the way, and Strong is for when the mark matters more than easy reading. The watermark is laid over the page, so it shows on scanned pages and photos as well as on typed text.',
       'Words in English letters go on as real text. Malayalam, Hindi, Tamil and other scripts go on too, drawn by your browser in the same place, with the words written invisibly underneath so they can still be searched. Every file you add gets the same mark, and a locked file comes back locked with its own password.',
     ],
@@ -908,7 +908,7 @@ export const TOOL_COPY: Partial<Record<ToolId, ToolCopy>> = {
       'Add one or more scanned PDFs.',
       'Pick the main language of the scan, and up to two more if the pages mix languages.',
       'Press Make it searchable.',
-      'Save the searchable PDF, and the .txt file too if one comes out.',
+      'Save the searchable PDF, then open it in any PDF reader and search for a word you can see on a page to check it worked.',
     ],
     notes: [
       'Each page with no text of its own is drawn at 300 dpi and read; pages that already have text are left alone. The words go back in as an invisible layer lined up with the picture, so the reader’s find, select and copy work on them while the page looks exactly as before.',
