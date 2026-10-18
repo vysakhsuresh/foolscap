@@ -135,7 +135,7 @@ test.describe('compress', () => {
     expect((await pdfTexts(bytes))[1]).toContain('The new pipeline runs along the canal');
   });
 
-  test('to a size the words cannot fit: says so and hands back nothing, and with pictures allowed gets there and says the words are now pictures', async ({ page }, info) => {
+  test('to a size the words cannot fit: says so and hands back nothing, and with pictures allowed gets there, with the words still searchable underneath', async ({ page }, info) => {
     laptopOnly(info.project.name);
     test.setTimeout(180_000);
     const plan = await sitePlanPdf();
@@ -156,12 +156,13 @@ test.describe('compress', () => {
     await page.getByTestId('opt-allow-pictures').check();
     await runTool(page, 120_000);
     await expect(page.getByTestId('result-detail')).toContainText('under 200 KB; pages are now pictures at');
+    await expect(page.getByTestId('result-detail')).toContainText('with their words kept underneath to search and copy');
     const { bytes, name } = await save(page);
     expect(name).toBe('Site plan (under 200 KB).pdf');
     expect(bytes.length).toBeLessThanOrEqual(200 * KB);
     expect((await pdfInfo(bytes)).pageCount).toBe(1);
-    // The words are pictures now: none to select.
-    expect((await pdfTexts(bytes))[0]).toBe('');
+    // The page is a picture now, with its words kept invisibly underneath: they still search and copy.
+    expect((await pdfTexts(bytes))[0]).toContain('Site plan, ward 14');
     // The drawing is still there: blue lines all over the middle of the page.
     const pixels = await pagePixels(bytes, 0, 400);
     let blue = 0;
