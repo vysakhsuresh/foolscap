@@ -50,6 +50,33 @@ test('no page scrolls sideways, and at the end of every page nothing pinned cove
   }
 });
 
+test('just below the top of a page, Buy me a coffee is out of the way of the first lines', async ({ page }) => {
+  for (const path of ['/', '/tools/merge/', '/tools/sign/', '/guides/merge-pdf-files/', '/privacy/']) {
+    await page.goto(path);
+    if (path.startsWith('/tools/')) await waitReady(page);
+    // A thumb's first small push down the page.
+    for (let i = 0; i < 3; i++) {
+      await page.evaluate(() => window.scrollBy({ top: 20, behavior: 'instant' }));
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    }
+    await page.waitForTimeout(350);
+    const covered = await page.evaluate(() => {
+      const pill = document.querySelector('[data-testid="support"]');
+      if (!pill) return [];
+      const s = getComputedStyle(pill);
+      const fr = pill.getBoundingClientRect();
+      if (Number(s.opacity) <= 0.05 || fr.bottom <= 0) return [];
+      return [...document.querySelectorAll('main h1, main h2, main p, main li, main a, main button, main label')]
+        .filter((c) => {
+          const cr = c.getBoundingClientRect();
+          return Math.min(fr.right, cr.right) - Math.max(fr.left, cr.left) > 4 && Math.min(fr.bottom, cr.bottom) - Math.max(fr.top, cr.top) > 4;
+        })
+        .map((c) => (c.textContent ?? '').trim().slice(0, 30));
+    });
+    expect(covered, path).toEqual([]);
+  }
+});
+
 test('on a phone, home, the main button and Get help are one row on one centre line, on every tool with a main button', async ({ page }, info) => {
   test.skip(info.project.name !== 'phone', 'a phone layout');
   for (const id of ['merge', 'compress', 'sign', 'edit-text', 'organise', 'rent-receipts', 'scan'] as const) {

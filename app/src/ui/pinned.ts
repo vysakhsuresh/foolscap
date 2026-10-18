@@ -29,8 +29,10 @@ export function tuckWhileScrolling(): void {
     queued = false;
     const y = window.scrollY;
     const atEnd = y + window.innerHeight >= document.documentElement.scrollHeight - 4;
-    // Near the top the header has room; small jitters change nothing.
-    if (y < 96) set(false);
+    // At the very top the header has room for them. A little below it the
+    // coffee would sit on the page's first lines, so it steps aside from the
+    // first few pixels down. Small jitters change nothing.
+    if (y < 8) set(false);
     else if (y > last + 6) set(true, atEnd);
     else if (y < last - 6) set(false);
     else if (atEnd) set(pinned.some((e) => e.classList.contains('is-tucked')), true);
