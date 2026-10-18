@@ -594,3 +594,20 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   everything the browser draws as a picture of words — Add text, Edit text,
   stamps, watermarks, headers and footers, Word and Excel to PDF — carries
   the same words underneath. Emoji (outside the BMP) are left out.
+- **2026-10-18** AdSense and SEO, at the owner's word ("make AdSense ready,
+  maximum SEO, end to end"). The live build (`FOOLSCAP_ADS=1`, set by the
+  publish workflow for the real domain) puts Google's AdSense tag in the
+  `<head>` of the home page and the guides, as Google asks
+  (`scripts/vite-adsense.ts`); local builds, previews and tests never ask
+  Google for anything, and tool pages never carry it. Privacy adds the
+  aboutads.info opt-out. SEO: every guide shows "By Layerbit · Updated
+  <date>" and carries Article data (published and modified); the sitemap
+  carries a lastmod per page that moves only when the page's substance does
+  (`scripts/page-dates.json`, first dates from git); a /tools/ hub lists
+  every tool and sits in every tool page's breadcrumb trail; every tool and
+  guide has its own 1200×630 share picture (`npm run og`, scripts/gen-og.ts,
+  committed under app/public/og/, strict policy, not precached); /llms.txt
+  summarises the site for AI answer engines; and the publish workflow pings
+  IndexNow (Bing, Yandex, Seznam, Naver) with every page after each publish,
+  proved by the key file in app/public. `tests/unit/seo-files.test.ts` and
+  `adsense-head.test.ts` keep all of it in step.

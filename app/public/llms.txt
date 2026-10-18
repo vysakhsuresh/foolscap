@@ -1,0 +1,115 @@
+# Foolscap
+
+> Free PDF tools that work in your browser: merge, compress, sign, edit, unlock and convert. Nothing is uploaded, ever. No sign-up, no limits, no watermark.
+
+Foolscap is a free website of 45 PDF tools that run entirely in the visitor's browser: files are never uploaded, there is no sign-up, no limit on size or number of files, and no watermark. Once a tool page has loaded it works offline. Made by Layerbit (https://layerbit.co.in), in India.
+
+## Tools
+
+### Pages
+
+- [Merge](https://foolscap.co.in/tools/merge/): Join several PDFs into one, in the order you choose.
+- [Split](https://foolscap.co.in/tools/split/): Break one PDF into several smaller files.
+- [Organise pages](https://foolscap.co.in/tools/organise/): Reorder, rotate and delete pages.
+- [Extract or remove pages](https://foolscap.co.in/tools/extract-pages/): Keep only the pages you pick, or take some out.
+- [Insert pages](https://foolscap.co.in/tools/insert-pages/): Put another PDF, or blank pages, in at a chosen page.
+- [Crop pages](https://foolscap.co.in/tools/crop/): Trim the margins, or fit every page to A4 or Letter.
+- [Bookmarks](https://foolscap.co.in/tools/bookmarks/): Add, rename and reorder the chapters a reader jumps between.
+- [Page labels](https://foolscap.co.in/tools/page-labels/): Number the front pages i, ii, iii and the rest 1, 2, 3.
+- [Split by size](https://foolscap.co.in/tools/split-by-size/): Parts that fit a 5, 10 or 25 MB email limit.
+
+### Convert and print
+
+- [Compress](https://foolscap.co.in/tools/compress/): Make a PDF smaller, and say so when it cannot.
+- [PDF to Word](https://foolscap.co.in/tools/pdf-to-word/): An editable .docx with headings, lists and tables, even from a scan.
+- [PDF to Excel](https://foolscap.co.in/tools/pdf-to-excel/): Tables and statements into a spreadsheet you can add up.
+- [PDF to PowerPoint](https://foolscap.co.in/tools/pdf-to-powerpoint/): One slide per page, with the words as text you can edit.
+- [PDF to EPUB or web page](https://foolscap.co.in/tools/pdf-to-epub/): Text that reflows on a phone or e-reader.
+- [Word or Excel to PDF](https://foolscap.co.in/tools/office-to-pdf/): A .docx or .xlsx laid out as a PDF, words still selectable.
+- [Archive copy (PDF/A)](https://foolscap.co.in/tools/pdf-a/): A copy made for keeping: PDF/A-2b, colour profile and details inside.
+- [Rent receipts](https://foolscap.co.in/tools/rent-receipts/): Monthly rent receipts for your HRA claim, ready to sign.
+- [Images to PDF](https://foolscap.co.in/tools/images-to-pdf/): Turn photos and scans into one PDF.
+- [PDF to images](https://foolscap.co.in/tools/pdf-to-images/): Save every page as a PNG or JPEG.
+- [Pages per sheet](https://foolscap.co.in/tools/n-up/): 2-up or 4-up for printing.
+- [Extract images](https://foolscap.co.in/tools/extract-images/): Pull out the embedded originals, not re-rendered pages.
+
+### Mark up
+
+- [Watermark](https://foolscap.co.in/tools/watermark/): Stamp DRAFT or a name across every page.
+- [Page numbers](https://foolscap.co.in/tools/page-numbers/): Number the pages, and skip a cover if you like.
+- [Sign](https://foolscap.co.in/tools/sign/): Draw your signature and place it on the page.
+- [Mark up](https://foolscap.co.in/tools/mark-up/): Highlight, underline, notes, shapes, arrows, stamps, links and measurements.
+- [Edit text](https://foolscap.co.in/tools/edit-text/): Change words already on the page, or find and replace them.
+- [Add text](https://foolscap.co.in/tools/add-text/): Tap a page and write on it.
+- [Edit pictures](https://foolscap.co.in/tools/edit-images/): Move, resize, take out or swap the pictures already on a page.
+- [Add image](https://foolscap.co.in/tools/add-image/): Put a photo, logo or stamp picture on a page.
+- [Fill in a form](https://foolscap.co.in/tools/fill-form/): Type into a real PDF form and seal the answers.
+- [Page background](https://foolscap.co.in/tools/background/): Give the pages a soft paper colour.
+- [Create a form](https://foolscap.co.in/tools/create-form/): Turn a printed form into one people fill in on screen.
+- [Header and footer](https://foolscap.co.in/tools/header-footer/): A line along the top or bottom of every page.
+
+### Protect
+
+- [Add a password](https://foolscap.co.in/tools/add-password/): Lock a PDF with AES-256.
+- [Digital signature](https://foolscap.co.in/tools/digital-sign/): Seal a PDF with your certificate (.pfx), checked by Acrobat.
+- [Remove a password](https://foolscap.co.in/tools/remove-password/): Unlock a PDF whose password you know.
+- [Remove areas](https://foolscap.co.in/tools/remove-areas/): Genuinely remove what you mark, not a black box over it.
+- [Clean hidden data](https://foolscap.co.in/tools/document-details/): Strip metadata, scripts and comments, or set the title and author.
+- [Attachments](https://foolscap.co.in/tools/attachments/): Put files inside a PDF, or take out the ones it carries.
+
+### Read and capture
+
+- [Compare](https://foolscap.co.in/tools/compare/): See what changed between two versions, word by word.
+- [Read](https://foolscap.co.in/tools/read/): Open a document, then hand it to any tool.
+- [Summarise and translate](https://foolscap.co.in/tools/summarise/): Key points or a translation, by the AI on your own device.
+- [Scan a document](https://foolscap.co.in/tools/scan/): Photograph pages and straighten them.
+- [Make searchable](https://foolscap.co.in/tools/ocr/): Read the text in a scan so you can search and copy it.
+- [Extract text](https://foolscap.co.in/tools/extract-text/): Pull the words out of a PDF as plain text.
+
+## Guides
+
+- [How to compress a PDF to under 100 KB](https://foolscap.co.in/guides/compress-pdf-to-100kb/): Get a PDF under 100 KB for an exam, job or government portal. Free, no sign-up, and the file is made smaller on your own device, never uploaded.
+- [How to get a PDF under 200 KB](https://foolscap.co.in/guides/compress-pdf-to-200kb/): Make a PDF smaller than 200 KB for an application form in a few taps. Free, no sign-up, no watermark, and your file is never uploaded to a server.
+- [How to compress a PDF to 50 KB](https://foolscap.co.in/guides/compress-pdf-to-50kb/): Shrink a PDF to under 50 KB for strict upload forms. Type any size you need, free and with no sign-up. The file is never uploaded anywhere.
+- [How to get a PDF under 500 KB and keep it sharp](https://foolscap.co.in/guides/compress-pdf-to-500kb/): Reduce a PDF to under 500 KB with photos still sharp and text untouched. Free, no sign-up, no watermark, done in your browser with no upload.
+- [How to reduce a PDF to under 1 MB](https://foolscap.co.in/guides/compress-pdf-to-1mb/): Bring a big PDF under 1 MB for a portal or an email, with text left crisp. Free, no sign-up, no limits, and your file is never sent to a server.
+- [How to make a PDF small enough to email](https://foolscap.co.in/guides/reduce-pdf-size-for-email/): PDF too big to attach? Compress it, or split it into parts under 5, 10 or 25 MB. Free and private: the file never leaves your own device.
+- [What is the password for the e-Aadhaar PDF?](https://foolscap.co.in/guides/aadhaar-pdf-password/): The e-Aadhaar password is the first four letters of your name in capitals plus your year of birth. Then unlock it for good, free, with no upload.
+- [How to remove the password from a bank statement PDF](https://foolscap.co.in/guides/remove-password-from-bank-statement-pdf/): Unlock a bank statement PDF with the password your bank gave you, and save a copy that opens without it. Free, private, and nothing is uploaded.
+- [How to convert a bank statement PDF to Excel](https://foolscap.co.in/guides/bank-statement-pdf-to-excel/): Turn a bank statement PDF into an Excel sheet with dates, amounts and balances as real numbers. Free, private, and your statement is never uploaded.
+- [How to merge PDF files into one](https://foolscap.co.in/guides/merge-pdf-files/): Join several PDFs into one file in the order you choose. Free, no sign-up, no file limit, no watermark, and your files never leave your device.
+- [How to put the Aadhaar front and back on one page](https://foolscap.co.in/guides/aadhaar-front-and-back-on-one-page/): Combine photos of your Aadhaar front and back into one PDF, or onto one A4 sheet, in your browser. Free, no sign-up, and the photos are never uploaded.
+- [How to convert JPG images to a PDF](https://foolscap.co.in/guides/jpg-to-pdf/): Turn JPG, PNG or WebP images into one PDF, one picture per page, in any order. Free, no sign-up, no watermark, and nothing is uploaded.
+- [How to turn a photo into a PDF on your phone](https://foolscap.co.in/guides/photo-to-pdf-on-phone/): Make a PDF from photos on an Android phone or iPhone in the browser, with no app to install. Free, no sign-up, and the photos never leave your phone.
+- [How to scan a document to PDF with your phone](https://foolscap.co.in/guides/scan-document-to-pdf-with-phone/): Photograph paper with your phone and get a straight, clean PDF scan in your browser. Free, no app, no sign-up, and the photos are never uploaded.
+- [How to split a PDF into several files](https://foolscap.co.in/guides/split-pdf/): Split a PDF every few pages, into single pages, by page ranges or at each chapter. Free, no sign-up, no limits, and nothing is uploaded.
+- [How to extract pages from a PDF](https://foolscap.co.in/guides/extract-pages-from-pdf/): Make a new PDF with just the pages you pick, like 1-3, 7 or 12 to the end. Free, no sign-up, no watermark, and the file is never uploaded.
+- [How to delete pages from a PDF](https://foolscap.co.in/guides/delete-pages-from-pdf/): Remove blank, extra or private pages from a PDF and save a clean copy. Free, no sign-up, no watermark, done in your browser with no upload.
+- [How to rotate pages in a PDF and save it](https://foolscap.co.in/guides/rotate-pdf-pages/): Turn sideways or upside-down PDF pages the right way and save the file that way for good. Free, no sign-up, and the PDF is never uploaded.
+- [How to sign a PDF online for free](https://foolscap.co.in/guides/sign-pdf-online-free/): Draw or type your signature and place it anywhere on a PDF, on a phone or computer. Free, no sign-up, no watermark, and nothing is uploaded.
+- [How to digitally sign a PDF with a .pfx certificate](https://foolscap.co.in/guides/digital-signature-pdf-dsc/): Sign a PDF with your DSC or .pfx certificate so a reader can check who signed and that nothing changed since. Free, in your browser, with no upload.
+- [How to add page numbers to a PDF](https://foolscap.co.in/guides/add-page-numbers-to-pdf/): Number the pages of a PDF at the top or bottom, as 1, Page 1 or 1 of 12, and skip the cover. Free, no sign-up, and the file is never uploaded.
+- [How to add a watermark to a PDF](https://foolscap.co.in/guides/add-watermark-to-pdf/): Stamp DRAFT, CONFIDENTIAL or your name across every page of a PDF, once or repeated. Free, no sign-up, and the file never leaves your device.
+- [How to edit the text in a PDF](https://foolscap.co.in/guides/edit-text-in-pdf/): Fix a typo, change a date or an amount, or find and replace a word in a PDF. Free, no sign-up, no watermark, and your file is never uploaded.
+- [How to fill in a PDF form](https://foolscap.co.in/guides/fill-pdf-form/): Type into the fields of a PDF form, tick the boxes, and save it filled in or sealed. Free, no sign-up, and your answers never leave your device.
+- [How to make a PDF form fillable](https://foolscap.co.in/guides/make-pdf-fillable/): Turn a printed form into a PDF people can type into, with text boxes, tick boxes and lists. Free, no sign-up, and nothing is uploaded.
+- [How to put a password on a PDF](https://foolscap.co.in/guides/password-protect-pdf/): Lock a PDF with a password using AES-256, so nobody can open it without it. Free, no sign-up, and the file and password never leave your device.
+- [How to hide your Aadhaar number before sharing it](https://foolscap.co.in/guides/hide-aadhaar-number-in-pdf/): Make a masked copy of your Aadhaar with the number truly removed, not just covered. Free, no sign-up, and the file never leaves your own device.
+- [How to redact a PDF properly](https://foolscap.co.in/guides/redact-pdf/): Black out names, numbers and photos in a PDF so they are truly gone, not hidden under a box. Find Aadhaar, PAN or phone numbers too. Free, no upload.
+- [How to remove hidden metadata from a PDF](https://foolscap.co.in/guides/remove-pdf-metadata/): Strip the author, the program that made it, dates and hidden XMP details from a PDF before you send it. Free, no sign-up, and nothing is uploaded.
+- [How to convert a PDF to an editable Word file](https://foolscap.co.in/guides/pdf-to-word/): Convert a PDF to an editable Word .docx with headings, lists and tables, even from a scan. Free, no sign-up, and your file is never uploaded.
+- [How to convert a Word document to PDF](https://foolscap.co.in/guides/word-to-pdf/): Turn a Word .docx or Excel .xlsx into a PDF with the words still selectable. Free, no sign-up, no watermark, and your document never leaves your device.
+- [How to convert PDF pages to JPG images](https://foolscap.co.in/guides/pdf-to-jpg/): Save every page of a PDF, or just the ones you pick, as a JPG or PNG image at screen or print sharpness. Free, no sign-up, and nothing is uploaded.
+- [How to extract images from a PDF](https://foolscap.co.in/guides/extract-images-from-pdf/): Save the photos and pictures stored inside a PDF as files, exactly as they are, with no re-compression. Free, no sign-up, and nothing is uploaded.
+- [How to make a scanned PDF searchable](https://foolscap.co.in/guides/make-scanned-pdf-searchable/): Read the words in a scanned PDF so you can search and copy them, in English, Malayalam, Hindi, Tamil and more. Free, private, never uploaded.
+- [How to make rent receipts for your HRA claim](https://foolscap.co.in/guides/hra-rent-receipt-generator/): Make monthly rent receipts for HRA in one PDF: amount in words, owner’s PAN, ready to print and sign. Free, nothing to upload, nothing stored.
+- [How to compare two versions of a PDF](https://foolscap.co.in/guides/compare-two-pdfs/): See what changed between two PDFs, word by word: new words highlighted, removed words noted. Free, no sign-up, and neither file is uploaded.
+- [How to convert a PDF to EPUB for a phone or e-reader](https://foolscap.co.in/guides/pdf-to-epub/): Turn a PDF into an EPUB e-book or a web page whose text reflows to fit a phone or Kindle screen. Free, no sign-up, and the file is never uploaded.
+- [How to convert a PDF to PDF/A](https://foolscap.co.in/guides/convert-pdf-to-pdf-a/): Make a PDF/A-2b archive copy for court filing or long-term records, with a colour profile and details inside. Free, no sign-up, no upload.
+- [Is it safe to upload your PDF to an online tool?](https://foolscap.co.in/guides/is-it-safe-to-upload-pdf-online/): What happens to a PDF when you upload it to an online tool, and how to use PDF tools that never upload it at all. Free, no sign-up, checkable.
+- [PDF tools that work with no internet](https://foolscap.co.in/guides/pdf-tools-that-work-offline/): Merge, split, compress, sign and read PDFs with no internet connection, on a phone or computer. Free, installable, nothing uploaded, no sign-up.
+
+## How the privacy works
+
+- [Privacy](https://foolscap.co.in/private/): every tool page carries a Content-Security-Policy that forbids talking to any other site; the work is done by scripts already downloaded, inside the browser.
+- [About](https://foolscap.co.in/about/), [Contact](https://foolscap.co.in/contact/), [Terms](https://foolscap.co.in/terms/)

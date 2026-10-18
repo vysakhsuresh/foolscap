@@ -23,7 +23,9 @@ test('every page in the sitemap is there, canonical, titled, described and previ
     const html = await response.text();
     expect(attr(html, /<link rel="canonical" href="([^"]+)">/), `${path} canonical`).toBe(url);
     expect(attr(html, /<meta property="og:url" content="([^"]+)">/), `${path} og:url`).toBe(url);
-    expect(attr(html, /<meta property="og:image" content="([^"]+)">/), `${path} og:image`).toBe(`${SITE_ORIGIN}/brand/og.png`);
+    // A tool or a guide shows its own share picture; every other page the site's.
+    const own = /^\/(tools|guides)\/([a-z0-9-]+)\/$/.exec(path);
+    expect(attr(html, /<meta property="og:image" content="([^"]+)">/), `${path} og:image`).toBe(own ? `${SITE_ORIGIN}/og/${own[1]}-${own[2]}.jpg` : `${SITE_ORIGIN}/brand/og.png`);
     const title = attr(html, /<title>([^<]+)<\/title>/) ?? '';
     const description = attr(html, /<meta name="description" content="([^"]+)">/) ?? '';
     expect(title.length, `${path} title "${title}"`).toBeGreaterThan(10);

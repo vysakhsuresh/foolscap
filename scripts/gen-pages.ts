@@ -11,6 +11,8 @@
  *
  *   node scripts/gen-pages.ts            (also runs on predev and prebuild)
  */
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,6 +24,38 @@ import { GROUP_ICONS, TOOL_ICONS } from '../app/src/ui/tool-icons.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = resolve(ROOT, 'app');
+
+// ---- When each page last really changed ----
+// Search engines trust a sitemap's dates only while they are true, so a page's
+// date moves only when what it says changes: kept in scripts/page-dates.json
+// with a fingerprint of the page's substance, committed like the pages.
+const DATES_FILE = resolve(ROOT, 'scripts', 'page-dates.json');
+const TODAY = process.env['FOOLSCAP_TODAY'] ?? new Date().toISOString().slice(0, 10);
+const pageDates: Record<string, { readonly hash: string; readonly published: string; readonly modified: string }> = existsSync(DATES_FILE) ? JSON.parse(readFileSync(DATES_FILE, 'utf8')) : {};
+let datesChanged = false;
+const pageFile = (path: string) => resolve(APP, path === '/' ? 'index.html' : `${path.replace(/^\//, '')}index.html`);
+/** When git first and last saw the page's file, for a page with no record yet: its real age, not today. */
+function gitDates(path: string): { readonly first: string; readonly last: string } | null {
+  try {
+    const out = execFileSync('git', ['log', '--format=%cs', '--', pageFile(path)], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .split('\n')
+      .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+    return out.length === 0 ? null : { first: out[out.length - 1]!, last: out[0]! };
+  } catch {
+    return null;
+  }
+}
+function datesOf(path: string, substance: string): { readonly published: string; readonly modified: string } {
+  const hash = createHash('sha1').update(substance).digest('hex').slice(0, 16);
+  const known = pageDates[path];
+  if (known && known.hash === hash) return known;
+  const seen = known === undefined ? gitDates(path) : null;
+  const next = { hash, published: known?.published ?? seen?.first ?? TODAY, modified: seen?.last ?? TODAY };
+  pageDates[path] = next;
+  datesChanged = true;
+  return next;
+}
+const longDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const svg = (body: string, cls = '') => `<svg${cls ? ` class="${cls}"` : ''} viewBox="0 0 24 24" aria-hidden="true" focusable="false">${body}</svg>`;
@@ -99,7 +133,7 @@ function header(current: Section): string {
 const FOOTER = `<footer class="site-footer" data-testid="site-footer">
     <div class="wrap site-footer__row">
       <p>© 2026 Foolscap · from <a href="https://layerbit.co.in" rel="noopener">Layerbit</a></p>
-      <p class="site-footer__links"><a href="/guides/">Guides</a><a href="/about/">About</a><a href="/private/">Privacy</a><a href="/terms/">Terms</a><a href="/contact/">Contact</a><button class="linklike" type="button" popovertarget="help-panel">Get help</button><a href="${HELP.coffee}" target="_blank" rel="noopener">Buy me a coffee</a><a class="share-link" data-testid="share-whatsapp" href="${SHARE_URL}" target="_blank" rel="noopener">Tell a friend on WhatsApp</a></p>
+      <p class="site-footer__links"><a href="/tools/">All tools</a><a href="/guides/">Guides</a><a href="/about/">About</a><a href="/private/">Privacy</a><a href="/terms/">Terms</a><a href="/contact/">Contact</a><button class="linklike" type="button" popovertarget="help-panel">Get help</button><a href="${HELP.coffee}" target="_blank" rel="noopener">Buy me a coffee</a><a class="share-link" data-testid="share-whatsapp" href="${SHARE_URL}" target="_blank" rel="noopener">Tell a friend on WhatsApp</a></p>
     </div>
   </footer>
   <button class="help-orb" type="button" popovertarget="help-panel" data-testid="help-orb" aria-label="Get help">
@@ -130,6 +164,12 @@ const TITLE_MAX = 60;
 
 const absolute = (path: string) => `${SITE_ORIGIN ?? ''}${path}`;
 const OG_IMAGE = '/brand/og.png';
+/** A tool's or a guide's own share picture (scripts/gen-og.ts), else the site's. */
+function ogImageFor(path: string | null): { readonly url: string; readonly type: string } {
+  const m = path === null ? null : /^\/(tools|guides)\/([a-z0-9-]+)\/$/.exec(path);
+  const file = m ? `/og/${m[1]}-${m[2]}.jpg` : null;
+  return file !== null && existsSync(resolve(APP, 'public', file.slice(1))) ? { url: file, type: 'image/jpeg' } : { url: OG_IMAGE, type: 'image/png' };
+}
 
 /** JSON for a <script type="application/ld+json"> block: no "<" can close the tag early. */
 const ldJson = (data: object) => JSON.stringify({ '@context': 'https://schema.org', ...data }).replace(/</g, '\\u003c');
@@ -153,10 +193,11 @@ function seo(title: string, description: string, o: Pick<HeadOptions, 'path' | '
   if (SITE_ORIGIN !== null) {
     if (o.path !== null) lines.push(`<meta property="og:url" content="${absolute(o.path)}">`);
     lines.push(
-      `<meta property="og:image" content="${absolute(OG_IMAGE)}">`,
+      `<meta property="og:image" content="${absolute(ogImageFor(o.path).url)}">`,
+      `<meta property="og:image:type" content="${ogImageFor(o.path).type}">`,
       '<meta property="og:image:width" content="1200">',
       '<meta property="og:image:height" content="630">',
-      `<meta property="og:image:alt" content="${SITE_NAME}: PDF tools that can’t upload your files">`,
+      `<meta property="og:image:alt" content="${ogImageFor(o.path).url === OG_IMAGE ? `${SITE_NAME}: PDF tools that can’t upload your files` : esc(title)}">`,
     );
   }
   lines.push('<meta name="twitter:card" content="summary_large_image">');
@@ -261,7 +302,7 @@ function toolPage(tool: ToolMeta): string {
   const guides = GUIDES.filter((g) => g.tool === tool.id || g.related.includes(tool.id)).sort((a, b) => Number(b.tool === tool.id) - Number(a.tool === tool.id)).slice(0, 4);
   // No WebApplication block: Google's software-app report insists on ratings or
   // reviews, and we will not invent either.
-  const ld: object[] = [breadcrumbs([['Home', '/'], [tool.title, path]])];
+  const ld: object[] = [breadcrumbs([['Home', '/'], ['All tools', '/tools/'], [tool.title, path]])];
   if (copy) {
     ld.push({ '@type': 'HowTo', name: `How to use ${SEARCH_NAMES[tool.id]}`, step: copy.steps.map((text, i) => ({ '@type': 'HowToStep', position: i + 1, text: plain(text) })) });
   }
@@ -322,7 +363,7 @@ function toolPage(tool: ToolMeta): string {
       <h2 class="related__title" id="related-title">${siblings.length > 0 ? `More in ${esc(group.title)}` : 'More tools'}</h2>
       <div class="related__list">
         ${related}
-        <a class="related__item related__item--all" href="/#tools"><span>All tools</span><span aria-hidden="true">→</span></a>
+        <a class="related__item related__item--all" href="/tools/"><span>All tools</span><span aria-hidden="true">→</span></a>
       </div>
     </nav>
     ${help}
@@ -442,6 +483,7 @@ const SAFE_NOTE = `<div class="callout"><p><strong>Your file stays on your devic
 function guidePage(g: Guide): string {
   const tool = toolById(g.tool);
   const path = `/guides/${g.slug}/`;
+  const dates = datesOf(path, JSON.stringify(g));
   const group = groupOf(tool.group);
   const others = [
     ...GUIDES.filter((o) => o !== g && o.tool === g.tool),
@@ -452,6 +494,7 @@ function guidePage(g: Guide): string {
   const body = `<article class="prose guide" data-testid="guide" data-group="${tool.group}">
       <nav class="trail" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/guides/">Guides</a><span aria-hidden="true">/</span><span>${esc(group.title)}</span></nav>
       <h1>${esc(g.h1)}</h1>
+      <p class="guide__meta">By <a href="/about/">${esc(MADE_BY.name)}</a>, the makers of ${SITE_NAME} · Updated <time datetime="${dates.modified}">${longDate(dates.modified)}</time></p>
       <p class="lead">${rich(g.intro)}</p>
       <p class="guide__cta"><a class="button" data-testid="guide-cta" href="/tools/${tool.id}/">${esc(tool.title)}<span aria-hidden="true"> →</span></a><span class="guide__promise">Free. Nothing is uploaded.</span></p>
       <h2>How to do it</h2>
@@ -477,9 +520,63 @@ function guidePage(g: Guide): string {
     ads: true,
     body,
     ld: [
+      {
+        '@type': 'Article',
+        headline: plain(g.h1),
+        description: g.description,
+        datePublished: dates.published,
+        dateModified: dates.modified,
+        author: { '@type': 'Organization', name: MADE_BY.name, url: MADE_BY.url },
+        publisher: ORGANIZATION,
+        mainEntityOfPage: absolute(path),
+        image: absolute(ogImageFor(path).url),
+        inLanguage: 'en-IN',
+      },
       { '@type': 'HowTo', name: plain(g.h1), description: plain(g.intro), tool: { '@type': 'HowToTool', name: `${SITE_NAME} ${tool.title}` }, step: g.steps.map((text, i) => ({ '@type': 'HowToStep', position: i + 1, text: plain(text) })) },
       faqLd(g.faq),
       breadcrumbs([['Home', '/'], ['Guides', '/guides/'], [plain(g.h1), path]]),
+    ],
+  });
+}
+
+/**
+ * Every tool on one page, by family, each with what it does and the guides
+ * that use it: the address a search for "all PDF tools" lands on, and one
+ * click from every tool for a crawler. It takes no files, and carries no ads
+ * (its path has the tool pages' strict policy).
+ */
+function toolsHub(): string {
+  const families = GROUPS.map((group) => {
+    const tools = live.filter((t) => t.group === group.id);
+    if (tools.length === 0) return '';
+    return `<section class="family" id="${group.id}" data-group="${group.id}" aria-labelledby="hub-${group.id}">
+        <div class="family__head">
+          <span class="family__icon">${svg(GROUP_ICONS[group.id])}</span>
+          <div>
+            <h2 class="family__title" id="hub-${group.id}">${esc(group.title)}</h2>
+            <p class="family__blurb">${esc(group.blurb)}</p>
+          </div>
+        </div>
+        <div class="tool-grid">
+          ${tools.map(card).join('\n          ')}
+        </div>
+      </section>`;
+  })
+    .filter(Boolean)
+    .join('\n      ');
+  return articlePage({
+    title: `All ${live.length} PDF tools, free and private — ${SITE_NAME}`,
+    description: `Every ${SITE_NAME} tool on one page: merge, split, compress, sign, edit, convert, protect and read PDFs in your browser. Nothing is uploaded, ever.`,
+    path: '/tools/',
+    section: 'tools',
+    body: `<nav class="trail" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><span>All tools</span></nav>
+      <h1>All ${live.length} PDF tools</h1>
+      <p class="lead">Each one works inside your browser: your files are never uploaded, there is no sign-up and no limit, and nothing is stamped on what you make. Pick a tool, or <a href="/open/">open a file</a> and Foolscap suggests what to do with it.</p>
+      ${families}
+      <p><a class="button button--ghost" href="/guides/">Read the guides</a></p>`,
+    ld: [
+      { '@type': 'CollectionPage', name: `All ${SITE_NAME} tools`, url: absolute('/tools/'), hasPart: live.map((t) => ({ '@type': 'WebPage', name: t.title, url: absolute(`/tools/${t.id}/`), description: t.summary })) },
+      breadcrumbs([['Home', '/'], ['All tools', '/tools/']]),
     ],
   });
 }
@@ -741,6 +838,7 @@ if (writeIfChanged(privatePath, privacy)) changed++;
 // The reading pages, all generated.
 const guidesDir = resolve(APP, 'guides');
 if (writeIfChanged(resolve(guidesDir, 'index.html'), guidesIndex())) changed++;
+if (writeIfChanged(resolve(APP, 'tools', 'index.html'), toolsHub())) changed++;
 for (const g of GUIDES) if (writeIfChanged(resolve(guidesDir, g.slug, 'index.html'), guidePage(g))) changed++;
 for (const dir of existsSync(guidesDir) ? readdirSync(guidesDir) : []) {
   if (dir !== 'index.html' && !GUIDES.some((g) => g.slug === dir)) {
@@ -762,17 +860,58 @@ if (writeIfChanged(resolve(APP, '404.html'), notFoundPage())) changed++;
 // for SITE_ORIGIN (site/config.ts). Without one robots.txt only allows all.
 {
   const publicDir = resolve(APP, 'public');
-  const paths = ['/', '/guides/', ...GUIDES.map((g) => `/guides/${g.slug}/`), ...live.map((t) => `/tools/${t.id}/`), '/open/', '/about/', '/contact/', '/private/', '/terms/'];
+  const paths = ['/', '/tools/', '/guides/', ...GUIDES.map((g) => `/guides/${g.slug}/`), ...live.map((t) => `/tools/${t.id}/`), '/open/', '/about/', '/contact/', '/private/', '/terms/'];
   const robots = SITE_ORIGIN === null ? 'User-agent: *\nAllow: /\n' : `User-agent: *\nAllow: /\n\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`;
   if (writeIfChanged(resolve(publicDir, 'robots.txt'), robots)) changed++;
   const sitemapPath = resolve(publicDir, 'sitemap.xml');
   if (SITE_ORIGIN === null) {
     if (existsSync(sitemapPath)) rmSync(sitemapPath);
   } else {
-    const urls = paths.map((p) => `  <url><loc>${SITE_ORIGIN}${p}</loc></url>`).join('\n');
+    // Every other page's date comes from its main content as written (a guide's from its words, above).
+    const fileOf = pageFile;
+    for (const p of paths) {
+      if (p.startsWith('/guides/') && p !== '/guides/') continue;
+      const html = existsSync(fileOf(p)) ? readFileSync(fileOf(p), 'utf8') : '';
+      datesOf(p, (/<main[\s\S]*<\/main>/.exec(html) ?? [html])[0]);
+    }
+    const urls = paths.map((p) => `  <url><loc>${SITE_ORIGIN}${p}</loc><lastmod>${pageDates[p]?.modified ?? TODAY}</lastmod></url>`).join('\n');
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
     if (writeIfChanged(sitemapPath, xml)) changed++;
   }
+}
+
+// ---- For AI answer engines: a plain summary of the site, its tools and its guides (llmstxt.org) ----
+{
+  const origin = SITE_ORIGIN ?? '';
+  const lines = [
+    `# ${SITE_NAME}`,
+    '',
+    `> ${DESCRIPTION}`,
+    '',
+    `${SITE_NAME} is a free website of ${live.length} PDF tools that run entirely in the visitor's browser: files are never uploaded, there is no sign-up, no limit on size or number of files, and no watermark. Once a tool page has loaded it works offline. Made by ${MADE_BY.name} (${MADE_BY.url}), in India.`,
+    '',
+    '## Tools',
+    '',
+    ...GROUPS.flatMap((group) => {
+      const tools = live.filter((t) => t.group === group.id);
+      return tools.length === 0 ? [] : [`### ${group.title}`, '', ...tools.map((t) => `- [${t.title}](${origin}/tools/${t.id}/): ${t.summary}.`), ''];
+    }),
+    '## Guides',
+    '',
+    ...GUIDES.map((g) => `- [${g.h1}](${origin}/guides/${g.slug}/): ${g.description}`),
+    '',
+    '## How the privacy works',
+    '',
+    `- [Privacy](${origin}/private/): every tool page carries a Content-Security-Policy that forbids talking to any other site; the work is done by scripts already downloaded, inside the browser.`,
+    `- [About](${origin}/about/), [Contact](${origin}/contact/), [Terms](${origin}/terms/)`,
+    '',
+  ];
+  if (writeIfChanged(resolve(APP, 'public', 'llms.txt'), lines.join('\n'))) changed++;
+}
+
+if (datesChanged) {
+  const sorted = Object.fromEntries(Object.entries(pageDates).sort(([a], [b]) => a.localeCompare(b)));
+  if (writeIfChanged(DATES_FILE, `${JSON.stringify(sorted, null, 2)}\n`)) changed++;
 }
 
 console.log(`pages: ${live.length} tool pages, ${GUIDES.length} guides, home, privacy, about, terms, contact and 404 checked; ${changed} file${changed === 1 ? '' : 's'} written`);
