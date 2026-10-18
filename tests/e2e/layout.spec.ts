@@ -35,7 +35,7 @@ test('no page scrolls sideways, and at the end of every page nothing pinned cove
   test.setTimeout(240_000);
   for (const path of ALL_PAGES) {
     await page.goto(path);
-    if (path.startsWith('/tools/') || path === '/open/') await waitReady(page);
+    if ((path.startsWith('/tools/') && path !== '/tools/') || path === '/open/') await waitReady(page);
     const width = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
     expect(width[0], `${path} scrolls sideways`).toBeLessThanOrEqual((width[1] ?? 0) + 1);
     // Scrolled down to the end the way a person does, so anything that steps aside has.

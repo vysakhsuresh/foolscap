@@ -61,6 +61,8 @@ jobs:
         env:
           FOOLSCAP_HOST: github
           FOOLSCAP_BASE: ${{ steps.where.outputs.cname != '' && '/' || '/foolscap/' }}
+          # The real domain only: Google's AdSense tag in the head of the home page and the guides.
+          FOOLSCAP_ADS: ${{ steps.where.outputs.cname != '' && '1' || '0' }}
 
       - name: Publish dist/ to the gh-pages branch
         env:
@@ -75,3 +77,26 @@ jobs:
           git add -A
           git commit -q -m "Publish ${GITHUB_SHA}"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+
+      # Tells Bing (and the engines that share IndexNow: Yandex, Seznam, Naver)
+      # which pages exist, so new and changed pages are found in hours, not
+      # weeks. The key is the file app/public/<key>.txt, which proves the site
+      # asked. It only names this site's own public pages; nothing about any
+      # visitor is involved. A failure here never fails the publish.
+      - name: Ask search engines to look at the pages again (IndexNow)
+        if: steps.where.outputs.cname != ''
+        env:
+          CNAME: ${{ steps.where.outputs.cname }}
+        run: |
+          key=$(ls app/public | sed -n 's/^\([0-9a-f]\{32\}\)\.txt$/\1/p' | head -1)
+          if [ -z "$key" ]; then echo "No IndexNow key file"; exit 0; fi
+          sleep 60
+          node -e '
+            const fs = require("fs");
+            const [host, key] = process.argv.slice(1);
+            const urls = [...fs.readFileSync("dist/sitemap.xml", "utf8").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+            const body = JSON.stringify({ host, key, keyLocation: `https://${host}/${key}.txt`, urlList: urls });
+            fetch("https://api.indexnow.org/indexnow", { method: "POST", headers: { "Content-Type": "application/json; charset=utf-8" }, body })
+              .then((r) => console.log(`IndexNow: ${r.status} for ${urls.length} pages`))
+              .catch((e) => console.log(`IndexNow failed: ${e.message}`));
+          ' "$CNAME" "$key" || true

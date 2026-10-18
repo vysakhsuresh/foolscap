@@ -1,0 +1,467 @@
+{
+  "/": {
+    "hash": "889ca90add343242",
+    "published": "2026-10-10",
+    "modified": "2026-10-17"
+  },
+  "/about/": {
+    "hash": "9ae9be907ba7e934",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/contact/": {
+    "hash": "45fc4531000c92df",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/": {
+    "hash": "cced3a470cd7c2a8",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/aadhaar-front-and-back-on-one-page/": {
+    "hash": "525741abd35a3222",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/aadhaar-pdf-password/": {
+    "hash": "a24d6e94adac747e",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/add-page-numbers-to-pdf/": {
+    "hash": "f32ffdc631fa67c8",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/add-watermark-to-pdf/": {
+    "hash": "de45c89b3e7d675e",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/guides/bank-statement-pdf-to-excel/": {
+    "hash": "9db9085e3c864fc0",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/compare-two-pdfs/": {
+    "hash": "c78d6dd3d3d91299",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/compress-pdf-to-100kb/": {
+    "hash": "bd91d26148252686",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/guides/compress-pdf-to-1mb/": {
+    "hash": "44c9ed896a18b913",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/compress-pdf-to-200kb/": {
+    "hash": "9f3e347742e6859f",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/compress-pdf-to-500kb/": {
+    "hash": "3e24f7ac29a6d97a",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/compress-pdf-to-50kb/": {
+    "hash": "700cbf229ae9616f",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/convert-pdf-to-pdf-a/": {
+    "hash": "b613358209ac3a84",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/delete-pages-from-pdf/": {
+    "hash": "c43fa08f1588990f",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/digital-signature-pdf-dsc/": {
+    "hash": "09cfab9fd934f063",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/edit-text-in-pdf/": {
+    "hash": "7391ebfa038f9bcd",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/guides/extract-images-from-pdf/": {
+    "hash": "aa0eec5ed9bc4f51",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/extract-pages-from-pdf/": {
+    "hash": "97edee3e861ea474",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/fill-pdf-form/": {
+    "hash": "c73d34ff25953034",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/hide-aadhaar-number-in-pdf/": {
+    "hash": "59d6cf53ce88efc4",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/hra-rent-receipt-generator/": {
+    "hash": "b6d379d5991e3587",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/is-it-safe-to-upload-pdf-online/": {
+    "hash": "3fb4d0aca487759d",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/jpg-to-pdf/": {
+    "hash": "13c3666df8674613",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/make-pdf-fillable/": {
+    "hash": "d2286f2e3af156ec",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/make-scanned-pdf-searchable/": {
+    "hash": "41c4590d514373eb",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/guides/merge-pdf-files/": {
+    "hash": "ceaba9fbbb8bcd4d",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/password-protect-pdf/": {
+    "hash": "ebd5f2d503f356a7",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/pdf-to-epub/": {
+    "hash": "2be95dfd5c84f150",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/pdf-to-jpg/": {
+    "hash": "ea9c3f3c7346365e",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/pdf-to-word/": {
+    "hash": "6497c152f95645b9",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/pdf-tools-that-work-offline/": {
+    "hash": "915b9bb6832c1a88",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/photo-to-pdf-on-phone/": {
+    "hash": "b055fc56ad0c2877",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/redact-pdf/": {
+    "hash": "0d0499203ce83480",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/reduce-pdf-size-for-email/": {
+    "hash": "390e611ec6281c4f",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/remove-password-from-bank-statement-pdf/": {
+    "hash": "ba88b99e7921657e",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/remove-pdf-metadata/": {
+    "hash": "9ac07fa7157ce4fd",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/rotate-pdf-pages/": {
+    "hash": "64fe38741dc4c272",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/scan-document-to-pdf-with-phone/": {
+    "hash": "6929a503c1a433f4",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/sign-pdf-online-free/": {
+    "hash": "5309f24d42ac58ac",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/split-pdf/": {
+    "hash": "8d683f1756509c8d",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/guides/word-to-pdf/": {
+    "hash": "713b4812f45bdbc8",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/open/": {
+    "hash": "745e4b1c370caf3f",
+    "published": "2026-10-17",
+    "modified": "2026-10-17"
+  },
+  "/private/": {
+    "hash": "b1702cc3845529bc",
+    "published": "2026-10-10",
+    "modified": "2026-10-17"
+  },
+  "/terms/": {
+    "hash": "ac73b50c89e85ddd",
+    "published": "2026-10-12",
+    "modified": "2026-10-17"
+  },
+  "/tools/": {
+    "hash": "6aa4eba871fb3c3d",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
+  "/tools/add-image/": {
+    "hash": "c7063f597431b864",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/add-password/": {
+    "hash": "2c0689fca607b484",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/add-text/": {
+    "hash": "951b36e5a51ce6fe",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/attachments/": {
+    "hash": "b276986b040ea705",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/background/": {
+    "hash": "e423beb637750980",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/bookmarks/": {
+    "hash": "2f466c677d3fe32e",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/compare/": {
+    "hash": "2a8efbcea69faaea",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/compress/": {
+    "hash": "59d3400036e4f729",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/create-form/": {
+    "hash": "57ae946dfed43aeb",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/crop/": {
+    "hash": "fc02eac8b6bd8c0d",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/digital-sign/": {
+    "hash": "70d8bb731c59931c",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/document-details/": {
+    "hash": "6aa16ba4f7687b8c",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/edit-images/": {
+    "hash": "2f4c6ee97fa344f1",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/edit-text/": {
+    "hash": "ef6be7ab2c16bb7a",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/extract-images/": {
+    "hash": "9e92031294994a4e",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/extract-pages/": {
+    "hash": "17f5a5c223260396",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/extract-text/": {
+    "hash": "52c550de9f755278",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/fill-form/": {
+    "hash": "99278fe5ed396d5e",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/header-footer/": {
+    "hash": "8d6374c772bae224",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/images-to-pdf/": {
+    "hash": "a9c98fa637ee79ed",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/insert-pages/": {
+    "hash": "4018586bcb532da1",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/mark-up/": {
+    "hash": "0c76974fc6434d95",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/merge/": {
+    "hash": "b2d102f4f1091936",
+    "published": "2026-10-10",
+    "modified": "2026-10-18"
+  },
+  "/tools/n-up/": {
+    "hash": "d063567f7db5d431",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/ocr/": {
+    "hash": "b09fdc2c3db92b0f",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/office-to-pdf/": {
+    "hash": "0cfbf72beb07088f",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/organise/": {
+    "hash": "b3c7f95065f53d4b",
+    "published": "2026-10-10",
+    "modified": "2026-10-18"
+  },
+  "/tools/page-labels/": {
+    "hash": "f4260c7f0c7e0a40",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/page-numbers/": {
+    "hash": "b8dd24ad94115177",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/pdf-a/": {
+    "hash": "65f93b908147113e",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/pdf-to-epub/": {
+    "hash": "0b65d75b38bfc857",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/pdf-to-excel/": {
+    "hash": "368ba43b67044e30",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/pdf-to-images/": {
+    "hash": "5e6705fdda30ebdc",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/pdf-to-powerpoint/": {
+    "hash": "4277952c591f9193",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/pdf-to-word/": {
+    "hash": "89729217a958bfc0",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/read/": {
+    "hash": "40053a3078e85074",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/remove-areas/": {
+    "hash": "befb37825bb154cd",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/remove-password/": {
+    "hash": "a31d82b00ba7fe30",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/rent-receipts/": {
+    "hash": "8a4d8eba0faa76de",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/scan/": {
+    "hash": "46fbf8f87e79fd37",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/sign/": {
+    "hash": "e9931c0e65ff9678",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/split-by-size/": {
+    "hash": "ed82d731c8db5f59",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/split/": {
+    "hash": "dd4e478ea45d1353",
+    "published": "2026-10-10",
+    "modified": "2026-10-18"
+  },
+  "/tools/summarise/": {
+    "hash": "440aa926aa5f7ccd",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/tools/watermark/": {
+    "hash": "c02c8c3a75340dde",
+    "published": "2026-10-12",
+    "modified": "2026-10-18"
+  }
+}

@@ -18,7 +18,7 @@ import { join, relative, sep } from 'node:path';
 import type { Plugin } from 'vite';
 
 /** Not precached: the service worker itself, the host's own files, and the OCR models (kept on first use). */
-const SKIP = [/^sw\.js$/, /^_headers$/, /^_redirects$/, /^ads\.txt$/, /^robots\.txt$/, /^sitemap\.xml$/, /^tesseract\//, /\.map$/];
+const SKIP = [/^sw\.js$/, /^_headers$/, /^_redirects$/, /^ads\.txt$/, /^robots\.txt$/, /^sitemap\.xml$/, /^llms\.txt$/, /^og\//, /^[0-9a-f]{32}\.txt$/, /^tesseract\//, /\.map$/];
 
 function walk(dir: string, root: string, out: string[]): void {
   for (const name of readdirSync(dir)) {

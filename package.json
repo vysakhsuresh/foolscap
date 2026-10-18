@@ -16,7 +16,8 @@
     "predev": "node scripts/copy-pdfjs-assets.mjs && node scripts/copy-ocr-assets.mjs && node scripts/gen-pages.ts",
     "prebuild": "node scripts/copy-pdfjs-assets.mjs && node scripts/copy-ocr-assets.mjs && node scripts/gen-pages.ts",
     "pages": "node scripts/gen-pages.ts",
-    "icons": "node scripts/gen-icons.mjs"
+    "icons": "node scripts/gen-icons.mjs",
+    "og": "node scripts/gen-og.ts"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.11.1",
