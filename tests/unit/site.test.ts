@@ -163,6 +163,7 @@ describe('what a search result shows', () => {
       titles.add(title);
       descriptions.add(description);
       expect(html.match(/<h1\b/g)?.length ?? 0, `${file}: one h1`).toBe(1);
+      expect(html, `${file}: lets search show its picture large`).toContain('<meta name="robots" content="max-image-preview:large">');
       expect(html, `${file}: canonical`).toMatch(/<link rel="canonical" href="https:\/\/foolscap\.co\.in\/[^"]*">/);
       expect(html, `${file}: no WebApplication block (Google's app report wants ratings we will not invent)`).not.toContain('"WebApplication"');
     }
