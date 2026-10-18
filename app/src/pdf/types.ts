@@ -285,6 +285,12 @@ export interface TextStamp {
   readonly angle?: number;
   /** Repeat across the whole page in a staggered grid, ignoring `anchor`. */
   readonly tiled?: boolean;
+  /**
+   * A small white plate behind the words: a page number or footer stays
+   * readable on a phone photo whose edges are a table or a floor, and on
+   * white paper the plate cannot be seen.
+   */
+  readonly plate?: boolean;
 }
 
 /**

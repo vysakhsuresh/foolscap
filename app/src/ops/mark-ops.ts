@@ -56,6 +56,7 @@ export async function stampWords(doc: PdfDoc, index: number, stamp: TextStamp, c
     width: picture.width / scale,
     height: picture.height / scale,
     words: text,
+    ...(stamp.plate === true ? { plate: true } : {}),
   });
 }
 
@@ -143,7 +144,7 @@ export const pageNumbersOp: Op<PageNumbersParams> = {
       for (let i = skip; i < doc.pageCount; i++) {
         checkCancelled(ctx.signal);
         const k = paperScale(doc, i);
-        doc.stampText(i, { text: numberText(params.format, start + i - skip, last), anchor: params.position as Anchor, size: 10 * k, color: INK, margin: 28 * k });
+        doc.stampText(i, { text: numberText(params.format, start + i - skip, last), anchor: params.position as Anchor, size: 10 * k, color: INK, margin: 28 * k, plate: true });
       }
       const { bytes, relocked } = await saveKeepingLock(ctx, doc, input);
       const numbers = start === last ? `numbered ${start}` : `numbered ${start} to ${last}`;
@@ -169,7 +170,7 @@ async function batesNumbers(inputs: readonly FoolscapFile[], params: PageNumbers
     for (let i = 0; i < doc.pageCount; i++) {
       checkCancelled(ctx.signal);
       const k = paperScale(doc, i);
-      await stampWords(doc, i, { text: `${prefix}${String(next).padStart(digits, '0')}`, anchor: params.position as Anchor, size: 9 * k, color: INK, margin: 22 * k }, pictures);
+      await stampWords(doc, i, { text: `${prefix}${String(next).padStart(digits, '0')}`, anchor: params.position as Anchor, size: 9 * k, color: INK, margin: 22 * k, plate: true }, pictures);
       next++;
     }
     const from = `${prefix}${String(first).padStart(digits, '0')}`;
@@ -215,8 +216,8 @@ export const headerFooterOp: Op<HeaderFooterParams> = {
         checkCancelled(ctx.signal);
         const values = { page: i + 1, total: doc.pageCount, date, name };
         const k = paperScale(doc, i);
-        if (header) await stampWords(doc, i, { text: fillTokens(header, values), anchor: `top-${params.align}` as Anchor, size: 9 * k, color: INK, margin: 24 * k }, pictures);
-        if (footer) await stampWords(doc, i, { text: fillTokens(footer, values), anchor: `bottom-${footerAlign}` as Anchor, size: 9 * k, color: INK, margin: 24 * k }, pictures);
+        if (header) await stampWords(doc, i, { text: fillTokens(header, values), anchor: `top-${params.align}` as Anchor, size: 9 * k, color: INK, margin: 24 * k, plate: true }, pictures);
+        if (footer) await stampWords(doc, i, { text: fillTokens(footer, values), anchor: `bottom-${footerAlign}` as Anchor, size: 9 * k, color: INK, margin: 24 * k, plate: true }, pictures);
       }
       const which = header && footer ? 'Header and footer' : header ? 'Header' : 'Footer';
       const suffix = header && footer ? 'with header and footer' : header ? 'with header' : 'with footer';

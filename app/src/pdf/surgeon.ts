@@ -25,6 +25,8 @@ import {
   concatTransformationMatrix,
   setFillingRgbColor,
   setGraphicsState,
+  rectangle,
+  fill,
   endText,
   lineTo,
   moveTo,
@@ -760,6 +762,12 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         const vx = cx - (Math.cos(rad) * width) / 2 + (Math.sin(rad) * capHeight) / 2;
         const vy = cy - (Math.sin(rad) * width) / 2 - (Math.cos(rad) * capHeight) / 2;
         const [px, py] = view.toPage(vx, vy);
+        if (stamp.plate === true) {
+          // The plate's corner: the words' corner, out by the padding, turned with them.
+          const pad = size * 0.35;
+          const [qx, qy] = view.toPage(vx - pad * Math.cos(rad) + pad * Math.sin(rad), vy - pad * Math.sin(rad) - pad * Math.cos(rad));
+          page.drawRectangle({ x: qx, y: qy, width: width + pad * 2, height: capHeight + pad * 2, color: rgb(1, 1, 1), opacity: 0.88, rotate: degrees(angle + view.rotation) });
+        }
         page.drawText(text, {
           x: px,
           y: py,
@@ -806,7 +814,13 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
         const vy = cy - (Math.sin(rad) * width) / 2 - (Math.cos(rad) * height) / 2;
         const cos = Math.cos(rad);
         const sin = Math.sin(rad);
-        operators.push(pushGraphicsState(), concatTransformationMatrix(width * cos, width * sin, -height * sin, height * cos, vx, vy), drawObject('Im0'), popGraphicsState());
+        operators.push(pushGraphicsState(), concatTransformationMatrix(width * cos, width * sin, -height * sin, height * cos, vx, vy));
+        if (stamp.plate === true) {
+          // The same white plate as stampText's, in the picture's own unit square, out by a little.
+          const px = (height * 0.3) / width;
+          operators.push(pushGraphicsState(), setGraphicsState('GS1'), setFillingRgbColor(1, 1, 1), rectangle(-px, -0.15, 1 + px * 2, 1.3), fill(), popGraphicsState());
+        }
+        operators.push(drawObject('Im0'), popGraphicsState());
       }
       operators.push(popGraphicsState());
       const context = live().context;
@@ -814,7 +828,7 @@ function wrap(initial: PDFDocument, byteLength: number | undefined, wasEncrypted
       const form = context.register(
         context.formXObject(operators, {
           BBox: [Math.min(0, -view.width), Math.min(0, -view.height), view.width * 2, view.height * 2],
-          Resources: { XObject: { Im0: image.ref }, ExtGState: { GS0: { Type: 'ExtGState', ca: opacity, CA: opacity } } },
+          Resources: { XObject: { Im0: image.ref }, ExtGState: { GS0: { Type: 'ExtGState', ca: opacity, CA: opacity }, GS1: { Type: 'ExtGState', ca: 0.88, CA: 0.88 } } },
         }),
       );
       const name = page.node.newXObject('Wp', form);
