@@ -5,6 +5,7 @@ import { defineConfig, type Plugin } from 'vite';
 import { cloudflareHeaders } from './scripts/vite-cf-headers';
 import { rebaseHtml } from './scripts/vite-rebase-html';
 import { serviceWorker } from './scripts/vite-sw';
+import { adsenseHead } from './scripts/vite-adsense';
 import { isPdfjsWorker, patchPdfjsWorker } from './scripts/pdfjs-patch';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -49,6 +50,8 @@ export default defineConfig({
     // Writes dist/sw.js from what the build wrote, so the tools work offline.
     serviceWorker(base),
     pdfjsDiacritics(),
+    // On the live build only: Google's AdSense tag in the <head> of the home page and the guides.
+    adsenseHead(),
   ],
   build: {
     outDir: '../dist',
