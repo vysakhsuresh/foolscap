@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://foolscap.co.in/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/tools/</loc><lastmod>2026-10-18</lastmod></url>
-  <url><loc>https://foolscap.co.in/guides/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/compress-pdf-to-100kb/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/compress-pdf-to-200kb/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/compress-pdf-to-50kb/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/compress-pdf-to-500kb/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/compress-pdf-to-1mb/</loc><lastmod>2026-10-17</lastmod></url>
-  <url><loc>https://foolscap.co.in/guides/reduce-pdf-size-for-email/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/reduce-pdf-size-for-email/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/aadhaar-pdf-password/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/remove-password-from-bank-statement-pdf/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/bank-statement-pdf-to-excel/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/e-pan-pdf-password/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/remove-pdf-print-copy-restrictions/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/merge-pdf-files/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/aadhaar-front-and-back-on-one-page/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/jpg-to-pdf/</loc><lastmod>2026-10-17</lastmod></url>
@@ -21,28 +23,48 @@
   <url><loc>https://foolscap.co.in/guides/extract-pages-from-pdf/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/delete-pages-from-pdf/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/rotate-pdf-pages/</loc><lastmod>2026-10-17</lastmod></url>
-  <url><loc>https://foolscap.co.in/guides/sign-pdf-online-free/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/merge-form-16-part-a-and-part-b/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/insert-or-replace-pages-in-pdf/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/add-bookmarks-to-pdf/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/crop-pdf-margins/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/resize-pdf-pages-to-a4/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/split-pdf-into-smaller-files-by-size/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/sign-pdf-online-free/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/digital-signature-pdf-dsc/</loc><lastmod>2026-10-17</lastmod></url>
-  <url><loc>https://foolscap.co.in/guides/add-page-numbers-to-pdf/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/add-company-stamp-and-signature-to-pdf/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/fill-and-sign-pdf-form-on-phone/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/add-page-numbers-to-pdf/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/add-watermark-to-pdf/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/edit-text-in-pdf/</loc><lastmod>2026-10-18</lastmod></url>
-  <url><loc>https://foolscap.co.in/guides/fill-pdf-form/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/fill-pdf-form/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/make-pdf-fillable/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/bates-numbering-pdf/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/write-in-malayalam-or-hindi-on-pdf/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/add-logo-or-photo-to-pdf/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/replace-image-or-logo-in-pdf/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/flatten-pdf-form/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/password-protect-pdf/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/hide-aadhaar-number-in-pdf/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/redact-pdf/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/remove-pdf-metadata/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/attach-files-to-pdf/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/pdf-to-word/</loc><lastmod>2026-10-17</lastmod></url>
-  <url><loc>https://foolscap.co.in/guides/word-to-pdf/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/word-to-pdf/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/pdf-to-jpg/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/extract-images-from-pdf/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/print-multiple-pages-per-sheet/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/make-scanned-pdf-searchable/</loc><lastmod>2026-10-18</lastmod></url>
-  <url><loc>https://foolscap.co.in/guides/hra-rent-receipt-generator/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/hra-rent-receipt-generator/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/compare-two-pdfs/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/pdf-to-epub/</loc><lastmod>2026-10-17</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/convert-pdf-to-pdf-a/</loc><lastmod>2026-10-17</lastmod></url>
-  <url><loc>https://foolscap.co.in/guides/is-it-safe-to-upload-pdf-online/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/malayalam-ocr-scanned-pdf/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/hindi-ocr-scanned-pdf/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/copy-text-from-pdf/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/summarise-pdf-free-on-device/</loc><lastmod>2026-10-18</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/is-it-safe-to-upload-pdf-online/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/guides/pdf-tools-that-work-offline/</loc><lastmod>2026-10-17</lastmod></url>
+  <url><loc>https://foolscap.co.in/guides/pdf-tools-without-uploading-ilovepdf-smallpdf-alternative/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/tools/merge/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/tools/split/</loc><lastmod>2026-10-18</lastmod></url>
   <url><loc>https://foolscap.co.in/tools/organise/</loc><lastmod>2026-10-18</lastmod></url>

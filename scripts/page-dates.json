@@ -1,8 +1,8 @@
 {
   "/": {
-    "hash": "889ca90add343242",
+    "hash": "7b3b5a599be5391c",
     "published": "2026-10-10",
-    "modified": "2026-10-17"
+    "modified": "2026-10-18"
   },
   "/about/": {
     "hash": "9ae9be907ba7e934",
@@ -15,9 +15,9 @@
     "modified": "2026-10-17"
   },
   "/guides/": {
-    "hash": "cced3a470cd7c2a8",
+    "hash": "38e50f313518bb17",
     "published": "2026-10-12",
-    "modified": "2026-10-17"
+    "modified": "2026-10-18"
   },
   "/guides/aadhaar-front-and-back-on-one-page/": {
     "hash": "525741abd35a3222",
@@ -29,20 +29,45 @@
     "published": "2026-10-12",
     "modified": "2026-10-17"
   },
+  "/guides/add-bookmarks-to-pdf/": {
+    "hash": "99e6342c66abc91c",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
+  "/guides/add-company-stamp-and-signature-to-pdf/": {
+    "hash": "63bec94751163654",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
+  "/guides/add-logo-or-photo-to-pdf/": {
+    "hash": "89508ce482f209b0",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
   "/guides/add-page-numbers-to-pdf/": {
-    "hash": "f32ffdc631fa67c8",
+    "hash": "6669b54a388a7f82",
     "published": "2026-10-12",
-    "modified": "2026-10-17"
+    "modified": "2026-10-18"
   },
   "/guides/add-watermark-to-pdf/": {
-    "hash": "de45c89b3e7d675e",
+    "hash": "ccbf29bb2d4d3821",
     "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/guides/attach-files-to-pdf/": {
+    "hash": "70990032903d782b",
+    "published": "2026-10-18",
     "modified": "2026-10-18"
   },
   "/guides/bank-statement-pdf-to-excel/": {
     "hash": "9db9085e3c864fc0",
     "published": "2026-10-12",
     "modified": "2026-10-17"
+  },
+  "/guides/bates-numbering-pdf/": {
+    "hash": "a36f65df13b1f37e",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
   },
   "/guides/compare-two-pdfs/": {
     "hash": "c78d6dd3d3d91299",
@@ -79,6 +104,16 @@
     "published": "2026-10-12",
     "modified": "2026-10-17"
   },
+  "/guides/copy-text-from-pdf/": {
+    "hash": "8d5ddccee385a90c",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
+  "/guides/crop-pdf-margins/": {
+    "hash": "5d460f4e6813bab1",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
   "/guides/delete-pages-from-pdf/": {
     "hash": "c43fa08f1588990f",
     "published": "2026-10-12",
@@ -89,8 +124,13 @@
     "published": "2026-10-12",
     "modified": "2026-10-17"
   },
+  "/guides/e-pan-pdf-password/": {
+    "hash": "47db1d3116b5ed52",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
   "/guides/edit-text-in-pdf/": {
-    "hash": "7391ebfa038f9bcd",
+    "hash": "fd65065b851ec676",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -104,25 +144,45 @@
     "published": "2026-10-12",
     "modified": "2026-10-17"
   },
+  "/guides/fill-and-sign-pdf-form-on-phone/": {
+    "hash": "e97311c46721a37e",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
   "/guides/fill-pdf-form/": {
-    "hash": "c73d34ff25953034",
+    "hash": "0435de1a7a87344b",
     "published": "2026-10-12",
-    "modified": "2026-10-17"
+    "modified": "2026-10-18"
+  },
+  "/guides/flatten-pdf-form/": {
+    "hash": "287f43488e39e8f8",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
   },
   "/guides/hide-aadhaar-number-in-pdf/": {
     "hash": "59d6cf53ce88efc4",
     "published": "2026-10-12",
     "modified": "2026-10-17"
   },
+  "/guides/hindi-ocr-scanned-pdf/": {
+    "hash": "a8d21b6f397e87c6",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
   "/guides/hra-rent-receipt-generator/": {
-    "hash": "b6d379d5991e3587",
+    "hash": "2650c5ce07375a3b",
     "published": "2026-10-12",
-    "modified": "2026-10-17"
+    "modified": "2026-10-18"
+  },
+  "/guides/insert-or-replace-pages-in-pdf/": {
+    "hash": "8a4bc5de2523c871",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
   },
   "/guides/is-it-safe-to-upload-pdf-online/": {
-    "hash": "3fb4d0aca487759d",
+    "hash": "b5300b4c3f16d5ba",
     "published": "2026-10-12",
-    "modified": "2026-10-17"
+    "modified": "2026-10-18"
   },
   "/guides/jpg-to-pdf/": {
     "hash": "13c3666df8674613",
@@ -135,8 +195,18 @@
     "modified": "2026-10-17"
   },
   "/guides/make-scanned-pdf-searchable/": {
-    "hash": "41c4590d514373eb",
+    "hash": "d4431b369237247f",
     "published": "2026-10-12",
+    "modified": "2026-10-18"
+  },
+  "/guides/malayalam-ocr-scanned-pdf/": {
+    "hash": "e958a604fd88fdf8",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
+  "/guides/merge-form-16-part-a-and-part-b/": {
+    "hash": "f7f7a69ac5348f35",
+    "published": "2026-10-18",
     "modified": "2026-10-18"
   },
   "/guides/merge-pdf-files/": {
@@ -169,10 +239,20 @@
     "published": "2026-10-12",
     "modified": "2026-10-17"
   },
+  "/guides/pdf-tools-without-uploading-ilovepdf-smallpdf-alternative/": {
+    "hash": "9c83450d3c05fcf4",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
   "/guides/photo-to-pdf-on-phone/": {
     "hash": "b055fc56ad0c2877",
     "published": "2026-10-12",
     "modified": "2026-10-17"
+  },
+  "/guides/print-multiple-pages-per-sheet/": {
+    "hash": "4529091376643fab",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
   },
   "/guides/redact-pdf/": {
     "hash": "0d0499203ce83480",
@@ -180,9 +260,9 @@
     "modified": "2026-10-17"
   },
   "/guides/reduce-pdf-size-for-email/": {
-    "hash": "390e611ec6281c4f",
+    "hash": "6e634f3bb05f6ff1",
     "published": "2026-10-12",
-    "modified": "2026-10-17"
+    "modified": "2026-10-18"
   },
   "/guides/remove-password-from-bank-statement-pdf/": {
     "hash": "ba88b99e7921657e",
@@ -193,6 +273,21 @@
     "hash": "9ac07fa7157ce4fd",
     "published": "2026-10-12",
     "modified": "2026-10-17"
+  },
+  "/guides/remove-pdf-print-copy-restrictions/": {
+    "hash": "00916fd50dacc6f6",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
+  "/guides/replace-image-or-logo-in-pdf/": {
+    "hash": "8cb5878efc515c16",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
+  "/guides/resize-pdf-pages-to-a4/": {
+    "hash": "31ce27433077bffb",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
   },
   "/guides/rotate-pdf-pages/": {
     "hash": "64fe38741dc4c272",
@@ -205,19 +300,34 @@
     "modified": "2026-10-17"
   },
   "/guides/sign-pdf-online-free/": {
-    "hash": "5309f24d42ac58ac",
+    "hash": "37cf780ae6a3cc98",
     "published": "2026-10-12",
-    "modified": "2026-10-17"
+    "modified": "2026-10-18"
+  },
+  "/guides/split-pdf-into-smaller-files-by-size/": {
+    "hash": "536dfbd5829512d0",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
   },
   "/guides/split-pdf/": {
     "hash": "8d683f1756509c8d",
     "published": "2026-10-12",
     "modified": "2026-10-17"
   },
+  "/guides/summarise-pdf-free-on-device/": {
+    "hash": "7b861fb8fc6ebf65",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
+  },
   "/guides/word-to-pdf/": {
-    "hash": "713b4812f45bdbc8",
+    "hash": "04c9a4ae9ece5b5d",
     "published": "2026-10-12",
-    "modified": "2026-10-17"
+    "modified": "2026-10-18"
+  },
+  "/guides/write-in-malayalam-or-hindi-on-pdf/": {
+    "hash": "bf19cddf4b9ae6e9",
+    "published": "2026-10-18",
+    "modified": "2026-10-18"
   },
   "/open/": {
     "hash": "745e4b1c370caf3f",
@@ -240,22 +350,22 @@
     "modified": "2026-10-18"
   },
   "/tools/add-image/": {
-    "hash": "c7063f597431b864",
+    "hash": "51dcb36df747956f",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/add-password/": {
-    "hash": "2c0689fca607b484",
+    "hash": "7572080baf8bd1be",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/add-text/": {
-    "hash": "951b36e5a51ce6fe",
+    "hash": "f818bdc5a20de878",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/attachments/": {
-    "hash": "b276986b040ea705",
+    "hash": "ba52281dffe2030d",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -265,7 +375,7 @@
     "modified": "2026-10-18"
   },
   "/tools/bookmarks/": {
-    "hash": "2f466c677d3fe32e",
+    "hash": "78b2dbab3e971d42",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -285,32 +395,32 @@
     "modified": "2026-10-18"
   },
   "/tools/crop/": {
-    "hash": "fc02eac8b6bd8c0d",
+    "hash": "2e7942fffdc608df",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/digital-sign/": {
-    "hash": "70d8bb731c59931c",
+    "hash": "aa255d550beebf7c",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/document-details/": {
-    "hash": "6aa16ba4f7687b8c",
+    "hash": "44b410c659719a05",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/edit-images/": {
-    "hash": "2f4c6ee97fa344f1",
+    "hash": "166aec9885d54977",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/edit-text/": {
-    "hash": "ef6be7ab2c16bb7a",
+    "hash": "576c1e54fc9834c2",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/extract-images/": {
-    "hash": "9e92031294994a4e",
+    "hash": "2eebc0fde7130426",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -320,17 +430,17 @@
     "modified": "2026-10-18"
   },
   "/tools/extract-text/": {
-    "hash": "52c550de9f755278",
+    "hash": "e6440e017ae89b04",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/fill-form/": {
-    "hash": "99278fe5ed396d5e",
+    "hash": "006cc790b08da5e1",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/header-footer/": {
-    "hash": "8d6374c772bae224",
+    "hash": "3ab1d2bfe38786f9",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -340,27 +450,27 @@
     "modified": "2026-10-18"
   },
   "/tools/insert-pages/": {
-    "hash": "4018586bcb532da1",
+    "hash": "4f3437d0eab17e14",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/mark-up/": {
-    "hash": "0c76974fc6434d95",
+    "hash": "8850f872b7445fd2",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/merge/": {
-    "hash": "b2d102f4f1091936",
+    "hash": "c81b0beb77040950",
     "published": "2026-10-10",
     "modified": "2026-10-18"
   },
   "/tools/n-up/": {
-    "hash": "d063567f7db5d431",
+    "hash": "3dbcb1dc8fda0497",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/ocr/": {
-    "hash": "b09fdc2c3db92b0f",
+    "hash": "5fc34b99e93198d8",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -375,17 +485,17 @@
     "modified": "2026-10-18"
   },
   "/tools/page-labels/": {
-    "hash": "f4260c7f0c7e0a40",
+    "hash": "747bee29cedf595a",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/page-numbers/": {
-    "hash": "b8dd24ad94115177",
+    "hash": "e5c25ef97c8fa0aa",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-a/": {
-    "hash": "65f93b908147113e",
+    "hash": "9d3f4d370806930c",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -395,12 +505,12 @@
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-excel/": {
-    "hash": "368ba43b67044e30",
+    "hash": "a74904fb9402991e",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-images/": {
-    "hash": "5e6705fdda30ebdc",
+    "hash": "e45d3eb824acc9ab",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -415,7 +525,7 @@
     "modified": "2026-10-18"
   },
   "/tools/read/": {
-    "hash": "40053a3078e85074",
+    "hash": "f616452d02571199",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -425,7 +535,7 @@
     "modified": "2026-10-18"
   },
   "/tools/remove-password/": {
-    "hash": "a31d82b00ba7fe30",
+    "hash": "3bc6873fbbb3a7fc",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -440,12 +550,12 @@
     "modified": "2026-10-18"
   },
   "/tools/sign/": {
-    "hash": "e9931c0e65ff9678",
+    "hash": "8f6377c9c7e1ad86",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/split-by-size/": {
-    "hash": "ed82d731c8db5f59",
+    "hash": "8ab1f30d8d6670a4",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -455,12 +565,12 @@
     "modified": "2026-10-18"
   },
   "/tools/summarise/": {
-    "hash": "440aa926aa5f7ccd",
+    "hash": "f44a8ac77b5d0ba7",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/watermark/": {
-    "hash": "c02c8c3a75340dde",
+    "hash": "3298d75e2c47cbb0",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   }
