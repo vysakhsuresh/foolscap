@@ -83,9 +83,9 @@ function badLinks(text: string): string[] {
 const linkTargets = (text: string): string[] => [...text.matchAll(LINK)].map((m) => m[2] ?? '');
 
 describe('guides.ts', () => {
-  it('has 36 to 40 guides', () => {
-    expect(GUIDES.length).toBeGreaterThanOrEqual(36);
-    expect(GUIDES.length).toBeLessThanOrEqual(40);
+  it('has 60 to 70 guides', () => {
+    expect(GUIDES.length).toBeGreaterThanOrEqual(60);
+    expect(GUIDES.length).toBeLessThanOrEqual(70);
   });
 
   it('has unique, URL-safe slugs', () => {

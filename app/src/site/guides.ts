@@ -364,7 +364,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Splitting instead',
         paragraphs: [
-          'Some files cannot shrink much: a long report that is mostly text is already small for what it holds. [Split by size](/tools/split-by-size/) makes parts under 5, 10 or 25 MB, or any size you type, which you send in separate emails. Or send only the pages that matter with [Extract pages](/tools/extract-pages/).',
+          'Some files cannot shrink much: a long report that is mostly text is already small for what it holds. [Split by size](/tools/split-by-size/) makes parts under 5, 10 or 25 MB, or any size you type, which you send in separate emails; see [split a PDF by size](/guides/split-pdf-into-smaller-files-by-size/). Or send only the pages that matter with [Extract pages](/tools/extract-pages/).',
         ],
       },
       {
@@ -576,6 +576,130 @@ export const GUIDES: readonly Guide[] = [
       { q: 'Is there a page limit?', a: 'No. A long statement just takes a little longer on an older phone.' },
       { q: 'Does it work for credit card statements and passbooks?', a: 'It works from the layout, so any statement with clear columns converts. A photographed passbook works too with Read scanned pages too ticked, though a clean scan reads far better than a photo.' },
       { q: 'Will Excel open the file?', a: 'Yes, and so will Google Sheets, LibreOffice Calc and other spreadsheet apps: it is a standard .xlsx file.' },
+    ],
+  },
+
+  {
+    slug: 'e-pan-pdf-password',
+    title: 'e-PAN PDF password: open and unlock your e-PAN',
+    h1: 'What is the password for the e-PAN PDF?',
+    description: 'The e-PAN PDF is usually locked with your date of birth as DDMMYYYY. Open it, or save a copy without the password, free and without uploading it.',
+    tool: 'remove-password',
+    related: ['watermark', 'compress', 'remove-areas'],
+    intro: 'The e-PAN PDF is usually locked with your date of birth written as eight digits: day, month and year. Born on 5 August 1990, you type 05081990. Any PDF reader opens it with that, and Remove a password saves a copy that opens without it.',
+    steps: [
+      'Open Remove a password and add the e-PAN PDF.',
+      'Type your date of birth as DDMMYYYY in the box under the file and tap Unlock.',
+      'Press Unlock it to save a copy that needs no password.',
+      'Save the unlocked copy, and keep the original as it came.',
+    ],
+    sections: [
+      {
+        heading: 'Where the password comes from',
+        paragraphs: [
+          'An e-PAN is your PAN card as a PDF, sent by email or downloaded after you apply. Whether it came from Protean (formerly NSDL e-Gov), from UTIITSL or from the income tax site’s instant e-PAN, the PDF is usually locked with the date of birth on your PAN record, written as DDMMYYYY with no spaces or slashes. For a company, firm or trust it is usually the date of incorporation or formation, in the same form.',
+          'The email that came with the e-PAN, or the page you downloaded it from, states the format. Check there first: it takes a moment, and it settles the question for your file.',
+        ],
+      },
+      {
+        heading: 'If the password does not work',
+        paragraphs: [
+          'Most failed tries are the format, not the date. Use two digits for the day and two for the month, with a leading zero: 5 August 1990 is 05081990, not 581990. Leave out slashes, dashes and spaces. Use the date as your PAN record has it, which is the date printed on your PAN card; if it differs from the date on your other documents, the PAN one is the one to try. A firm or company uses its own date, never a partner’s or director’s birthday.',
+          'If it still fails, download the e-PAN again from the site that issued it and try the fresh file, in case the first download was cut short.',
+        ],
+      },
+      {
+        heading: 'Think before you unlock it',
+        paragraphs: [
+          'An unlocked copy opens for anyone who gets hold of it, and a PAN is used for bank accounts, loans, investments and tax. You do not need to unlock the file to read or print it: any PDF reader asks for the password and opens it. Unlock it when a portal refuses locked PDFs, or when someone needs a copy without the password.',
+          'The e-PAN is issued digitally signed. Any changed copy, an unlocked one included, no longer passes that signature check in a PDF reader, and the result line here says so. Where an office checks the signature, give them the original file and the password instead.',
+        ],
+      },
+      {
+        heading: 'Before you send a copy',
+        paragraphs: [
+          'When you hand a copy to a landlord, a broker or a new bank, a light [watermark](/tools/watermark/) saying what it is for, such as FOR SAVINGS ACCOUNT KYC ONLY, makes it harder to reuse for anything else. If a portal sets a size limit, [Compress](/tools/compress/) brings the file under 100 KB or 200 KB. If a form wants your PAN and Aadhaar in one file, join them with [Merge](/tools/merge/); the e-Aadhaar has a password of its own, explained in [Aadhaar PDF password](/guides/aadhaar-pdf-password/).',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Meera, born on 3 January 1995, needs her e-PAN for a mutual fund account, and the upload page refuses locked files. She opens Remove a password, adds the e-PAN, types 03011995 in the box under it and taps Unlock. She presses Unlock it and saves the copy. Then she taps Then, chooses Watermark, types FOR MUTUAL FUND KYC ONLY, chooses Light and Repeated all over, and uploads that copy. The original, still locked and still signed, stays in her phone’s files.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Can this find the password for me?', a: 'No. It opens a file only with the password you type. It does not guess or break passwords.' },
+      { q: 'Is my e-PAN uploaded when I unlock it?', a: 'No. It is unlocked in your browser, on your device, and the password is forgotten as soon as it has been used. Nothing is sent anywhere.' },
+      { q: 'Why does the result say the digital signature no longer checks out?', a: 'Because the unlocked copy is a new file. The original keeps its signature: send that one, with the password, wherever the signature is verified.' },
+      { q: 'Can I put a password of my own on it?', a: 'Yes. Unlock it here, then lock the copy with [Add a password](/tools/add-password/), using a password you choose and share separately.' },
+      { q: 'Can I hide my PAN on a copy?', a: 'Yes, with [Remove areas](/tools/remove-areas/). Its Find and remove can mark PAN numbers for you, and the marked digits are taken out of the file, not just covered.' },
+      { q: 'Is the password the same as for the e-Aadhaar?', a: 'No. The e-Aadhaar uses four letters of your name in capitals and your year of birth. See [Aadhaar PDF password](/guides/aadhaar-pdf-password/).' },
+    ],
+  },
+  {
+    slug: 'remove-pdf-print-copy-restrictions',
+    title: 'Remove PDF restrictions: allow printing and copying',
+    h1: 'How to print or copy from a PDF that will not let you',
+    description: 'A PDF opens but printing or copying is blocked? Save a copy without the restrictions, free, in your browser. Honest about what it cannot unlock.',
+    tool: 'remove-password',
+    related: ['add-password', 'extract-text', 'read'],
+    intro: 'A PDF that opens without asking but will not print or copy has a permissions lock, not an open password. Add it to Remove a password and press Unlock it: the copy comes back with printing and copying allowed, and the pages unchanged.',
+    steps: [
+      'Open Remove a password and add the PDF.',
+      'If it asks for a password to open it, type that password and tap Unlock.',
+      'Press Unlock it.',
+      'Check the result line, which says what was removed.',
+      'Save the copy, then print or copy from it as normal.',
+    ],
+    sections: [
+      {
+        heading: 'Two kinds of PDF password',
+        paragraphs: [
+          'A PDF can carry two passwords. An open password, which Acrobat calls the document open password, stops anyone reading the file without it. A permissions password lets the file open for everyone, but asks readers to block printing, copying text or making changes. Acrobat, Chrome and most readers obey those blocks, which is why the Print button is greyed out, or copying gives you nothing.',
+          'You can usually tell which you have. If the file opens without asking you anything, but some actions do not work, it is the second kind. Acrobat Reader also marks such a file SECURED in its title bar, and its document properties list what is not allowed.',
+        ],
+      },
+      {
+        heading: 'What Remove a password does with it',
+        paragraphs: [
+          'A file with only a permissions password opens here without asking. Press Unlock it and you get a new copy with no restrictions, named with unlocked at the end, and the result line says the printing and copying restrictions were removed. Nothing on the pages changes: the words, pictures and layout are exactly as they were.',
+          'A file with an open password asks for it first. Type it in the box under the file, tap Unlock, and the copy comes back with no password and no restrictions at all.',
+        ],
+      },
+      {
+        heading: 'What it cannot do',
+        paragraphs: [
+          'It cannot open a file whose open password you do not know. It does not guess passwords, try lists of them or break them, and nothing on this site will. If you have lost the password to a file sent to you, the sender can tell you the format or send it again.',
+          'An e-book bought from a store and tied to one reading app is a different kind of lock, not an ordinary PDF password, and this tool does not open it either.',
+        ],
+      },
+      {
+        heading: 'Should you remove it?',
+        paragraphs: [
+          'Restrictions are often switched on by the program that made the file, with no thought behind them: a statement, a society’s accounts, a form you were asked to print and sign. Removing them from your own documents, or from files you have been asked to print, is reasonable. A book, a paid report or course material may carry them because its owner does not want copies made. Removing the restriction does not change what the copyright allows, so ask the owner when in doubt.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Your housing society emails the annual accounts as a PDF that opens on your phone, but Print is greyed out and you need a paper copy for the general body meeting. Open Remove a password and add it. It opens without asking, because it has no open password. Press Unlock it: the result line says the printing and copying restrictions were removed. Save the copy and print it from your reader as usual.',
+          'If you only needed the words, take the unlocked copy to [Extract text](/tools/extract-text/), which gives them as plain text to paste anywhere.',
+        ],
+      },
+      {
+        heading: 'Restricting your own files',
+        paragraphs: [
+          'To send a file that opens for anyone but asks readers not to print, copy or change it, use [Add a password](/tools/add-password/) and choose Only restrict printing, copying and editing. As this page shows, that is a request rather than a lock, so use a real open password for anything private, and send the password separately from the file.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is my file uploaded to remove the restrictions?', a: 'No. The copy is made in your browser, on your device, and the file never leaves it.' },
+      { q: 'Will the copy look different?', a: 'No. Only the security settings go. Every page stays exactly as it was.' },
+      { q: 'The file asks for a password I do not know. Can you open it?', a: 'No. Only the person who set it, or who sent you the file, can give you that password.' },
+      { q: 'Can I unlock several files at once?', a: 'Yes. Add them all; each comes back without restrictions, and Save all keeps the copies together.' },
+      { q: 'What if the PDF was digitally signed?', a: 'The unlocked copy is a new file, so the signature no longer checks out in it, and the result line says so. Keep the original for anyone who verifies the signature.' },
     ],
   },
 
@@ -1150,6 +1274,386 @@ export const GUIDES: readonly Guide[] = [
     ],
   },
 
+  {
+    slug: 'merge-form-16-part-a-and-part-b',
+    title: 'Merge Form 16 Part A and Part B into one PDF, free',
+    h1: 'How to merge Form 16 Part A and Part B into one PDF',
+    description: 'Join Form 16 Part A and Part B into one PDF in the right order, unlocking them if needed, ready for a bank or employer. Free, and nothing is uploaded.',
+    tool: 'merge',
+    related: ['remove-password', 'compress', 'bookmarks'],
+    intro: 'Open Merge, add Part A and then Part B, check the order and press Merge into one file. If either part is locked, type its password in the box under it first.',
+    steps: [
+      'Open Merge and add Form 16 Part A, then Part B, and any annexure such as Form 12BA.',
+      'Drag them into order if they came in the wrong one: Part A first.',
+      'Type the password of any locked part in the box under it and tap Unlock.',
+      'Press Merge into one file and check the page count in the result line.',
+      'Save the merged PDF, or tap Then to compress it for an upload limit.',
+    ],
+    sections: [
+      {
+        heading: 'What the two parts are',
+        paragraphs: [
+          'Form 16 is the certificate of tax deducted from your salary, and your employer issues it in two parts. Part A is generated through the income tax department’s TRACES system: it carries your employer’s TAN, your PAN, and the tax deducted and deposited each quarter. Part B is the working: your salary, the exemptions and deductions, and the tax worked out on them. Some employers add Form 12BA, a statement of perquisites, when the salary included any.',
+          'Many employers send the parts as separate PDFs, and many offices that ask for Form 16 want one file. Check first, though: some employers already send both parts in a single PDF, and then there is nothing to merge.',
+        ],
+      },
+      {
+        heading: 'Which order, and why it matters',
+        paragraphs: [
+          'Part A first, then Part B, then any annexure. That is the order the form itself follows, and the order a bank officer or an accountant expects to read. Merge joins whole files end to end in the order of the list on the page, top to bottom, so check the list before you press the button; a phone often lists files by name, which can put Part B first.',
+          'If you changed jobs during the year, you have a Form 16 from each employer for the months you worked there. Keep each employer’s parts together, earlier job first. The merged file keeps any bookmarks the parts carried; to add your own, such as Part A and Part B for each employer, open the result in [Bookmarks](/tools/bookmarks/).',
+        ],
+      },
+      {
+        heading: 'Locked parts and signatures',
+        paragraphs: [
+          'Some employers lock Form 16 with a password. It is set by the employer, not by the tax department, so it differs from company to company; the email or the payroll portal that delivered it usually says what it is. Type it in the box under the file and tap Unlock. The merged file comes out with no password, because two parts could carry two different ones. If you want it locked, take the result to [Add a password](/tools/add-password/).',
+          'Form 16 is often digitally signed by the employer. A merged copy is a new file, so a PDF reader will not show that signature as valid inside it. That is fine for most uses. Where someone verifies the employer’s signature, give them the original files as they came.',
+        ],
+      },
+      {
+        heading: 'Where the merged file goes',
+        paragraphs: [
+          'You do not attach Form 16 when you file your return on the income tax site: you use it to fill the return in, and keep it as your record. The places that ask for it are usually a bank for a loan, a new employer, a visa file or your accountant, sometimes through a portal with a size limit. Typed Form 16 PDFs are usually small, but scanned or signed copies can be large: tap Then and choose [Compress](/tools/compress/) with To a size, or see [compress a PDF to 1 MB](/guides/compress-pdf-to-1mb/).',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Arun changed jobs in October. He has Part A and Part B from his first employer, and Part A, Part B and a Form 12BA from the second: five PDFs, and the second employer’s are locked with a password its email gave him. He opens Merge, adds all five, and drags them into order: first employer’s Part A and Part B, then the second employer’s Part A, Part B and Form 12BA. He types the password under each locked file and taps Unlock, presses Merge into one file, and checks that the page count in the result line is the five files’ pages added together.',
+          'Before sending it to his home loan officer, he compares the tax deducted in each Part A with his Form 26AS on the income tax site. They should agree; if they do not, the employer is the one to ask.',
+        ],
+      },
+      {
+        heading: 'Common mistakes',
+        paragraphs: [
+          'Sending last year’s Part A with this year’s Part B: check the assessment year printed on each part before merging. Compressing the parts one by one and then merging, which spends the size limit twice; merge first, then compress the merged file once. And merging a photo of a printed Form 16: if you only have paper, photograph each page with [Scan](/tools/scan/) first, so the pages come out straight and readable.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is my Form 16 uploaded anywhere?', a: 'No. The parts are joined in your browser, on your device, and nothing is sent to us or anyone else. That matters for a document carrying your PAN and salary.' },
+      { q: 'Do I need to merge Form 16 to file my income tax return?', a: 'No. The return is filed without attaching Form 16. Merging helps when a bank, employer or accountant wants it as one file.' },
+      { q: 'What is the password on my Form 16?', a: 'Your employer sets it, so it differs between companies. The email or payroll portal that sent it normally says; if not, ask HR.' },
+      { q: 'Can I merge on my phone?', a: 'Yes. Add the parts from your phone’s files, put them in order, and use Send to pass the merged PDF to WhatsApp or email.' },
+      { q: 'Can I take out a page I do not need?', a: 'Yes. Tap Then, choose [Extract or remove pages](/tools/extract-pages/), and remove it by its page number.' },
+    ],
+  },
+  {
+    slug: 'insert-or-replace-pages-in-pdf',
+    title: 'Insert or replace pages in a PDF, free and private',
+    h1: 'How to insert pages into a PDF, or replace a page',
+    description: 'Put pages from another PDF into the middle of one, add blank pages, or swap a page for a corrected one. Free, no sign-up, and nothing is uploaded.',
+    tool: 'insert-pages',
+    related: ['extract-pages', 'organise', 'merge', 'scan'],
+    intro: 'Open Insert pages, add the main PDF first and then the pages to put in, choose After a page or In place of pages, and press Insert them. The main file’s other pages stay exactly as they were.',
+    steps: [
+      'Open Insert pages and add the main PDF first: the one that gets the new pages.',
+      'Add the PDF to put into it, or choose Blank pages and say how many.',
+      'Choose After a page and type its number, or In place of pages and type the pages to swap out.',
+      'Press Insert them.',
+      'Check the page count in the result line, then save the new file.',
+    ],
+    sections: [
+      {
+        heading: 'Insert, merge or replace?',
+        paragraphs: [
+          '[Merge](/tools/merge/) puts whole files end to end. Insert pages puts pages into the middle of one: an annexure after page 12, a signed page in place of an unsigned one, a blank page for notes. The first file in the list always receives the pages, and every file after it goes in whole, one after another, at the place you chose. If you need only part of another PDF, cut it down first with [Extract or remove pages](/tools/extract-pages/).',
+        ],
+      },
+      {
+        heading: 'Replacing a page',
+        paragraphs: [
+          'Choose In place of pages and type the page to swap out, such as 7, or a range such as 7-8. Those pages come out, and the new ones go in where the first of them was. The numbers need not match: one corrected page can replace two, or three new pages one old one. The result line says which pages were replaced and how many the file has now, a quick check that you typed the right number.',
+          'Page numbers here are positions in the file, counting the first page as 1. If the document has a cover or a contents page without numbers, the number printed on a page may differ from its position.',
+        ],
+      },
+      {
+        heading: 'A corrected page in a signed document',
+        paragraphs: [
+          'A common case: an agreement has gone round for signatures and one page needs a correction, or one party signed a page on paper and sent back a photo of it. Swapping the page is easy, but it changes what was signed. Do it only when everyone who signed agrees, and have them initial or sign the new page too. If the document carries a digital signature, any change, a swapped page included, shows as a change after signing, so replace pages before anyone signs digitally, not after.',
+          'For a page signed on paper, photograph it with [Scan](/tools/scan/) in Black and white or Grey, then add that PDF here as the second file and choose In place of pages.',
+        ],
+      },
+      {
+        heading: 'Blank pages',
+        paragraphs: [
+          'Blank pages, from 1 to 500 at a time, take the size and direction of the page just before them, so a blank page in a landscape section is landscape too. They give room for handwritten notes or a signature, or keep double-sided printing in step so that each chapter starts on the front of a sheet. Type 0 in After a page to put pages in before the first one.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Sanjay’s 18-page rental agreement is ready, but the owner wants a two-page furniture inventory added after page 12, and page 3 has the wrong deposit amount. He opens Insert pages, adds the agreement first and the inventory second, chooses After a page, types 12 and presses Insert them: the result line says 2 pages added after page 12, 20 in all. He taps Then, chooses Insert pages again, adds the corrected page 3 as the second file, chooses In place of pages, types 3 and presses Insert them. Both of them then sign the finished 20 pages.',
+        ],
+      },
+      {
+        heading: 'Bookmarks, passwords and order',
+        paragraphs: [
+          'The main file’s bookmarks, page labels and details are kept, and the inserted file’s own bookmarks come along. If the main file was locked, the new file is locked with the same password; type each locked file’s password in the box under it and tap Unlock first. To change the order of pages afterwards, or turn one the right way up, use [Organise pages](/tools/organise/).',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'How do I put pages at the very start?', a: 'Choose After a page and type 0.' },
+      { q: 'How do I add pages at the end?', a: 'Type the last page’s number in After a page, or use [Merge](/tools/merge/), which puts whole files end to end.' },
+      { q: 'Can I insert pages from two files at once?', a: 'Yes. Add the main file first, then the others in order; they go in one after another at the same place.' },
+      { q: 'Is my file uploaded?', a: 'No. The new file is put together in your browser, on your device, and nothing is sent anywhere.' },
+      { q: 'Can I insert a photo as a page?', a: 'Make it a PDF first with [Images to PDF](/tools/images-to-pdf/) or Scan, then insert that.' },
+      { q: 'Does it change my original?', a: 'No. You get a new file; the PDFs you picked are never changed.' },
+    ],
+  },
+  {
+    slug: 'add-bookmarks-to-pdf',
+    title: 'Add bookmarks to a PDF: a clickable contents list',
+    h1: 'How to add bookmarks to a PDF',
+    description: 'Add, rename and nest bookmarks so a long PDF opens with a contents list you can tap in any reader. Free, no sign-up, and the file is never uploaded.',
+    tool: 'bookmarks',
+    related: ['split', 'page-labels', 'read', 'merge'],
+    intro: 'Open Bookmarks, add the PDF, tap Add a bookmark, type a title and the page it opens, and press Save the bookmarks. Readers then list them as the document’s contents, and a tap jumps straight to that page.',
+    steps: [
+      'Open Bookmarks and add the PDF; any bookmarks it has appear as a list.',
+      'Tap Add a bookmark, type its title, and type the page it should open.',
+      'Use the arrows to move a bookmark up or down, or in a level to put it under the one above.',
+      'Rename or delete any bookmark that is wrong.',
+      'Press Save the bookmarks and save the new file.',
+    ],
+    sections: [
+      {
+        heading: 'Why bookmark a long PDF',
+        paragraphs: [
+          'A 150-page report, a thesis, a tender or a court bundle is slow to get around by scrolling, especially on a phone. Bookmarks give it a contents list that readers show in a side panel, often called Bookmarks, Outline or Contents: tap Chapter 4 and you are there. They print nothing and change nothing on the pages; they only add a way to move about.',
+        ],
+      },
+      {
+        heading: 'Page numbers: count from the first page',
+        paragraphs: [
+          'The page you type is the page’s position in the file, counting the first page as 1, not the number printed on it. In a report whose printed numbering starts after a cover and four pages of contents, printed page 1 is the sixth page of the file, so its bookmark needs 6. Open the file in [Read](/tools/read/) in another tab and step through it to find where each chapter starts.',
+          'If you would rather the reader’s own page box agreed with the printed numbers, so that typing 1 lands on printed page 1, set that with [Page labels](/tools/page-labels/).',
+        ],
+      },
+      {
+        heading: 'Chapters and sections',
+        paragraphs: [
+          'A bookmark moved in a level sits under the one above it, as a section of that chapter; readers show it indented and let you fold it away. Keep the top level for the big divisions, such as chapters, annexures or each document in a bundle, and put sections inside them. Short titles that match the headings printed in the document read best: Chapter 3, Annexure B, Salary slips 2026.',
+          'Top-level bookmarks have a second use: [Split](/tools/split/) can cut a file at each one with At each chapter, naming every part after its bookmark.',
+        ],
+      },
+      {
+        heading: 'Tidying bookmarks a file already has',
+        paragraphs: [
+          'Files made by word processors and scanners often arrive with messy bookmarks: every heading at one level, titles cut short, entries pointing at the wrong page. They all appear in the list, where you can rename, move, nest or delete them. A bookmark that opens a web page rather than a page of the document is kept as it is, unless you type a page for it. Saving an empty list removes every bookmark.',
+        ],
+      },
+      {
+        heading: 'From Word, and after merging',
+        paragraphs: [
+          'If you still have the Word file, Word’s own Save as PDF can create bookmarks from the headings, in its options, which is quicker for a long document with proper headings. After joining several files with [Merge](/tools/merge/), each file’s own bookmarks come along in order; adding one top-level bookmark per original file, such as Agreement, Annexure A and Annexure B, makes the merged bundle easy to move around.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Divya merged a 96-page project report from six chapter files and wants a contents panel for the examiners. She opens Bookmarks and adds it; the list shows a few stray entries carried over from the chapter files, which she deletes. She taps Add a bookmark six times, typing Chapter 1 Introduction with page 5, Chapter 2 Literature review with page 14, and so on, checking each position in Read. She puts two sections under Chapter 4 with the arrow that moves a bookmark in a level, presses Save the bookmarks, and the report now opens with a contents list in any full reader.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Will the bookmarks show on a phone?', a: 'In most full PDF readers, yes, usually behind a contents or outline button. Some very simple viewers ignore them; the bookmarks are still in the file.' },
+      { q: 'Is my PDF uploaded?', a: 'No. The bookmarks are written into the file in your browser, on your device.' },
+      { q: 'Do bookmarks change the pages or the file size?', a: 'They change nothing on the pages and add very little to the size.' },
+      { q: 'Can bookmark titles be in Malayalam or Hindi?', a: 'Yes. Titles are stored as text in any script, and readers show them as typed.' },
+      { q: 'Does a locked PDF stay locked?', a: 'Yes. Type its password when asked; the new file keeps the same password.' },
+    ],
+  },
+  {
+    slug: 'crop-pdf-margins',
+    title: 'Crop PDF margins: trim white space and scan borders',
+    h1: 'How to crop the margins of a PDF',
+    description: 'Trim white margins or a scanner’s dark border off PDF pages, by millimetres or found for you. Free, in your browser, and nothing is uploaded.',
+    tool: 'crop',
+    related: ['mark-up', 'remove-areas', 'n-up'],
+    intro: 'Open Crop pages, choose Remove the white margins to have them found for you, or Trim the margins and type the millimetres, and press Crop it.',
+    steps: [
+      'Open Crop pages and add the PDF.',
+      'Choose Remove the white margins, Trim the margins, or Trim each edge separately.',
+      'Type the millimetres if your choice needs them.',
+      'Type pages in Which pages to crop only some, or leave it empty for all.',
+      'Press Crop it and save the cropped copy.',
+    ],
+    sections: [
+      {
+        heading: 'Three ways to trim',
+        paragraphs: [
+          'Remove the white margins looks at each page and trims it to just outside its words and pictures, leaving a thin border of about 2 mm. Trim the margins takes the same amount off every edge, from 1 to 100 mm. Trim each edge separately takes a different amount off the top, right, bottom and left, as you see the page: for a scan that sits off-centre, or a document with a wide binding margin on one side.',
+        ],
+      },
+      {
+        heading: 'Scans with black or grey borders',
+        paragraphs: [
+          'A scanner lid left open, or a photocopy of a page smaller than the glass, leaves a dark band round the page. Remove the white margins looks for white paper, so a dark band counts as part of the page and stays. Trim those by millimetres instead.',
+          'To find how wide the band is, open the page in [Mark up](/tools/mark-up/), choose Measure and drag across it: the length is written in millimetres, measured on the same page you are about to crop, so the number carries straight across. Leave without saving the marks. Paper that came out yellow or grey in the scan can also be too dark to count as margin; millimetres work on any page.',
+        ],
+      },
+      {
+        heading: 'Cropping hides; it does not remove',
+        paragraphs: [
+          'Cropping sets a new visible edge for each page. Whatever falls outside it is still inside the file, and any PDF editor could widen the page again to show it. That is right for tidying borders, and wrong for hiding a name, an account number or a signature in the margin: for those, [Remove areas](/tools/remove-areas/) takes them out of the file for good. It also means cropping hardly changes the file’s size.',
+        ],
+      },
+      {
+        heading: 'Cropping only some pages',
+        paragraphs: [
+          'Type pages in Which pages, such as 1-3, 7, to crop only those; the rest keep their edges. Edges are measured as you see the page, so the top is the top even on a page that was scanned sideways. If the margin you ask for would leave almost nothing of a page, the tool refuses and names the page, rather than handing you a sliver.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Joseph copied a 30-page notebook on an office copier with the lid up, and every page has a black band about 12 mm wide down the left and 8 mm along the bottom. He measures both once with Mark up’s Measure, then opens Crop pages, chooses Trim each edge separately, types 0 for the top and right, 8 for the bottom and 12 for the left, and presses Crop it. The result line repeats the four margins for all 30 pages. He taps Then and chooses [Pages per sheet](/tools/n-up/) with 2 on each sheet, and the trimmed pages fill their places instead of printing black bands.',
+        ],
+      },
+      {
+        heading: 'After cropping',
+        paragraphs: [
+          'Trimmed pages print larger when laid out with Pages per sheet, read better on a phone, and look tidier in a merged bundle. To put every page on A4 afterwards, see [resize PDF pages to A4](/guides/resize-pdf-pages-to-a4/). For photos of paper, [Scan](/tools/scan/) crops as it straightens each page, which usually beats cropping afterwards.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is my file uploaded?', a: 'No. The pages are cropped in your browser, and the file stays on your device.' },
+      { q: 'Can I undo a crop?', a: 'Your original is never changed, so start again from it. The cropped copy also still holds what was trimmed, which is why cropping is no way to hide anything.' },
+      { q: 'Does cropping make the file smaller?', a: 'Hardly. The trimmed parts are still in the file. For a smaller file, use [Compress](/tools/compress/).' },
+      { q: 'Can I crop just one page?', a: 'Yes. Type its number in Which pages; the others stay as they are.' },
+      { q: 'Why did Remove the white margins find nothing to remove?', a: 'What is on the pages already runs to their edges, the paper is not white enough, or the pages are blank. Trim by millimetres instead.' },
+    ],
+  },
+  {
+    slug: 'resize-pdf-pages-to-a4',
+    title: 'Resize PDF pages to A4: fit every page, free',
+    h1: 'How to resize every page of a PDF to A4',
+    description: 'Fit every page of a PDF onto A4, from Letter forms, receipts or screenshots, so the file prints evenly. Free, in your browser, and nothing is uploaded.',
+    tool: 'crop',
+    related: ['images-to-pdf', 'merge', 'n-up'],
+    intro: 'Open Crop pages, choose Fit every page on A4 and press Crop it. Each page is scaled to fit an A4 sheet, kept in proportion and centred, and a wide page gets a sideways sheet.',
+    steps: [
+      'Open Crop pages and add the PDF, or several.',
+      'Choose Fit every page on A4.',
+      'Tick Leave smaller pages at their real size if small pages, such as a receipt or an ID card, should not be enlarged.',
+      'Type pages in Which pages to fit only some, or leave it empty for all.',
+      'Press Crop it and save the copy, whose name ends with on A4.',
+    ],
+    sections: [
+      {
+        heading: 'Why a PDF ends up with mixed sizes',
+        paragraphs: [
+          'A PDF put together from several sources keeps each page at its own size: a US Letter form from a foreign employer, a phone screenshot, a long thin receipt, a scan made at an odd size. On screen it hardly shows. On paper, or in an office that expects A4, it does: some pages print tiny, some are cut off at the edges, and the printer may stop to ask about paper.',
+        ],
+      },
+      {
+        heading: 'What fitting to A4 does',
+        paragraphs: [
+          'Each page is scaled to fit inside an A4 sheet, kept in proportion and centred, so nothing is stretched or cut off. An upright page goes on an upright sheet and a wide page on a sideways one. The page is not redrawn as a picture: text stays text you can select, and drawings stay sharp, only smaller or larger. A page that was already A4 looks exactly as it did.',
+          'Pages smaller than A4 are enlarged to fill the sheet. Tick Leave smaller pages at their real size for an ID card, a receipt or a photo you want printed at its true size in the middle of the sheet. Leave it unticked for a small form you want filling the page.',
+        ],
+      },
+      {
+        heading: 'Fit, not trim',
+        paragraphs: [
+          'This sits in Crop pages because both change a page’s edges, but it does the opposite of trimming: nothing is cut away, and a page bigger than A4, such as an A3 drawing, is shrunk to fit. To cut away margins instead, see [crop PDF margins](/guides/crop-pdf-margins/). For photos that are not a PDF yet, [Images to PDF](/tools/images-to-pdf/) puts each one on an A4 page as it makes the file.',
+        ],
+      },
+      {
+        heading: 'Letter, and printing',
+        paragraphs: [
+          'Fit every page on Letter does the same for the US size, for a file going to someone who prints on Letter paper. Either way, print at actual size or 100%: the pages already match the paper, so there is nothing for the printer to shrink, and fit to page would only make each page a little smaller for no reason.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Neha’s visa checklist asks for her documents as one PDF, printed on A4. She has her US employer’s letter on Letter paper, three bank statements on A4, a phone screenshot of a booking and a scanned taxi receipt. She joins them with [Merge](/tools/merge/), taps Then and chooses Crop pages. She chooses Fit every page on A4, ticks Leave smaller pages at their real size so the receipt is not blown up to fill a sheet, and presses Crop it. The result line says the pages were put on A4, and the printout is even from first page to last.',
+        ],
+      },
+      {
+        heading: 'Common mistakes',
+        paragraphs: [
+          'Expecting a small receipt to print large with Leave smaller pages at their real size ticked: it stays its real size by design. Fitting a scan with a wide dark border, which carries the border along: trim it first with Trim each edge separately, then tap Then and fit. And laying out the A4 pages several to a sheet before checking them: fit first, look through the result, then use [Pages per sheet](/tools/n-up/) if you need it.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is my file uploaded?', a: 'No. The pages are fitted in your browser, on your device.' },
+      { q: 'Does it make text blurry?', a: 'No. Pages are scaled, not turned into pictures, so text stays sharp and selectable.' },
+      { q: 'Can I fit only some pages?', a: 'Yes. Type them in Which pages, like 1, 4-6; the others keep their size.' },
+      { q: 'Will it stretch my page to fill the sheet?', a: 'Never. The page keeps its proportions, so a page of a different shape has white space above and below, or at the sides.' },
+      { q: 'Does a locked PDF stay locked?', a: 'Yes. Type its password when asked; the A4 copy keeps the same password.' },
+    ],
+  },
+  {
+    slug: 'split-pdf-into-smaller-files-by-size',
+    title: 'Split a PDF by size: parts under 5, 10 or 25 MB',
+    h1: 'How to split a large PDF into parts under a size limit',
+    description: 'Cut a big PDF into parts that each fit an upload or email limit, as few parts as possible, pages untouched. Free, in your browser, and never uploaded.',
+    tool: 'split-by-size',
+    related: ['compress', 'split', 'merge'],
+    intro: 'Open Split by size, add the big PDF, pick the most each part may be, 5, 10 or 25 MB or another size, and press Split into parts that fit. You get as few parts as possible, each under the limit, with the pages in order.',
+    steps: [
+      'Open Split by size and add the PDF.',
+      'Choose 5 MB, 10 MB or 25 MB, or Another size and type the megabytes.',
+      'Press Split into parts that fit.',
+      'Read each part’s size and pages in the result.',
+      'Save the parts, or use Save all, and upload or send them in order.',
+    ],
+    sections: [
+      {
+        heading: 'When splitting beats compressing',
+        paragraphs: [
+          'Compressing makes one smaller file, but it softens photos, and a long scan may not fit a limit however hard it is squeezed. Splitting leaves every page exactly as it was and shares the pages out between files. It is the right choice when a portal or an inbox takes several files but caps each one: an insurance claim with a long hospital record, a tender with its drawings, a scanned property file.',
+          'If the place you are sending to takes only one file, [Compress](/tools/compress/) is the tool instead; see [compress a PDF to 1 MB](/guides/compress-pdf-to-1mb/).',
+        ],
+      },
+      {
+        heading: 'How the parts are made',
+        paragraphs: [
+          'Each part is made as big as it can be while staying under your limit, so you get as few parts as possible. They are rarely equal. The tool saves each candidate part and measures it rather than guessing, because fonts and pictures shared between pages are copied into every part that uses them: ten pages of a 50 MB file are seldom a fifth of it. A part of photos may hold a few pages, and a part of typed text hundreds.',
+          'Here 1 MB is 1,000,000 bytes, slightly less than some programs count, so a part made under 10 MB is under 10 MB wherever it is checked.',
+        ],
+      },
+      {
+        heading: 'Pages bigger than the limit',
+        paragraphs: [
+          'A single page can be bigger than the limit on its own, such as a high-resolution scan of a map or a site plan. It cannot be split further, so it becomes a part by itself, and the result line says it is bigger than the limit. Save that part, open [Compress](/tools/compress/), add it alone and choose To a size, then send it with the others.',
+        ],
+      },
+      {
+        heading: 'Choosing the size',
+        paragraphs: [
+          'Use the limit the portal or email states, as it is: the parts are already measured safely under it. For email, remember that the person receiving may have a lower limit than you, and 5 MB is safe for almost any inbox. Another size takes anything from 1 MB to 1,000 MB; a limit written in KB is the same number divided by 1,000, so 2,000 KB is 2 MB. For limits under 1 MB, split by pages with [Split](/tools/split/) and compress the parts instead.',
+        ],
+      },
+      {
+        heading: 'Sending the parts',
+        paragraphs: [
+          'Parts are named part 1, part 2 and so on, in page order, and the result gives each one’s size and the pages it holds. Upload them in that order, and if a portal lets you name each upload, use the pages: Hospital record, pages 1 to 46. By email, say in each message which part it is and how many there are. The person receiving can put them back together with [Merge](/tools/merge/).',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Farah has a 62 MB scan of her father’s hospital records for an insurance claim, and the claim portal takes several files of up to 10 MB each. She opens Split by size, adds the scan, leaves 10 MB chosen and presses Split into parts that fit. The parts come back each under 10 MB, with their pages listed, and she uploads them in order, part 1 first. Had the portal taken only one file, she would have compressed instead, and checked that the doctors’ notes still read clearly.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Are the pages changed or compressed?', a: 'No. Pages are only shared out between the parts, in order, exactly as they were.' },
+      { q: 'Can I choose the number of parts instead?', a: 'Not here. For a set number of pages in each part, use [Split](/tools/split/) with Every few pages.' },
+      { q: 'My file is already under the limit. What happens?', a: 'Nothing is split, and the result says the file is already under that size.' },
+      { q: 'Is my file uploaded to be split?', a: 'No. It is split in your browser, on your device. The only place the parts go is wherever you send them.' },
+      { q: 'Does a locked PDF give locked parts?', a: 'Yes, each with the same password. Unlock it first with [Remove a password](/tools/remove-password/) if the person receiving should not need it.' },
+    ],
+  },
+
   // ---- Signing ----
   {
     slug: 'sign-pdf-online-free',
@@ -1176,7 +1680,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Using your signature on paper',
         paragraphs: [
-          'If you would rather use your real ink signature, sign a sheet of white paper, photograph it, and place the photo with [Add image](/tools/add-image/). A PNG with a see-through background sits cleanly on the page.',
+          'If you would rather use your real ink signature, sign a sheet of white paper, photograph it, and place the photo with [Add image](/tools/add-image/). A PNG with a see-through background sits cleanly on the page. For a company seal as well, see [add a company stamp and signature](/guides/add-company-stamp-and-signature-to-pdf/).',
         ],
       },
       {
@@ -1272,6 +1776,134 @@ export const GUIDES: readonly Guide[] = [
     ],
   },
 
+  {
+    slug: 'add-company-stamp-and-signature-to-pdf',
+    title: 'Add a company stamp and signature to a PDF, free',
+    h1: 'How to put your company seal and signature on a PDF',
+    description: 'Put your company’s round seal and your signature on a quotation, invoice or letter in PDF, on a phone or computer. Free, and nothing is uploaded.',
+    tool: 'add-image',
+    related: ['sign', 'mark-up', 'add-text', 'digital-sign'],
+    intro: 'Photograph your seal on white paper and place it with Add image, then tap Then and add your signature with Sign. For a ready-made PAID, RECEIVED or APPROVED stamp, Mark up has those built in.',
+    steps: [
+      'Stamp your seal on plain white paper, photograph it in daylight, and remove the background in a photo app that saves PNG.',
+      'Open Add image, add the PDF, and tap Choose a photo, a logo or a stamp to pick the seal picture.',
+      'Tap the page where the seal goes, drag it into place, size it by its corner, and press Place it.',
+      'Tap Then, choose Sign, draw your signature and tap where it goes.',
+      'Press Place the signature and save the sealed, signed PDF.',
+    ],
+    sections: [
+      {
+        heading: 'A clean picture of the seal',
+        paragraphs: [
+          'Press the seal once, firmly, with fresh ink, on clean white paper. Photograph it from straight above in daylight, close enough that the seal fills most of the photo, with no shadow across it. A crisp, even impression matters more than the camera.',
+          'A JPEG photo always carries its white paper with it, which shows as a white patch on a letterhead with a coloured band or over printed lines. Remove the background in your phone’s photo editor, or any app that saves a PNG with a see-through background, and the seal sits on the page like real ink. Do this well once, keep the finished PNG somewhere safe, and reuse it.',
+        ],
+      },
+      {
+        heading: 'Placing the seal and the signature',
+        paragraphs: [
+          'Add image puts the picture where you tap and keeps its shape as you resize it, so a round seal stays round. Tap another page to place it there too; each copy moves and sizes on its own. Large photos are shrunk to a sensible size first, so a phone photo does not add megabytes to the PDF.',
+          'Then the signature: [Sign](/tools/sign/) lets you draw it with a finger or a mouse, in blue or black, and place it the same way. Many businesses sign across the edge of the seal, as on paper; others sign above the printed name with the seal beside it. If the document has no printed place for your name, designation and the date, write them with [Add text](/tools/add-text/).',
+        ],
+      },
+      {
+        heading: 'Ready-made office stamps',
+        paragraphs: [
+          'For marks that are words rather than a seal, [Mark up](/tools/mark-up/) has stamps built in: Approved, Paid, Received, Draft, Confidential, Urgent, Copy and Void, or your own words, such as RECEIVED 12 OCT 2026, set in capitals in black, blue or red. Choose Stamp, pick one, tap the page and drag its corner to size it. They suit an accounts desk marking bills paid or received, or a draft that must not be mistaken for the final copy.',
+        ],
+      },
+      {
+        heading: 'A picture, or a digital signature?',
+        paragraphs: [
+          'A seal and signature placed this way are pictures on the page, as on a scan of a stamped paper. That is what most quotations, purchase orders, letters and invoices sent by email carry. It does not prove who placed them, and anyone with the file could copy the picture, so send stamped copies only to the people who need them.',
+          'Where a document must show who signed and that nothing changed since, as some filings and tenders require, a certificate-based [digital signature](/tools/digital-sign/) is the tool, added last, after the seal and every other change; see [digitally sign a PDF with your DSC](/guides/digital-signature-pdf-dsc/). Whether a stamped PDF is enough depends on who receives it, so ask when it matters.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Suresh runs a small printing shop and sends quotations as PDFs from his laptop. He stamps his round seal on white paper once, photographs it, removes the background in a photo app and saves it as seal.png. For each quotation, he opens Add image, adds the PDF, chooses seal.png, taps near the bottom right of the last page and sizes the seal to about the width of his printed name. He presses Place it, taps Then, chooses Sign, draws his signature across the seal’s lower edge and presses Place the signature. The file he emails looks like a stamped paper quotation, and neither it nor his seal was ever uploaded anywhere.',
+        ],
+      },
+      {
+        heading: 'Common mistakes',
+        paragraphs: [
+          'A seal photographed at an angle comes out oval and smudged: hold the phone straight above it. A seal placed too large looks odd; on an A4 page most seals are only a few centimetres across, so compare it with the text around it. And sealing every page of a long document one by one, when the page that needs it is usually only the last, or the one with the signature block.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Are my seal and signature stored on your site?', a: 'No. They are placed on the page in your browser and forgotten when you leave. Nothing is uploaded, and nothing is kept.' },
+      { q: 'Can I place the seal and signature in one go?', a: 'Yes. Sign across the seal on white paper, photograph the two together, and place that one picture with Add image.' },
+      { q: 'Why is there a white box around my seal?', a: 'The picture is a JPEG, or a PNG with a white background. Remove the background in a photo app and save it as PNG.' },
+      { q: 'Can I do this on my phone?', a: 'Yes. Every step works in a phone’s browser. Pinch to zoom in before placing, so the seal lands exactly where you want it.' },
+      { q: 'Is a stamped and signed PDF legally valid?', a: 'It depends on the document and who receives it. Many businesses accept one for quotations, invoices and letters; filings that require a digital signature need a certificate.' },
+    ],
+  },
+  {
+    slug: 'fill-and-sign-pdf-form-on-phone',
+    title: 'Fill and sign a PDF form on your phone, no app',
+    h1: 'How to fill in and sign a PDF form on your phone',
+    description: 'Fill in a PDF form, sign it with your finger and send it back on WhatsApp or email, all in your phone’s browser. Free, no app, nothing uploaded.',
+    tool: 'fill-form',
+    related: ['sign', 'add-text', 'scan'],
+    intro: 'Open Fill in a form in your phone’s browser, type your answers in the boxes it lists, and press Fill it in. Tap Then, choose Sign, sign with your finger, and send the finished form straight to WhatsApp or email.',
+    steps: [
+      'Get the PDF onto your phone as a file, then open Fill in a form and add it.',
+      'Type your answers in the list of boxes, and tick Seal the answers for the final copy.',
+      'Press Fill it in, then tap Then and choose Sign.',
+      'Draw your signature with a finger, tap the page where it goes, and press Place the signature.',
+      'Tap Send and pick WhatsApp, Gmail or another app, or Save to keep it.',
+    ],
+    sections: [
+      {
+        heading: 'Getting the PDF into the browser',
+        paragraphs: [
+          'The form has to be on your phone as a file first. From email, download the attachment. From WhatsApp, open the document once so it is stored on the phone, then tap the drop zone on the tool page and find it among your files. If you have installed this site from your browser’s menu, Foolscap also appears when you share a PDF from another app, and its Open a file page suggests what to do with it.',
+        ],
+      },
+      {
+        heading: 'Typing answers on a small screen',
+        paragraphs: [
+          'You do not have to pinch and zoom around the page to hit tiny boxes. Fill in a form reads the form’s own fields and lists them as ordinary boxes, one under another, each with its name, so the phone keyboard works as it does anywhere else. Ticks are tick boxes and lists are drop-downs. If a field has a set length, the box says how many characters it takes.',
+          'Type dates and numbers exactly as the form asks, such as DD/MM/YYYY, because each answer goes into its field just as typed. A field called Text7 tells you nothing: put a test word in it, press Fill it in and see where it lands. Your original never changes, so trying costs nothing.',
+        ],
+      },
+      {
+        heading: 'Signing with a finger',
+        paragraphs: [
+          'In Sign, draw slowly and larger than you would on paper; the signature is trimmed and fitted when you place it. If it comes out shaky, tap Clear and draw it again. Blue ink is chosen at first. Pinch to zoom in on the signature line, tap where the signature goes, then drag it into place and drag its corner to size it. If the form wants the date beside it, tap Then once more and use [Add text](/tools/add-text/).',
+        ],
+      },
+      {
+        heading: 'Forms with no boxes to type in',
+        paragraphs: [
+          'If the tool says the PDF has no fields, the form is a printed page saved as a PDF. Write on it with [Add text](/tools/add-text/) instead: type an answer, tap just above its line, and repeat. Zoom in before tapping, and choose Small for narrow lines. If you only have the form on paper, photograph each page with [Scan](/tools/scan/) first.',
+        ],
+      },
+      {
+        heading: 'Saving answers for next time',
+        paragraphs: [
+          'Tick Also save my answers as a file, and a small .json file comes out beside the filled form. Next time the same form arrives, add it, choose Fill it from saved answers, and pick that file: the boxes fill themselves. It is handy for forms that come back every year, such as a school’s details form or an insurance renewal. The file holds only what you typed, so keep it as private as the form.',
+          'When that answers file comes out too, the result holds two kinds of file, so Then is not offered. Save the filled form, then open [Sign](/tools/sign/) and add it yourself.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'A school sends a fillable consent form on WhatsApp, to be returned signed tonight. Priya opens it once in WhatsApp, opens Fill in a form, adds it, types her child’s name, class and her phone number into the listed boxes and ticks the boxes that apply. She ticks Seal the answers and presses Fill it in. She taps Then, chooses Sign, signs with her finger in blue, taps the parent’s signature line and presses Place the signature. She taps Send, picks WhatsApp and the class teacher’s chat, and the signed form goes back as a document.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Do I need to install an app?', a: 'No. It works in Chrome, Safari or any current phone browser. Installing the site from the browser’s menu is optional.' },
+      { q: 'Is the form uploaded while I fill it?', a: 'No. Your answers and signature are written into the PDF in your phone’s browser; nothing is sent to us or anyone else.' },
+      { q: 'Should I seal the answers before signing?', a: 'For the copy you send, yes: sealing makes the answers part of the page so nobody can change them later. See [flatten a PDF form](/guides/flatten-pdf-form/).' },
+      { q: 'Where does the filled form go?', a: 'Save puts it in your phone’s Downloads. Send hands it to another app without saving first, on phones that can share files.' },
+      { q: 'Can I do this on an iPhone?', a: 'Yes. Open the site in Safari; everything works the same way, and saved files go to the Files app.' },
+    ],
+  },
+
   // ---- Marking up ----
   {
     slug: 'add-page-numbers-to-pdf',
@@ -1298,7 +1930,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Bates numbering for legal files',
         paragraphs: [
-          'Choose Bates in Style for numbers like ACME-000001. Type what goes before the number and how many digits it has. Bates runs one sequence through every page of every file you add, in the order you added them, which is what court bundles and discovery sets need.',
+          'Choose Bates in Style for numbers like ACME-000001. Type what goes before the number and how many digits it has. Bates runs one sequence through every page of every file you add, in the order you added them, which is what court bundles and discovery sets need. See [Bates numbering](/guides/bates-numbering-pdf/).',
         ],
       },
       {
@@ -1348,7 +1980,7 @@ export const GUIDES: readonly Guide[] = [
       'Open Watermark and add one or more PDFs.',
       'Type the watermark text, such as DRAFT or COPY.',
       'Choose Light, Medium or Strong.',
-      'Choose Once, across the middle, or Repeated all over.',
+      'Choose a layout: Once, diagonally; Once, straight across; or Repeated all over.',
       'Press Add the watermark and save the files.',
     ],
     sections: [
@@ -1418,7 +2050,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'How the change is made',
         paragraphs: [
-          'The old words are painted over in the page’s own colour and the new ones written in their place, in the nearest built-in font. In a table, each cell is its own piece, so changing one amount in a row changes only that amount, and figures keep their right edge.',
+          'The old words are painted over in the page’s own colour and the new ones written in their place, in the document’s own font where it can draw every letter, or else the nearest built-in one. In a table, each cell is its own piece, so changing one amount in a row changes only that amount, and figures keep their right edge.',
         ],
       },
       {
@@ -1454,9 +2086,9 @@ export const GUIDES: readonly Guide[] = [
       },
     ],
     faq: [
-      { q: 'Will the new text match the old font?', a: 'It uses the nearest of the built-in fonts, so it is close but not always identical, especially with decorative fonts.' },
+      { q: 'Will the new text match the old font?', a: 'Often. The document’s own font is used where it can draw every letter of the new words; otherwise the nearest built-in font, which is close but not always identical, especially to a decorative font.' },
       { q: 'Does find and replace match parts of words?', a: 'No. It matches whole words and whole numbers, so 5,000.00 does not change 15,000.00.' },
-      { q: 'Can I edit a scanned PDF?', a: 'Not with this tool; a scan has no text in it. Add new words over it with [Add text](/tools/add-text/).' },
+      { q: 'Can I edit a scanned PDF?', a: 'Yes. Tap Read the words on this page first: the words are read on your device, and only the ones you change are repainted. Check names and numbers, as they were read from a picture. To add new words instead, use [Add text](/tools/add-text/).' },
       { q: 'Can I change Malayalam or Hindi text?', a: 'Yes. The old words are covered and the new ones are drawn by your browser, so they read correctly, with the same words written invisibly underneath so they can be searched and copied. Words in English letters go in as real text.' },
       { q: 'Does it work on a locked PDF?', a: 'Yes. Type its password when asked; the edited copy keeps the same password.' },
       { q: 'Can I undo a change?', a: 'Before saving, change the words back. After saving, start again from your original, which is never changed.' },
@@ -1487,7 +2119,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Sealed or still editable',
         paragraphs: [
-          'Leave Seal the answers off and the form stays fillable, so it can be corrected later. Turn it on and the answers become part of the page, which is what you want before sending a final copy.',
+          'Leave Seal the answers off and the form stays fillable, so it can be corrected later. Turn it on and the answers become part of the page, which is what you want before sending a final copy. See [flatten a PDF form](/guides/flatten-pdf-form/) for more.',
         ],
       },
       {
@@ -1522,7 +2154,7 @@ export const GUIDES: readonly Guide[] = [
       { q: 'Do I need Adobe Acrobat?', a: 'No. Any browser on a phone or computer works.' },
       { q: 'Can I sign the form too?', a: 'Yes. Fill it in first, then take the result to [Sign](/tools/sign/) with the Then button.' },
       { q: 'Why do my saved answers not fill a new form?', a: 'Answers are matched by field name. A new version of the form with renamed fields will not match, and the tool says so rather than filling the wrong boxes.' },
-      { q: 'Can I fill the form on my phone?', a: 'Yes. The fields are listed as ordinary boxes, so typing on a phone keyboard is easy, and the result can be shared straight from the phone.' },
+      { q: 'Can I fill the form on my phone?', a: 'Yes. The fields are listed as ordinary boxes, so typing on a phone keyboard is easy, and the result can be shared straight from the phone. See [fill and sign a form on your phone](/guides/fill-and-sign-pdf-form-on-phone/).' },
     ],
   },
   {
@@ -1587,6 +2219,324 @@ export const GUIDES: readonly Guide[] = [
       { q: 'Does it change how the form looks?', a: 'No. The fields sit over the page; the printed form underneath is not touched.' },
       { q: 'Can I add a place for a signature?', a: 'Leave that space empty: people can place a drawn signature on it with [Sign](/tools/sign/) after filling in the form.' },
       { q: 'Will people need special software to fill it?', a: 'No. Acrobat Reader, the viewers built into browsers and most phone PDF apps fill standard fields, and so does Fill in a form here.' },
+    ],
+  },
+
+  {
+    slug: 'bates-numbering-pdf',
+    title: 'Bates numbering for PDFs: legal page numbers, free',
+    h1: 'How to add Bates numbers to a set of PDFs',
+    description: 'Give every page of a set of PDFs a Bates number like CASE-000001, running on from file to file in order. Free, in your browser, nothing uploaded.',
+    tool: 'page-numbers',
+    related: ['merge', 'organise', 'header-footer', 'pdf-a'],
+    intro: 'Open Page numbers, add the files in order, choose Bates under Style, type what goes before the number and how many digits it has, and press Add the numbers. One sequence runs through every page of every file.',
+    steps: [
+      'Open Page numbers and add every PDF in the set.',
+      'Drag the files into the order the numbers should run, or use the arrows.',
+      'Choose Bates under Style, and a place under Where.',
+      'Type the prefix in Before the number, then set Digits and First number.',
+      'Press Add the numbers and save each numbered file.',
+    ],
+    sections: [
+      {
+        heading: 'What Bates numbers are for',
+        paragraphs: [
+          'A Bates number gives every page in a set of documents its own label, such as CASE-000001, so that any single page can be cited and found by its number alone, whichever file it sits in. The name comes from the Bates numbering machine once used to stamp paper. Law offices use it for discovery and court bundles, and it is just as useful for arbitration papers, due diligence, insurance claims and any large exchange of documents where people must point to pages without confusion.',
+          'Where a court or tribunal sets its own format for numbering pages, follow its rules. The other styles in Page numbers give a plain running number, and First number lets a second volume carry on from the first.',
+        ],
+      },
+      {
+        heading: 'Prefix, digits and first number',
+        paragraphs: [
+          'Before the number is the label at the front: a case code, a party’s initials or a matter number, such as ABC-. Digits sets how long the number is, padded with zeros: 6 gives 000001, which leaves room for 999,999 pages. First number is where counting starts, usually 1.',
+          'When a second set follows one already produced, carry on rather than starting again. If the first set ended at ABC-000412, give the next one First number 413, with the same prefix and digits, and the two sets read as one.',
+        ],
+      },
+      {
+        heading: 'Order is everything',
+        paragraphs: [
+          'Bates numbers run through the files in the order they are listed on the page, and through each file’s pages in order. Put the files in the order of your index before pressing the button: drag a row by its handle, or use its arrows. Each file comes back as its own PDF, named with the first number on it, and the result line gives the range each file got, so the index can be written straight from it.',
+          'If pages inside a file are in the wrong order, fix that first with [Organise pages](/tools/organise/): once numbered, a moved page carries its old number with it.',
+        ],
+      },
+      {
+        heading: 'Where the number sits',
+        paragraphs: [
+          'Where offers the bottom and top of the page, at the left, centre or right. Bottom right is a common place for Bates numbers, clear of the document’s own page numbers and letterheads. The number is small and plain, on a small white patch so it stays readable over a scan or a dark border. If a page already has something printed in that corner, choose another place for the whole set rather than mixing positions.',
+        ],
+      },
+      {
+        heading: 'After numbering',
+        paragraphs: [
+          'To have one file, join the numbered files with [Merge](/tools/merge/) in the same order. To add the matter’s name along the top of every page, use [Header and footer](/tools/header-footer/) on the numbered files. If the set must be filed as PDF/A, make the [archive copy](/tools/pdf-a/) after numbering, and if it must carry a digital signature, sign last of all, because any later change breaks it.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'A law firm’s clerk has to produce 14 PDFs of letters and invoices for an arbitration, numbered as one set with the prefix XYZ-. She opens Page numbers, adds all 14, and drags them into the order of her index. She chooses Bates under Style and Bottom, right under Where, types XYZ- in Before the number, leaves Digits at 6 and First number at 1, and presses Add the numbers. Each file comes back named with its first number, and the result lines read XYZ-000001 to XYZ-000023, XYZ-000024 to XYZ-000031, and so on, ready to copy into the index.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Are the documents uploaded?', a: 'No. The numbers are added in your browser, on your device. For confidential or privileged papers, that means they never pass through anyone else’s server.' },
+      { q: 'Can I skip the cover page?', a: 'Not with Bates: every page in the set gets a number, as the practice expects. The other styles can leave a cover unnumbered.' },
+      { q: 'How many digits should I use?', a: 'Six is a common choice and covers up to 999,999 pages. Whatever you choose, keep it the same for the whole matter.' },
+      { q: 'What if I get the order wrong?', a: 'Your originals are never changed. Put the files in the right order and number them again from the originals.' },
+      { q: 'Can I number one big merged file instead?', a: 'Yes. Merge first, then number the single file; its pages run XYZ-000001 onwards in the same way.' },
+    ],
+  },
+  {
+    slug: 'write-in-malayalam-or-hindi-on-pdf',
+    title: 'Write in Malayalam or Hindi on a PDF, free',
+    h1: 'How to write Malayalam, Hindi or Tamil on a PDF',
+    description: 'Type Malayalam, Hindi, Tamil or another Indian script onto a PDF: it looks right, and it can still be searched and copied. Free, nothing uploaded.',
+    tool: 'add-text',
+    related: ['fill-form', 'edit-text', 'watermark', 'header-footer'],
+    intro: 'Open Add text, type the words in your own script, tap the page where they go and press Write it on. Your browser draws the letters so they join and shape correctly, and the same words go in invisibly underneath, so a search finds them and copying gives them back.',
+    steps: [
+      'Open Add text and add the PDF.',
+      'Switch your keyboard to Malayalam, Hindi or your language, and type the words in the What to write box.',
+      'Choose Small, Medium or Large, and black, blue or red.',
+      'Tap the page where the words go, and drag them into place.',
+      'Press Write it on and save the new copy.',
+    ],
+    sections: [
+      {
+        heading: 'Why Indian scripts trip up PDF tools',
+        paragraphs: [
+          'PDF tools usually write with the fonts built into the PDF format, and those fonts only know English letters. Malayalam, Hindi, Tamil and the other Indian scripts need a font that has their letters and a program that joins them: a consonant and a vowel sign become one shape, and conjuncts stack or merge. Without both, you get empty boxes, or letters in the wrong order.',
+          'Here, words those built-in fonts cannot draw are drawn by your own browser, which already shapes Malayalam and Hindi correctly on every web page you read, and placed on the page as a sharp picture of the words. Underneath it, the same words are written as invisible text in your script, so the PDF can still be searched, and copying from it gives back exactly what you typed.',
+        ],
+      },
+      {
+        heading: 'Typing in your script',
+        paragraphs: [
+          'On an Android phone, Gboard and most other keyboards can add Malayalam, Hindi, Tamil and other Indian languages in their settings, including layouts where you type the sound in English letters and pick the word in your script. On a computer, Windows and macOS both let you add Indian-language keyboards in their language settings. Or copy the words from any message or document and paste them into the box.',
+          'What you paste must be real text in that script, the kind a phone keyboard types. Words typed years ago in older typing software, which stored Malayalam or Hindi letters under English keys, paste as a jumble of English letters and come out that way on the page.',
+        ],
+      },
+      {
+        heading: 'What it looks like',
+        paragraphs: [
+          'The letters are drawn in the Malayalam or Hindi font your device already uses, so they look the way your phone or computer shows those scripts everywhere else; a phone and a laptop may draw them in slightly different styles, and both read correctly. The picture is drawn larger than it shows on screen, so it stays clear when the page is zoomed. Small, Medium and Large set the size, and the colour can be black, blue or red.',
+          'A line that mixes scripts, such as an English name inside a Malayalam sentence, is drawn the same way. Lines entirely in English letters and numbers go in as ordinary PDF text instead. The rupee sign is not in the built-in fonts either, so a line with ₹ in it is drawn by the browser too, and still searches.',
+        ],
+      },
+      {
+        heading: 'Other places your script works',
+        paragraphs: [
+          'For forms with real fields, [Fill in a form](/tools/fill-form/) keeps a Malayalam or Hindi answer as real words in the field and shows a picture of them inside the box. To change words already printed on a page, [Edit text](/tools/edit-text/) draws the new words the same way. A [watermark](/tools/watermark/), a [header or footer](/tools/header-footer/) and your own words on a stamp in [Mark up](/tools/mark-up/) take any script too.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'A temple committee in Thrissur keeps its donation receipt as a PDF with blank lines for the donor’s name and the offering. Anitha opens Add text, adds the receipt, switches her phone keyboard to Malayalam and types the donor’s name. She chooses Medium and black, taps just above the name line and drags the words into place. She taps above the next line, which puts a new piece of text there, and types the offering, പുഷ്പാഞ്ജലി, over it. She presses Write it on and sends the copy. In the saved file, searching for the name finds it, and copying it gives back the Malayalam she typed.',
+        ],
+      },
+      {
+        heading: 'Common mistakes',
+        paragraphs: [
+          'Placing words on the printed line rather than just above it, so the line runs through them: on a phone, pinch to zoom in first. Typing a long paragraph as one piece, which runs off the edge of the page; press Enter in the box to break it into lines, or place it as several pieces. And expecting to edit the words after saving: they become part of the page, so check them before you press Write it on. Your original is always left as it was.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Can people search and copy what I wrote?', a: 'Yes. The words are written invisibly under the picture of them, in your script, so a reader’s find and copy work on them.' },
+      { q: 'Is anything I type sent anywhere?', a: 'No. The words are drawn and written into the PDF in your browser, on your device, and never leave it.' },
+      { q: 'Which scripts work?', a: 'Any your device can show: Malayalam, Hindi, Tamil, Telugu, Kannada, Bengali, Gujarati, Punjabi, Urdu, Arabic and more.' },
+      { q: 'Will it look the same on someone else’s phone?', a: 'Yes. The words are a picture inside the PDF, so every reader shows exactly what you placed, whatever fonts it has.' },
+      { q: 'Can I change the words after saving?', a: 'Not in the saved copy. Start again from your original, which is never changed.' },
+    ],
+  },
+  {
+    slug: 'add-logo-or-photo-to-pdf',
+    title: 'Add a logo or photo to a PDF, free and private',
+    h1: 'How to add a logo, photo or picture to a PDF',
+    description: 'Put a logo, a passport photo or any picture onto a PDF page, then move and resize it. Free, no sign-up, no watermark, and nothing is uploaded.',
+    tool: 'add-image',
+    related: ['edit-images', 'sign', 'header-footer'],
+    intro: 'Open Add image, add the PDF, tap Choose a photo, a logo or a stamp, pick the picture and tap the page where it goes. Drag it into place, drag its corner to size it, and press Place it.',
+    steps: [
+      'Open Add image and add the PDF.',
+      'Tap Choose a photo, a logo or a stamp, and pick the picture.',
+      'Tap the page where it goes; tap other pages to place it there too.',
+      'Drag it into place, and drag its corner to make it bigger or smaller.',
+      'Press Place it and save the new copy.',
+    ],
+    sections: [
+      {
+        heading: 'A passport photo on a form',
+        paragraphs: [
+          'Many application forms have a box for a photo. The picture keeps its shape as you resize it, so it will not squash to fit a box of a different shape. Before you start, crop the photo in your phone’s gallery to the box’s shape, usually a little taller than it is wide, with a plain light background if the form asks for one. Then place it, zoom in, and size it by its corner until it sits just inside the printed box.',
+          'Whether a placed photo is accepted depends on who receives the form. Some offices want a printed photo pasted on paper; others are happy with one placed on the PDF. Read the form’s own instructions.',
+        ],
+      },
+      {
+        heading: 'A logo on a letter or quotation',
+        paragraphs: [
+          'For a logo on a letter, a quotation or a price list, a PNG with a see-through background sits cleanly on coloured or lined paper, while a JPEG brings its white box with it. Place it on the first page, or tap each page that needs it; each copy moves and sizes on its own, so line them up by eye at the same zoom.',
+          'For a long document with a logo on every page, placing it page by page is slow. If words will do, [Header and footer](/tools/header-footer/) puts a line such as your company’s name along every page in one go.',
+        ],
+      },
+      {
+        heading: 'Keeping the file small',
+        paragraphs: [
+          'A phone photo can be several MB. Add image shrinks a big picture to at most 2,000 pixels on its longest side before it goes on the page, which stays sharp on screen and on paper, so one photo does not swell the PDF. A photo taken sideways is turned upright first, from the phone’s own record of how it was held.',
+        ],
+      },
+      {
+        heading: 'Adding, or changing what is there?',
+        paragraphs: [
+          'Add image puts a new picture on the page. To move, resize, take out or swap a picture already in the PDF, such as an old logo, use [Edit pictures](/tools/edit-images/) instead; see [replace a logo or picture in a PDF](/guides/replace-image-or-logo-in-pdf/). For a signature, [Sign](/tools/sign/) lets you draw one, and a photo of your ink signature works here too.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Kiran is sending his marriage biodata as a PDF and wants his photo at the top right of the first page. He crops the photo in his gallery to a portrait shape, opens Add image, adds the biodata and chooses the photo. He taps near the top right of page 1, drags the photo into the corner, and drags its corner until it is about a quarter of the page wide. He presses Place it, opens the copy to check that nothing printed is hidden under the photo, and sends it.',
+        ],
+      },
+      {
+        heading: 'Common mistakes',
+        paragraphs: [
+          'Tapping the page before choosing a picture: choose the picture first, then tap. Placing a JPEG logo on a coloured letterhead, which shows a white rectangle round it. And placing a photo over printed words, which hides them in the saved copy, because the picture becomes part of the page. Check the position before you press Place it; your original is never changed, so a wrong placement costs only a fresh start.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Which picture types work?', a: 'JPEG and PNG work everywhere; other types, such as WebP, where your browser can read them.' },
+      { q: 'Is my photo uploaded?', a: 'No. It is placed on the page in your browser and stays on your device.' },
+      { q: 'Can I place the same logo on every page?', a: 'Yes: tap each page that needs it. There is no single button for every page at once.' },
+      { q: 'Can I change it after placing it?', a: 'Before saving, drag it, resize it, or take it off with its ×. After saving it is part of the page; [Edit pictures](/tools/edit-images/) can move or take it out, or start again from your original.' },
+      { q: 'Will it lower the quality of the rest of the PDF?', a: 'No. Only the new picture is added; everything else on the page stays exactly as it was.' },
+    ],
+  },
+  {
+    slug: 'replace-image-or-logo-in-pdf',
+    title: 'Replace, move or delete an image in a PDF, free',
+    h1: 'How to replace a logo or picture in a PDF',
+    description: 'Swap an old logo for a new one, move or resize a photo, or take a picture out of a PDF, leaving everything else as it was. Free, no upload.',
+    tool: 'edit-images',
+    related: ['add-image', 'extract-images', 'remove-areas'],
+    intro: 'Open Edit pictures, add the PDF and go to the page. Tap the picture, then choose Replace the selected picture with another, or drag it, size it, or tap its × to take it out. Press Save the changes.',
+    steps: [
+      'Open Edit pictures and add the PDF.',
+      'Go to the page with the picture; every picture on it is outlined.',
+      'Tap the picture to select it.',
+      'Choose Replace the selected picture with another, or drag it, drag its corner, or tap its ×.',
+      'Press Save the changes and save the new copy.',
+    ],
+    sections: [
+      {
+        heading: 'Swapping a logo',
+        paragraphs: [
+          'A company changed its logo, a template still carries the old one, or a brochure needs this year’s photo. Select the old picture and choose the new one: it goes into the old picture’s box, keeping its own shape, so a square logo replacing a wide one sits centred rather than stretched. A PNG with a see-through background suits logos, because the page shows around them.',
+          'Only that picture changes. Text, lines and other pictures on the page stay exactly where they were, because the tool changes the one instruction that draws the picture and nothing else.',
+        ],
+      },
+      {
+        heading: 'Moving, resizing and taking out',
+        paragraphs: [
+          'Drag a selected picture to move it, and drag its corner to resize it. Tap its × to take it out, and tap × again if you change your mind before saving. Every change shows on the page before anything is saved, and the result line says how many pictures were moved, replaced or taken out, and whether any change could not be made.',
+        ],
+      },
+      {
+        heading: 'When a picture cannot be selected',
+        paragraphs: [
+          'Some things that look like pictures are not. A logo drawn from lines and shapes, as many sharp logos are, is not a picture inside the file and cannot be selected. A scanned page is one picture of the whole sheet, so a logo on a scan is part of that one picture. And a picture tucked inside a larger drawing may not be editable on its own. When a change cannot be made, the result says so rather than failing quietly.',
+          'In those cases you can still cover the old logo with [Add image](/tools/add-image/): a new picture with a solid background, placed over it, hides it on the page. The old one stays underneath, though, and anyone with an editor could uncover it.',
+        ],
+      },
+      {
+        heading: 'Taking out is not removing for privacy',
+        paragraphs: [
+          'A picture taken out is no longer drawn, so nobody sees it, but its data may still be stored inside the file. That is fine for an outdated logo. For a private photo, a picture of an ID card or a signature that must not travel with the file, use [Remove areas](/tools/remove-areas/) on that part of the page instead, which takes it out of the file for good.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'A school’s fee circular template still has last year’s logo at the top of each of its three pages. Meena opens Edit pictures, adds the PDF, taps the logo on page 1, chooses Replace the selected picture with another and picks the new logo, a PNG. She steps to pages 2 and 3 and does the same, presses Save the changes, and checks the copy: the new logo sits where the old one was, and the text below it has not moved.',
+        ],
+      },
+      {
+        heading: 'Keeping a copy of a picture first',
+        paragraphs: [
+          'If you want the old picture as a file before you change it, [Extract images](/tools/extract-images/) saves every picture in the PDF exactly as stored. Your original PDF is never changed either way: each save makes a new copy beside it, named with pictures edited.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Does the new picture get stretched?', a: 'No. It keeps its own shape inside the old picture’s box.' },
+      { q: 'Is my PDF uploaded?', a: 'No. The pictures are changed in your browser, on your device, and nothing is sent anywhere.' },
+      { q: 'Can I replace a picture on every page at once?', a: 'No. Select and swap it on each page that has it; the other pages stay as they are until you do.' },
+      { q: 'Why can I not select the logo?', a: 'It is probably drawn from shapes rather than stored as a picture, or it is part of a scanned page. Cover it with Add image instead, knowing the old one stays underneath.' },
+      { q: 'Does a locked PDF stay locked?', a: 'Yes. Type its password when asked; the new copy keeps the same password.' },
+    ],
+  },
+  {
+    slug: 'flatten-pdf-form',
+    title: 'Flatten a PDF form: lock the answers into the page',
+    h1: 'How to flatten a PDF form so the answers cannot change',
+    description: 'Flatten a filled PDF form so its answers become part of the page and cannot be changed or lost. Free, in your browser, and nothing is uploaded.',
+    tool: 'fill-form',
+    related: ['merge', 'add-password', 'digital-sign'],
+    intro: 'In Fill in a form, tick Seal the answers and press Fill it in. The answers are flattened into the page: they look the same, but they are no longer boxes anyone can type into.',
+    steps: [
+      'Open Fill in a form and add the filled form.',
+      'Check the answers in the list, and change any that need it.',
+      'Tick Seal the answers.',
+      'Press Fill it in.',
+      'Save the sealed copy and send that one; keep the fillable original for corrections.',
+    ],
+    sections: [
+      {
+        heading: 'What flattening means',
+        paragraphs: [
+          'A fillable PDF keeps each answer in a field that sits on top of the page, separate from what is printed. Flattening, which this site calls sealing, writes each answer into the page itself and removes the fields. The sealed form looks just as it did, but there is nothing left to click or type into, and the answers travel as part of the page wherever the file goes.',
+        ],
+      },
+      {
+        heading: 'Why offices and portals ask for it',
+        paragraphs: [
+          'Answers in fields can be changed by anyone who opens the file, which is the point while a form is being filled, and a problem once it is final. Fields can also behave differently from one program to another: some forms’ fields do not print, some simple viewers show them empty, and when two copies of the same form are joined into one file, fields with the same name can end up showing the same answer. A sealed form avoids all of that: what you see is what everyone sees.',
+        ],
+      },
+      {
+        heading: 'Sealing a form filled somewhere else',
+        paragraphs: [
+          'You can seal a form that was filled in another app. Add it here, and the answers already in its fields show in the list. Tick Seal the answers and press Fill it in without changing anything, and the answers as they stand are written into the page.',
+          'If the tool says the PDF has no fields, there is nothing left to flatten: either it was sealed already, or it was only ever a printed page.',
+        ],
+      },
+      {
+        heading: 'Before you seal',
+        paragraphs: [
+          'Sealing cannot be undone in the sealed copy, so keep the fillable one: the file you picked is never changed, and a corrected version is a minute’s work from it. Check every answer in the list first, especially dates and numbers. If you will fill the same form again, tick Also save my answers as a file in the same run.',
+          'Answers in English letters stay real text after sealing, so they can still be searched and copied. An answer in Malayalam, Hindi or another script the form’s font cannot draw becomes a picture of its words, which reads correctly everywhere but cannot be searched.',
+        ],
+      },
+      {
+        heading: 'Sealed is not locked',
+        paragraphs: [
+          'Sealing stops the answers being edited as form answers. It does not stop a determined person editing the page, any more than a printed form stops someone with a pen. To stop the file being opened at all, lock it with [Add a password](/tools/add-password/). To show who signed and that nothing changed since, add a [digital signature](/tools/digital-sign/) last, after sealing.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'An insurance claim form arrives as a fillable PDF, and the claims portal wants the completed form and the hospital bills as one PDF. Kavya fills it in with Fill in a form, leaving Seal the answers off, and checks the result. When it is right, she adds that filled copy, ticks Seal the answers and presses Fill it in. She taps Then, chooses [Merge](/tools/merge/), adds the bills after the form and presses Merge into one file. The portal gets one file whose answers cannot be changed or lost on the way.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is flattening the same as Seal the answers?', a: 'Yes. Seal the answers flattens the form: every answer becomes part of the page, and the fields are removed.' },
+      { q: 'Can I unflatten a form?', a: 'No. Once sealed, the answers are printed on the page. Go back to your fillable original, which is never changed.' },
+      { q: 'Is my form uploaded to be flattened?', a: 'No. It is sealed in your browser, on your device, and nothing you typed is sent anywhere.' },
+      { q: 'Does a locked form stay locked?', a: 'Yes. Type its password when asked; the sealed copy keeps the same password.' },
+      { q: 'Can I flatten a form on my phone?', a: 'Yes. Tick the box and press the button, just as on a computer. See [fill and sign a form on your phone](/guides/fill-and-sign-pdf-form-on-phone/).' },
     ],
   },
 
@@ -1837,6 +2787,70 @@ export const GUIDES: readonly Guide[] = [
     ],
   },
 
+  {
+    slug: 'attach-files-to-pdf',
+    title: 'Attach files to a PDF, or take attachments out',
+    h1: 'How to attach files inside a PDF, and take them out',
+    description: 'Put a spreadsheet, photos or any file inside a PDF so they travel with it, or save the files a PDF already carries. Free, and nothing is uploaded.',
+    tool: 'attachments',
+    related: ['document-details', 'merge', 'pdf-a'],
+    intro: 'Open Attachments, keep Put files inside the PDF, add the PDF first and then the files, and press Attach or take out. To get files out of a PDF, choose Take out the attached files instead.',
+    steps: [
+      'Open Attachments and choose Put files inside the PDF, or Take out the attached files.',
+      'Add the PDF first, then, to attach, the files to put inside it.',
+      'Press Attach or take out.',
+      'Save the PDF with its attachments, or save each file that came out.',
+    ],
+    sections: [
+      {
+        heading: 'Why put files inside a PDF',
+        paragraphs: [
+          'An attachment travels inside the PDF, so a set of files cannot be separated by accident. An invoice can carry the spreadsheet behind it, a report its raw photos, a signed form the scan of the ID it refers to, a thesis its data. The person receiving gets one file to save and forward, and opens the attachments when they need them.',
+          'Any kind of file can go in: Excel sheets, Word files, photos, other PDFs, a ZIP. The PDF grows by about the size of what you attach. No size limit is set here, but the email or portal you send it through may have one, and attachments count towards it.',
+        ],
+      },
+      {
+        heading: 'How the person receiving finds them',
+        paragraphs: [
+          'Readers list attachments in a panel of their own, often marked with a paperclip: Adobe Acrobat Reader has an Attachments panel, and Firefox’s built-in viewer shows them in its sidebar. Not every viewer shows them, and many phone viewers do not. So say in your message that the PDF carries attachments, and what they are; the result line here reminds you to.',
+        ],
+      },
+      {
+        heading: 'Taking files out',
+        paragraphs: [
+          'Choose Take out the attached files, add the PDF and press Attach or take out. Every file it carries comes out exactly as it went in, byte for byte, with its own name, and Save all keeps them together. If a PDF carries none, the result says so.',
+          'Files attached to a PDF from someone you do not know deserve the care you would give any unexpected email attachment. Nothing here opens or checks them; they are carried, and handed back, exactly as they are.',
+        ],
+      },
+      {
+        heading: 'Attachments leave with the file',
+        paragraphs: [
+          'Attachments are easy to forget, and they go wherever the PDF goes. Before sending a PDF outside, check what it carries. To drop every attachment at once, use [Clean hidden data](/tools/document-details/), which takes them out along with the other hidden details. An [archive copy (PDF/A)](/tools/pdf-a/) also leaves them out, as the standard it follows asks.',
+          'If the PDF is digitally signed, attaching files makes a new copy in which the signature no longer checks out, and the result line says so. Attach first, and sign last.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Deepa is sending her accountant a PDF of the year’s rent receipts, and wants the twelve bank transfer screenshots and the rent agreement to go with it. She opens Attachments, keeps Put files inside the PDF, adds the receipts PDF first, then the screenshots and the agreement, and presses Attach or take out. The result says 13 files attached inside. She emails one PDF and tells her accountant to open its attachments panel, from which he saves the screenshots straight out.',
+        ],
+      },
+      {
+        heading: 'Attach, or merge?',
+        paragraphs: [
+          'Attaching keeps each file as itself, in its own format, which suits spreadsheets, photos at full size and anything that is not a PDF. If everything is a PDF and should be read page after page, [Merge](/tools/merge/) them into one document instead: every page shows in any viewer, with no panel to find.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Are my files uploaded?', a: 'No. They are put inside the PDF in your browser, as they are, and never opened, checked or sent anywhere.' },
+      { q: 'Is there a size limit?', a: 'None is set here; your device’s memory is the only limit. Email and portals have their own limits, and attachments count towards them.' },
+      { q: 'What if two files have the same name?', a: 'The second is renamed with (2) at the end, so both can be found in the reader’s list.' },
+      { q: 'Can I attach files to a locked PDF?', a: 'Yes. Type its password when asked; the result stays locked with the same password.' },
+      { q: 'How do I remove all attachments?', a: 'Use [Clean hidden data](/tools/document-details/) with Attached files too ticked.' },
+    ],
+  },
+
   // ---- Convert ----
   {
     slug: 'pdf-to-word',
@@ -1918,7 +2932,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'What is kept',
         paragraphs: [
-          'Headings, lists, tables, links and pictures are laid out on the Word file’s own page size, with the words kept as real text you can select and search. Headers and footers go on every page with their page numbers worked out, and footnotes are gathered under Notes at the end. Wide spreadsheets go on sideways pages. Lines in Malayalam, Hindi and other scripts are drawn by your browser and placed as pictures, so they show correctly but cannot be selected or searched.',
+          'Headings, lists, tables, links and pictures are laid out on the Word file’s own page size, with the words kept as real text you can select and search. Headers and footers go on every page with their page numbers worked out, and footnotes are gathered under Notes at the end. Wide spreadsheets go on sideways pages. Lines in Malayalam, Hindi and other scripts are drawn by your browser and placed as pictures, so they show correctly, with the same words written invisibly underneath so they can still be searched and copied.',
         ],
       },
       {
@@ -1959,7 +2973,7 @@ export const GUIDES: readonly Guide[] = [
       { q: 'Can I convert an Excel sheet?', a: 'Yes. Each sheet comes out as a table; wide ones on sideways pages.' },
       { q: 'Why does my .doc file not work?', a: 'Only the newer .docx and .xlsx are read. Open the old file in an office app and save it as .docx first.' },
       { q: 'Can I convert several files at once?', a: 'Yes. Add them all; each becomes its own PDF, and Merge can join them afterwards.' },
-      { q: 'Will the PDF be searchable?', a: 'Yes, for words in English letters: they are real text you can search and copy. Lines in other scripts are placed as pictures, so search will not find them.' },
+      { q: 'Will the PDF be searchable?', a: 'Yes. Words in English letters are real text you can search and copy. Lines in other scripts are placed as pictures with the same words written invisibly underneath, so search finds them too.' },
       { q: 'Does it work on a phone?', a: 'Yes, that is what it is for: a .docx sent to you on WhatsApp or by email can become a PDF in the phone’s browser, with nothing to install.' },
     ],
   },
@@ -2089,6 +3103,69 @@ export const GUIDES: readonly Guide[] = [
     ],
   },
 
+  {
+    slug: 'print-multiple-pages-per-sheet',
+    title: 'Print several PDF pages per sheet: 2, 4 or more',
+    h1: 'How to print several PDF pages on one sheet of paper',
+    description: 'Put 2, 4, 6, 8, 9 or 16 PDF pages on each A4 sheet to save paper on notes, slides and handouts. Free, in your browser, with nothing uploaded.',
+    tool: 'n-up',
+    related: ['extract-pages', 'crop', 'merge'],
+    intro: 'Open Pages per sheet, choose how many pages go on each sheet and A4 or Letter, and press Lay it out. You get a new PDF whose every page holds several of the old ones, ready to print at actual size.',
+    steps: [
+      'Open Pages per sheet and add the PDF.',
+      'Choose 2, 4, 6, 8, 9 or 16 under Pages on each sheet.',
+      'Choose A4 or Letter for the sheet size.',
+      'Press Lay it out and look through the result.',
+      'Print it at actual size, or 100%, rather than fit to page.',
+    ],
+    sections: [
+      {
+        heading: 'How many to a sheet',
+        paragraphs: [
+          'Two to a sheet halves the paper and stays easy to read: each A4 page prints at about two-thirds of its size, so ordinary 11-point text comes out a little over 7 points, small but readable for most people. Four to a sheet quarters the paper, with each page a little under half size, which suits slides, notes with large headings and handouts, but makes a dense contract hard going. Six, eight, nine and sixteen are for slide decks and for an overview of a long document, not for reading body text.',
+        ],
+      },
+      {
+        heading: 'Which way the sheet turns',
+        paragraphs: [
+          'The sheet is turned whichever way shows the pages biggest. Two upright pages go side by side on a sideways sheet; two wide slides go one above the other on an upright sheet. Pages run left to right, then down, and each is scaled to fit its place with its shape kept, so nothing is cut off or stretched. A file with mixed page sizes is laid out for the shape most of its pages have, and every page is fitted into its own place.',
+        ],
+      },
+      {
+        heading: 'The printer’s own setting, or this?',
+        paragraphs: [
+          'Many print dialogs, Chrome’s among them under More settings, can also print several pages per sheet. That is fine when you are printing it yourself, once. Laying it out here gives you a file instead: one you can send to a print shop, a classmate or a phone whose print screen has no such setting, and that prints the same everywhere. You also see every sheet before any paper is spent.',
+        ],
+      },
+      {
+        heading: 'Printing it right',
+        paragraphs: [
+          'In the print dialog, choose actual size, 100% or no scaling. Fit to page shrinks the layout a second time and leaves wide white edges. Print one sheet as a test before a long run. For double-sided printing, print as you normally would: each sheet of the new PDF is an ordinary page to the printer.',
+          'Pages are laid out in plain reading order. This tool does not reorder pages for folding into a booklet; for a stapled handout, reading order is exactly what you want.',
+        ],
+      },
+      {
+        heading: 'Printing only what you need',
+        paragraphs: [
+          'Before laying out a long file, take out the pages you will not use with [Extract or remove pages](/tools/extract-pages/), such as blank pages or a deck’s section dividers. Wide white margins waste room on every sheet too: run [Crop pages](/tools/crop/) with Remove the white margins first, and each page fills more of its place. To print several files together, join them with [Merge](/tools/merge/) and lay out the merged file.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Rahul’s lecturer shares a 60-slide deck as a PDF before an exam. He opens Pages per sheet, adds it, chooses 6 and A4, and presses Lay it out. The wide slides fit best two across and three down on a sideways sheet, and the result line says 60 pages on 10 sheets of A4 turned sideways. He prints one sheet at actual size to check that the slides’ small text can be read, then prints the rest double-sided: five sheets of paper instead of sixty.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is my file uploaded?', a: 'No. The sheets are laid out in your browser, and the file never leaves your device.' },
+      { q: 'Will the text stay sharp?', a: 'Yes. Pages are placed on the sheet as they are, not turned into pictures, so text is as sharp as the printer allows at its smaller size.' },
+      { q: 'Can I lay out several files at once?', a: 'Yes. Add them all; each comes back as its own laid-out PDF.' },
+      { q: 'Why is there a white edge round the sheet?', a: 'A small margin is left round each sheet and between the pages, so nothing falls in the strip many printers cannot print.' },
+      { q: 'Can I put both sides of an ID card on one sheet?', a: 'Yes, if they are two pages of one PDF. See [Aadhaar front and back on one page](/guides/aadhaar-front-and-back-on-one-page/).' },
+    ],
+  },
+
   // ---- Read and capture ----
   {
     slug: 'make-scanned-pdf-searchable',
@@ -2114,7 +3191,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'Indian scripts, searchable too',
         paragraphs: [
-          'Every word read goes into the invisible layer inside the PDF, in whatever script it is written: Malayalam, Hindi, Tamil, Bengali, Arabic. Search, select and copy work on them in any PDF reader, just as for English. Check names and numbers, as they were read from a picture.',
+          'Every word read goes into the invisible layer inside the PDF, in whatever script it is written: Malayalam, Hindi, Tamil, Bengali, Arabic. Search, select and copy work on them in any PDF reader, just as for English. Check names and numbers, as they were read from a picture. There are guides for [Malayalam scans](/guides/malayalam-ocr-scanned-pdf/) and [Hindi scans](/guides/hindi-ocr-scanned-pdf/).',
         ],
       },
       {
@@ -2126,7 +3203,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'A worked example',
         paragraphs: [
-          'You have a 30-page scanned property file in English and Malayalam and need to find every mention of a survey number. Open Make searchable, add the file, pick English and Malayalam, and press Make it searchable. Save both results. The searchable PDF finds the English words and the numbers with your reader’s find, and the .txt file holds every word that was read, Malayalam included, to search in any text app.',
+          'You have a 30-page scanned property file in English and Malayalam and need to find every mention of a survey number. Open Make searchable, add the file, pick English and Malayalam, and press Make it searchable. Save the searchable copy. Your reader’s find now finds the survey number, the English words and the Malayalam ones too, all inside the PDF itself.',
         ],
       },
       {
@@ -2203,7 +3280,7 @@ export const GUIDES: readonly Guide[] = [
     faq: [
       { q: 'Is what I type stored or sent anywhere?', a: 'No. The receipts are made in your browser and nothing you type is kept or sent.' },
       { q: 'Can I sign them on screen?', a: 'The owner signs the receipts, not you. If your employer accepts a signature placed on the PDF, the owner can use [Sign](/tools/sign/); otherwise print them and sign in ink.' },
-      { q: 'Can the names be in Malayalam or Hindi?', a: 'Yes. Words the PDF fonts cannot draw are drawn by your browser and placed as pictures, so they show correctly but cannot be searched.' },
+      { q: 'Can the names be in Malayalam or Hindi?', a: 'Yes. Words the PDF fonts cannot draw are drawn by your browser and placed as pictures, so they show correctly, and the same words are written invisibly underneath, so they can still be searched.' },
       { q: 'What if I moved house during the year?', a: 'Make two sets: one for the months at each address, with each owner’s name.' },
       { q: 'Can I make receipts for an earlier year?', a: 'Yes. Choose the first month you need, such as April of last year, and the number of months. The receipts should reflect rent you really paid in those months.' },
       { q: 'Can I correct the receipts after making them?', a: 'Make them again with the corrected details; it takes moments. Once the owner has signed, leave the PDF and the paper copies as they are.' },
@@ -2400,6 +3477,248 @@ export const GUIDES: readonly Guide[] = [
     ],
   },
 
+  {
+    slug: 'malayalam-ocr-scanned-pdf',
+    title: 'Malayalam OCR: make a scanned PDF searchable, free',
+    h1: 'How to make a scanned Malayalam PDF searchable',
+    description: 'Read the Malayalam words in a scanned PDF so you can search, select and copy them in the PDF itself. Free, on your own device, and never uploaded.',
+    tool: 'ocr',
+    related: ['scan', 'extract-text', 'pdf-to-images', 'images-to-pdf'],
+    intro: 'Open Make searchable, choose Malayalam as the language of the scan, add English if the pages mix the two, and press Make it searchable. The Malayalam words go into the PDF itself, invisibly over each page, so your reader’s find, select and copy work on them.',
+    steps: [
+      'Open Make searchable and add the scanned PDF.',
+      'Choose Malayalam under Language of the scan.',
+      'Choose English under Also in if the pages carry English words or names too.',
+      'Press Make it searchable; the Malayalam reader comes from this site the first time only.',
+      'Save the searchable copy and try your reader’s find on a word you can see.',
+    ],
+    sections: [
+      {
+        heading: 'What you get',
+        paragraphs: [
+          'A copy of your PDF, named with (searchable) at the end, that looks exactly like the scan. Over each scanned page lies an invisible layer of the words that were read, in Malayalam script, lined up with the picture. Search for a name and the reader jumps to it; select a line and copy it into a message, a note or a document. Pages that already had text of their own are left as they were.',
+          'Every word read, Malayalam and English alike, goes into the PDF itself rather than into a separate text file, so the file you keep or send is the file that searches.',
+        ],
+      },
+      {
+        heading: 'A scan that reads well',
+        paragraphs: [
+          'The reader works from a picture of each page, so the picture decides how well it does. Print on clean paper reads far better than a faint photocopy, and a straight page better than a crooked photo. If you are starting from phone photos, put them through [Scan](/tools/scan/) first, with Black and white, which straightens the page, whitens the paper and makes the letters crisp. Keep the paper flat, keep your shadow off it, and let it fill the photo.',
+          'Malayalam has many joined letters and small vowel signs, and those are the first details a blurred photo loses. If one letter keeps being read as another, a sharper photo of that page helps more than anything else. Handwriting and old typewritten pages read poorly whatever the language.',
+        ],
+      },
+      {
+        heading: 'Checking names and numbers',
+        paragraphs: [
+          'Everything in the layer was read from a picture, so treat it as a good draft. After saving, search for a name and a number you can see on the page; if they are found, the layer lines up. Then copy a sentence into a note and compare it with the page. That shows how well this scan was read before you rely on it for a survey number, an amount or a date.',
+          'If a word you can see is not found, search for part of it. Malayalam letters can be stored inside a computer in more than one way, and a shorter piece of the word often finds it when the whole word does not.',
+        ],
+      },
+      {
+        heading: 'When it says every page already has text',
+        paragraphs: [
+          'Make searchable leaves alone any page that already has text of its own, which is usually right. But some Malayalam PDFs were typed years ago with older typing software whose letters copy out as a jumble of English letters and symbols, and those pages count as having text. If copying from your file gives nonsense and Make searchable says every page already has text, turn the pages into pictures first: save them with [PDF to images](/tools/pdf-to-images/) as PNG at Print sharpness, make them a PDF again with [Images to PDF](/tools/images-to-pdf/) on A4 with no margin, and make that searchable.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Lakshmi has a 12-page scanned bundle of land papers from the village office, partly in Malayalam and partly in English, and needs every mention of a survey number and her grandfather’s name. She opens Make searchable, adds the PDF, chooses Malayalam as the language of the scan and English under Also in, and presses Make it searchable. The first time, the Malayalam reader, about 2.8 MB, comes from this site; then each page is read on her own phone, one at a time. She saves the copy, searches for the survey number, then for her grandfather’s name typed in Malayalam, and checks each match against the page.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is my document sent anywhere to be read?', a: 'No. The reading happens in your browser, on your device. Only the Malayalam reader itself comes from this site, the first time you pick it; your scan goes nowhere.' },
+      { q: 'Can it read handwritten Malayalam?', a: 'Not well. It is made for printed text. Handwriting, and very old typewritten pages, come out with many mistakes.' },
+      { q: 'How long does it take?', a: 'Each page is real work for your device, so a long scan takes a while, and longer on an older phone. A line shows which page it is reading.' },
+      { q: 'Can I copy the Malayalam into WhatsApp or Word?', a: 'Yes. Select it in your reader and copy, or take the searchable copy to [Extract text](/tools/extract-text/) for all of it as plain text, Malayalam included.' },
+      { q: 'Can I pick Malayalam, English and Tamil together?', a: 'Yes, up to three languages. Pick only those really on the pages: each extra one makes the reading slower and mistakes more likely.' },
+      { q: 'What about Hindi and other Indian languages?', a: 'Twenty languages can be picked, among them Tamil, Kannada and Telugu. For Hindi, see [Hindi OCR for scanned PDFs](/guides/hindi-ocr-scanned-pdf/).' },
+    ],
+  },
+  {
+    slug: 'hindi-ocr-scanned-pdf',
+    title: 'Hindi OCR: make a scanned Hindi PDF searchable, free',
+    h1: 'How to make a scanned Hindi PDF searchable',
+    description: 'Read Hindi (Devanagari) text in a scanned PDF so you can search and copy it, notices and forms included. Free, private, and nothing is uploaded.',
+    tool: 'ocr',
+    related: ['scan', 'summarise', 'remove-areas', 'pdf-to-word'],
+    intro: 'Open Make searchable, choose Hindi as the language of the scan, add English if the document is in both, and press Make it searchable. The Devanagari words go into the PDF itself, so you can search, select and copy them like typed text.',
+    steps: [
+      'Open Make searchable and add the scanned PDF.',
+      'Choose Hindi under Language of the scan.',
+      'Choose English under Also in if the pages carry English as well.',
+      'Press Make it searchable, and wait while each page is read on your device.',
+      'Save the copy and search it for a word or number you can see.',
+    ],
+    sections: [
+      {
+        heading: 'Hindi and English on one page',
+        paragraphs: [
+          'Government circulars, notices, orders and many forms are printed in Hindi and English together, side by side or one after the other. Pick Hindi first and English second, and both go into the searchable layer, each in its own script, lined up with the page. A form with Hindi headings and answers filled in English letters works the same way.',
+          'Hindi and Marathi share the Devanagari script but have separate readers in the list. For a Marathi document, pick Marathi, which knows Marathi words and spellings, even though the letters look the same.',
+        ],
+      },
+      {
+        heading: 'Old Hindi PDFs that copy out as nonsense',
+        paragraphs: [
+          'Many Hindi documents were typed in older fonts such as Kruti Dev and Chanakya, which store each Hindi letter under an English key. They look right on the page, but copying from them gives strings of English letters and symbols, and a search for a Hindi word finds nothing. Because such pages already have text, Make searchable leaves them alone and says every page already has text.',
+          'The way round is to turn the pages into pictures first, which drops the broken text. Save the pages with [PDF to images](/tools/pdf-to-images/) as PNG at Print sharpness, make them a PDF again with [Images to PDF](/tools/images-to-pdf/) on A4 with no margin, and make that searchable with Hindi chosen. The new layer holds real Hindi, which searches and copies correctly.',
+        ],
+      },
+      {
+        heading: 'Numbers, dates and names',
+        paragraphs: [
+          'Hindi documents print numbers in two ways: the usual 0 to 9, or Devanagari digits such as १२३. What is read is stored as it is printed, so search for a number the way the page shows it. Dates, file numbers and amounts are where a misread matters most, so check them against the page before you quote them.',
+          'Names deserve the same care. Hindi joins letters into one shape, and half-letters and the line along the top are the first things a poor scan blurs. Search for a name you know is there; if it is not found, try part of it.',
+        ],
+      },
+      {
+        heading: 'Once it is searchable',
+        paragraphs: [
+          'The words can now be found and copied like a typed PDF. [Remove areas](/tools/remove-areas/) can find an Aadhaar or phone number in it with Find and remove, which it cannot do on a bare picture; check every mark, as the numbers were read from a scan. Where your browser has a built-in translator, [Summarise and translate](/tools/summarise/) can turn it into English on your device.',
+          'For an editable Word file in Hindi, take the searchable copy to [PDF to Word](/tools/pdf-to-word/) and choose Editable words under Scanned pages: the Hindi read here is used, rather than the page being read again in English. Check the layout and the words before you rely on it.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Ramesh has a 20-page scanned court order, in Hindi with a few English lines, and needs every place it mentions his plot number and a hearing date. He opens Make searchable, adds the PDF, chooses Hindi as the language of the scan and English under Also in, and presses Make it searchable. The Hindi reader, about 1.4 MB, comes from this site the first time; the reading itself happens on his computer, page by page. He saves the copy, searches for the plot number, then for the date as it is printed, and reads each match on the page itself before quoting it.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is the document uploaded to be read?', a: 'No. Only the Hindi reader comes from this site, the first time you pick it. The scan is read in your browser and never leaves your device.' },
+      { q: 'Does it read handwritten Hindi?', a: 'Poorly. It is made for printed text, so handwritten entries on a form are mostly missed or misread. Check those by eye.' },
+      { q: 'Will the pages look different?', a: 'No. The words go in as an invisible layer; the scan you see is untouched.' },
+      { q: 'Which other Indian languages can it read?', a: 'Malayalam, Tamil, Telugu, Kannada, Bengali, Marathi, Gujarati, Punjabi and Urdu, each fetched the first time it is picked. See also [Malayalam OCR](/guides/malayalam-ocr-scanned-pdf/).' },
+      { q: 'How do I search in Hindi on my phone?', a: 'Switch your keyboard to Hindi in the reader’s search box and type the word, or search for a number or an English word on the same page.' },
+    ],
+  },
+  {
+    slug: 'copy-text-from-pdf',
+    title: 'Copy text from a PDF, even a scan: free, no upload',
+    h1: 'How to copy text from a PDF',
+    description: 'Get the words out of a PDF as plain text to copy and paste, page by page, and what to do when the PDF is a scan. Free, and never uploaded.',
+    tool: 'extract-text',
+    related: ['ocr', 'pdf-to-word', 'pdf-to-excel', 'remove-password'],
+    intro: 'For a line or two, select it in your PDF reader and copy. For the whole document, open Extract text, add the PDF and press Extract the text: you get a plain .txt file of every word, page by page, ready to copy from.',
+    steps: [
+      'Open Extract text and add the PDF, or several.',
+      'If a file is locked, type its password in the box under it and tap Unlock.',
+      'Press Extract the text.',
+      'Save the .txt file, or open it, select what you need and copy.',
+    ],
+    sections: [
+      {
+        heading: 'Selecting in a reader, or extracting',
+        paragraphs: [
+          'Most readers let you select words and copy them: drag across with a mouse, or on a phone, press and hold a word and drag the handles. That is fine for a sentence. It is slow for a long document, fiddly across page breaks, and some phone viewers do not let you select at all. Extract text takes every word at once and gives you a plain text file that opens in any notes app, email or word processor.',
+        ],
+      },
+      {
+        heading: 'What the text file looks like',
+        paragraphs: [
+          'The words come in reading order, with a line such as --- Page 3 --- where each page starts, so a quote can be traced back to its page. Bold, sizes, columns and tables are not kept: it is the words alone, which is what you want for pasting into an email, a message or a search. Every PDF you add gets its own .txt, named after it, and the result line counts the words and pages.',
+        ],
+      },
+      {
+        heading: 'Why a scan gives no text',
+        paragraphs: [
+          'A scanned page, or a photo saved as a PDF, holds a picture of the words rather than the words themselves, so there is nothing to copy. Extract text says so instead of saving an empty file, and in a mixed file it names the pages that are only pictures. Run the file through [Make searchable](/tools/ocr/) first: it reads the words in English, Malayalam, Hindi and eighteen more languages, on your device, and puts them into the PDF. Then extract the text from the searchable copy.',
+        ],
+      },
+      {
+        heading: 'When the copied text is garbled',
+        paragraphs: [
+          'Sometimes a PDF that clearly has text copies out as nonsense: letters swapped for symbols, Hindi or Malayalam turned into English letters, words run together. That is in the file, not the tool: it was made with fonts that do not say which letter each shape stands for, as older Indian-language typing fonts do not. Copying from any reader gives the same result. For pages like that, treat them as a scan; [Hindi OCR for scanned PDFs](/guides/hindi-ocr-scanned-pdf/) shows the steps, and they work for any language.',
+        ],
+      },
+      {
+        heading: 'Keeping tables and layout',
+        paragraphs: [
+          'If you want the structure as well as the words, convert to a format that keeps it. [PDF to Word](/tools/pdf-to-word/) gives headings, paragraphs, lists and tables you can edit. [PDF to Excel](/tools/pdf-to-excel/) turns tables, such as a bank statement, into rows and columns with amounts as numbers. Plain text is best when you only need the words.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Asha needs to quote three clauses from a 40-page insurance policy in an email to her insurer, from her phone, and selecting across page breaks in her phone’s viewer keeps losing the selection. She opens Extract text, adds the PDF and presses Extract the text. She opens the .txt in a text app, finds the clause numbers with its search, copies the three clauses and pastes them into the email, each with its page number from the page markers.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is my PDF uploaded to get the text?', a: 'No. The words are read out of the file in your browser, on your device, and the file never leaves it.' },
+      { q: 'Can I copy text from a locked PDF?', a: 'Yes, if you know its password: type it when the file asks.' },
+      { q: 'The PDF opens but will not let me copy. Why?', a: 'Whoever made it switched on a restriction. See [print or copy from a PDF that will not let you](/guides/remove-pdf-print-copy-restrictions/).' },
+      { q: 'Does it work with Malayalam and Hindi text?', a: 'Yes, where the PDF holds real text in those scripts. Older files made with non-standard fonts copy out garbled; that is in the file itself.' },
+      { q: 'Can I get the text from several PDFs at once?', a: 'Yes. Add them all; each gives its own .txt, and Save all saves them together.' },
+      { q: 'Does it work offline?', a: 'Yes, once the page has loaded: nothing it does needs the internet.' },
+    ],
+  },
+  {
+    slug: 'summarise-pdf-free-on-device',
+    title: 'Summarise a PDF free with on-device AI, no upload',
+    h1: 'How to summarise or translate a PDF without uploading it',
+    description: 'Get the key points of a PDF, or translate it, with the AI built into your browser, so the document never leaves your device. Free, and honest.',
+    tool: 'summarise',
+    related: ['ocr', 'extract-text', 'read'],
+    intro: 'Open Summarise and translate, add the PDF and press Summarise it. The key points come from the AI built into your browser, on your own computer, and the document is never sent to an online AI. Where a browser has no such AI, the tool says so and does nothing.',
+    steps: [
+      'Open Summarise and translate in a recent Chrome on a laptop or desktop.',
+      'Add the PDF; its words are read on your device.',
+      'Press Summarise it for the key points.',
+      'Or pick a language under Translate into and press Translate it.',
+      'Tap Copy to take the result into an email, a note or a document.',
+    ],
+    sections: [
+      {
+        heading: 'Why on-device matters',
+        paragraphs: [
+          'Most online AI summarisers send your document to a server, where a large model reads it. For a contract, a medical report, a bank statement or a work file you have been told not to upload, that is the whole problem. Recent versions of Chrome can download a small AI model of their own that runs on the computer itself. This tool hands the PDF’s words to that model and to nothing else, so the summary is made where the document already is.',
+        ],
+      },
+      {
+        heading: 'Which browsers have it',
+        paragraphs: [
+          'So far the built-in AI is found mainly in Chrome 138 or later on a laptop or desktop, and Chrome switches it on only where the computer can run it. The first time, the browser may download its model, which can take a few minutes; a line shows how far it has got. Other browsers and most phones do not offer it yet. If yours does not, the tool tells you so, and your document stays exactly where it is: it never falls back to an online service.',
+        ],
+      },
+      {
+        heading: 'What a summary is good for',
+        paragraphs: [
+          'The summary is a list of key points, made a part at a time for a long document and then drawn together, from up to the first 300 pages. It is a quick way to see what a long report, a circular or a set of terms is about, and to decide what to read closely. It is not a substitute for reading what matters: a small model can miss a detail or blur it, so check any clause, date or amount in the document itself before you act on it.',
+          'The summariser is made mainly for English. A document in another language may give a weak summary, or none.',
+        ],
+      },
+      {
+        heading: 'Translating',
+        paragraphs: [
+          'Pick a language under Translate into: English, Hindi, Malayalam, Tamil, Telugu, Kannada, Bengali, Marathi, Arabic, French, German, Spanish, Portuguese, Japanese or Chinese. The tool works out the document’s language where the browser can tell, treats it as English otherwise, and translates a part at a time, filling the box as it goes. Whether a pair such as English to Malayalam is offered depends on what your browser supports on your device; when it is not, the tool says so.',
+        ],
+      },
+      {
+        heading: 'Scans have no words to read',
+        paragraphs: [
+          'This tool reads the words stored in the PDF. A scan or a photo holds pictures of words instead, and the tool says it found none. Run it through [Make searchable](/tools/ocr/) first, which reads the words on your device too, then summarise the searchable copy. To keep the full text rather than a summary, [Extract text](/tools/extract-text/) gives it as a plain text file.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Vikram’s company sends round a 45-page revised travel and leave policy, and he wants the gist before a meeting. On his office laptop, in Chrome, he opens Summarise and translate, adds the PDF and presses Summarise it. The first time, a line shows Chrome getting its model ready; then the key points appear in the box. He copies them into his notes, and opens the policy itself in [Read](/tools/read/) to check the two points that affect him. The policy never left his laptop, which is what his company’s rules ask.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is my document sent to an AI service?', a: 'No. The words are read in your browser and handed only to the AI built into the browser, on your device. Where there is none, nothing happens.' },
+      { q: 'Why does it say this browser has no built-in AI?', a: 'Your browser does not offer it on this device. Try Chrome 138 or later on a laptop or desktop; your document stays put either way.' },
+      { q: 'Does it work on my phone?', a: 'Mostly not yet: the built-in AI is found mainly in desktop Chrome so far. The tool tells you whether your phone’s browser has it.' },
+      { q: 'Is the summary always right?', a: 'No. It is a small model’s reading and can miss or blur details. Check anything that matters against the document.' },
+      { q: 'Does it make a new PDF?', a: 'No. The result is plain text in a box; copy it into an email, a note or a document of your own.' },
+    ],
+  },
+
   // ---- The privacy question ----
   {
     slug: 'is-it-safe-to-upload-pdf-online',
@@ -2419,7 +3738,7 @@ export const GUIDES: readonly Guide[] = [
       {
         heading: 'How most PDF sites work',
         paragraphs: [
-          'Most PDF sites upload your file to their server, do the work there, and send the result back. Many say they delete files after a while, and many probably do. But the copy has left your device, it passes through their systems, and you cannot check what happens to it. For a bank statement, an Aadhaar or a salary slip, that is a real question.',
+          'Most PDF sites upload your file to their server, do the work there, and send the result back. Many say they delete files after a while, and many probably do. But the copy has left your device, it passes through their systems, and you cannot check what happens to it. For a bank statement, an Aadhaar or a salary slip, that is a real question. For a side-by-side look at the best-known sites, see [PDF tools without uploading](/guides/pdf-tools-without-uploading-ilovepdf-smallpdf-alternative/).',
         ],
       },
       {
@@ -2516,6 +3835,70 @@ export const GUIDES: readonly Guide[] = [
       { q: 'How much space does it take?', a: 'Some MB for the pages and tools, and more for each extra reading language you use in Make searchable. The browser manages the space and may clear it if the device runs low.' },
       { q: 'Can I use it on a computer that has never been online?', a: 'No. The first visit, while online, is what stores the tools. After that, the computer can be offline.' },
       { q: 'Are the results different offline?', a: 'No. The tools are the same programs either way; offline, they simply have no network to use, and they never needed one.' },
+    ],
+  },
+  {
+    slug: 'pdf-tools-without-uploading-ilovepdf-smallpdf-alternative',
+    title: 'iLovePDF and Smallpdf alternative that never uploads',
+    h1: 'PDF tools without uploading: how Foolscap compares',
+    description: 'How upload-based PDF sites such as iLovePDF, Smallpdf and Adobe’s online tools differ from tools that work on your device, and when each makes sense.',
+    tool: 'merge',
+    related: ['compress', 'ocr', 'sign', 'remove-password'],
+    intro: 'Most popular PDF sites, iLovePDF, Smallpdf and Adobe’s online tools among them, upload your file to their servers, do the work there and send the result back. Foolscap does the same everyday jobs inside your browser, so the file never leaves your device. Both have their place, and this page sets out the differences fairly.',
+    steps: [
+      'Note the job you usually do on an upload site, such as merging, compressing or unlocking.',
+      'Open the same tool here, from the home page or by typing its name in the finder.',
+      'Add your files: your browser reads them, and nothing is sent anywhere.',
+      'Run the tool and save the result, as you would on any PDF site.',
+      'To check, try it once with the internet switched off after the page has loaded.',
+    ],
+    sections: [
+      {
+        heading: 'How upload-based sites work',
+        paragraphs: [
+          'On an upload-based site, your file travels to the company’s servers, is processed there, and the result is sent back for you to download. That is how iLovePDF, Smallpdf and Adobe’s online Acrobat tools work for their web tools. They are established companies that publish privacy policies, protect files in transit and say how long they keep them before deleting them; read those policies for the details, which change from time to time.',
+          'The point is not that they misuse files. It is that a copy of your document leaves your device, and you rely on their word for what happens to it next. For many documents that is fine. For some, it is exactly what you, or your employer, would rather avoid.',
+        ],
+      },
+      {
+        heading: 'How Foolscap works',
+        paragraphs: [
+          'Here every tool runs inside your browser, using your own device’s processor and memory. Once a tool page has loaded, it works with no connection at all, which you can check by switching the internet off. Every tool page also carries a security policy telling the browser it may connect only to this site, and this site is a folder of pages and scripts with no server program to receive a file. There is nothing to delete afterwards, because nothing was ever received.',
+        ],
+      },
+      {
+        heading: 'What is free, and why',
+        paragraphs: [
+          'Upload-based sites pay for the servers that do the work, so they typically limit free use, whether by file size, by the number of tasks, or by which tools are free, and offer paid plans for more. The limits change, so check each site’s own pricing page rather than any figure you read elsewhere.',
+          'Here the work is done by your device, so each file costs nothing to process: every tool is free, with no sign-up, no watermark and no limits beyond what your device can handle. The site is paid for by adverts on its home page and guides, never on a tool page, and by people who choose to buy us a coffee.',
+        ],
+      },
+      {
+        heading: 'Where an upload site may suit you better',
+        paragraphs: [
+          'Working on your device has costs too. Reading a long scan with Make searchable is slower on a cheap phone than on a powerful server. Sending a document to several people to sign, with reminders and a record of who signed when, needs a service in the middle, which is what products such as Adobe Acrobat Sign exist for. Word to PDF here uses the PDF’s built-in fonts, so a document in a special font looks plainer than with a word processor that has the font. And a digital signature from a USB token needs the token’s own software.',
+          'If a document is already public, such as a published report or a brochure, uploading it costs you little privacy. If your organisation has approved and pays for a particular service, use that. The case for on-device tools is strongest for the documents that matter most: identity papers, bank statements, salary slips, medical reports, contracts, and anything at work you have been told not to upload.',
+        ],
+      },
+      {
+        heading: 'The same jobs, done here',
+        paragraphs: [
+          'The everyday jobs are all here, more than forty of them: [Merge](/tools/merge/), [Compress](/tools/compress/) to a size such as 100 KB, Split, unlock with [Remove a password](/tools/remove-password/), [Sign](/tools/sign/), PDF to Word and Excel, JPG to PDF, page numbers, watermarks, and [Make searchable](/tools/ocr/) in English and twenty other languages, among them Malayalam, Hindi and Tamil. Each result hands straight to the next tool with Then, so merging, compressing and signing is one flow, with nothing saved in between.',
+        ],
+      },
+      {
+        heading: 'A worked example',
+        paragraphs: [
+          'Ravi’s company forbids uploading client documents to outside websites, and he needs to join three signed contracts and bring them under a client portal’s 5 MB limit. He used to do this on an upload site. Now, on his office laptop, he opens Merge here, adds the three PDFs, puts them in order and presses Merge into one file, then taps Then, chooses Compress, picks To a size, then Other, and types 5000. The files never leave his laptop, so the job stays within his company’s rule, and he gets the same kind of file an upload site would have returned.',
+        ],
+      },
+    ],
+    faq: [
+      { q: 'Is Foolscap connected with iLovePDF, Smallpdf or Adobe?', a: 'No. Their names are used here only to describe their products, and they are trademarks of their owners.' },
+      { q: 'Are upload-based PDF sites unsafe?', a: 'Not necessarily. The established ones publish privacy policies and say how long they keep files. The difference is that your file leaves your device and you rely on their word, while here it never leaves.' },
+      { q: 'Is Foolscap really free, with no limits?', a: 'Yes. There is no server doing the work, so there is nothing to ration: no caps on file size or on the number of files or tasks, no sign-up, and no watermark.' },
+      { q: 'Do I need to install anything?', a: 'No. It runs in the browser. You can install it from the browser’s menu to open it like an app, and it works offline once loaded.' },
+      { q: 'How can I check that nothing is uploaded?', a: 'Switch the internet off once a tool page has loaded and run the tool. See [is it safe to upload PDFs online](/guides/is-it-safe-to-upload-pdf-online/) for more ways to check.' },
     ],
   },
 ];
