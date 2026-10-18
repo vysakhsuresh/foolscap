@@ -1,0 +1,119 @@
+# Served by Cloudflare Pages, and by `vite preview` through scripts/vite-cf-headers.ts
+# so the e2e tests run under the same policy production will.
+#
+# Cloudflare applies every block whose path matches, and a header named in two
+# matching blocks is sent with both values joined by a comma - for a
+# Content-Security-Policy that means two policies, both enforced. So the
+# policy is never on /*: each path gets exactly one, below.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=(), usb=()
+
+# The strict policy: every tool page, and every script, worker, font and asset
+# - because a dedicated worker's CSP comes from its own script's response, not
+# from the page that made it, and the op worker and pdf.js's worker, where the
+# document bytes actually are, live under /assets/. Scripts, styles, fonts,
+# workers and connections come only from this origin. No inline styles or
+# scripts. tests/unit/rules.test.ts fails if a path the build writes is left
+# without it.
+/tools/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/assets/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/pdfjs/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/tesseract/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/fonts/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/brand/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/og/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/private/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/about/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/terms/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/contact/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/open/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+/sw.js
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+# The light/dark choice, applied in every page's <head> before it paints.
+/theme.js
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin
+  Referrer-Policy: no-referrer
+
+# The ad pages: the home page and the guides, which take no files. Google's
+# ad and consent scripts need https, inline styles and a referrer that names
+# the site. Nothing here applies to a tool page.
+/
+  Content-Security-Policy: default-src 'self'; script-src 'self' https: 'unsafe-inline' 'unsafe-eval'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self' https: data:; connect-src 'self' https:; frame-src https:; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/guides/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https: 'unsafe-inline' 'unsafe-eval'; style-src 'self' https: 'unsafe-inline'; img-src 'self' https: data: blob:; font-src 'self' https: data:; connect-src 'self' https:; frame-src https:; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'; object-src 'none'
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
+  Referrer-Policy: strict-origin-when-cross-origin
+
+# The pages.dev address Cloudflare gives every project is a copy of the real
+# site: search engines are told to leave it alone, so only foolscap.co.in is
+# indexed.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+# Hashed assets and the versioned pdf.js and OCR pieces never change; cache them for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/pdfjs/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/tesseract/*
+  Cache-Control: public, max-age=31536000, immutable
