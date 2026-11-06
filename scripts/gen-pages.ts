@@ -68,7 +68,7 @@ const groupOf = (id: GroupId) => GROUPS.find((g) => g.id === id) ?? { id, title:
 // The mark: a sheet of foolscap whose red margin lines make an F
 // (scripts/brand-mark.ts, which also draws every icon file). Here it has no
 // tile: the page's own ground is the sheet. Inline, so it costs no request.
-const MARK = siteMarkSvg({ id: 'mark-sheet', crop: true, attrs: 'class="mark" data-testid="mark" width="30" height="44" aria-hidden="true" focusable="false"' });
+const MARK = siteMarkSvg({ crop: true, attrs: 'class="mark" data-testid="mark" width="30" height="44" aria-hidden="true" focusable="false"' });
 
 // Buy me a coffee's cup: Lucide's coffee, the same drawing and size as on layerbit.co.in.
 const CUP =
@@ -83,7 +83,7 @@ const ICONS = `<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 
 // Back to the tools, from the bottom-left of every tool page, to the spot you left.
 const HOME_FAB = (id: string) =>
-  `<nav class="home-fab__nav" aria-label="Back to all tools"><a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools">${siteMarkSvg({ id: 'fab-sheet', small: true, attrs: 'class="home-fab__mark" aria-hidden="true" focusable="false"' })}<span class="home-fab__label">All tools</span></a></nav>`;
+  `<nav class="home-fab__nav" aria-label="Back to all tools"><a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools">${siteMarkSvg({ small: true, attrs: 'class="home-fab__mark" aria-hidden="true" focusable="false"' })}<span class="home-fab__label">All tools</span></a></nav>`;
 
 
 // The theme switch: Lucide's sun and moon. The sun shows on the dark page (tap

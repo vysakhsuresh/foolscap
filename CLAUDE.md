@@ -248,9 +248,9 @@ Sheaf's magenta, because Foolscap is Sheaf on the web. One drawing,
 `scripts/brand-mark.ts`, makes all of it. In the header and the way-home
 button the mark has no tile and no paper colour (`siteMarkSvg`): the page's
 own ground is the sheet, dark in the dark theme and light in the light one,
-so the mark reads as part of the page, as Layerbit's does, and what shows is
-the sheet's edge, its ruled lines and the red F (the light theme deepens the
-lines and the edge in components.css). The tiled version is for every share
+so the mark reads as part of the page, as Layerbit's does: no edge, only the
+ruled lines and the red F (the light theme deepens the lines in
+components.css). The tiled version is for every share
 picture, and every icon file
 (`npm run brand`, `scripts/gen-brand.ts`: favicons, install icons, a
 maskable icon, the home share picture). Below about 40 pixels the ruled

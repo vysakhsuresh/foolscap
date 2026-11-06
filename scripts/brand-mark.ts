@@ -56,14 +56,14 @@ export function markSvg({ id, ground = 'tile', small = false, scale = 1, attrs =
 }
 
 /**
- * The mark as part of the page, for the header and the way home: no tile and
- * no paper colour, so the page's own ground is the sheet (dark in the dark
- * theme, light in the light one) and what shows is the sheet's edge, its ruled
- * lines and the red F. The colours here are the dark theme's; the light theme
+ * The mark as part of the page, for the header and the way home: no tile, no
+ * paper colour and no edge, so the page's own ground is the sheet (dark in the
+ * dark theme, light in the light one) and all that shows is the ruled lines
+ * and the red F. The colours here are the dark theme's; the light theme
  * restyles the classes (components.css). `small` draws fewer, bolder lines for
  * a button. `crop` trims the drawing to the sheet, for a box shaped like it.
  */
-export function siteMarkSvg({ id, small = false, crop = false, attrs = '' }: { readonly id: string; readonly small?: boolean; readonly crop?: boolean; readonly attrs?: string }): string {
+export function siteMarkSvg({ small = false, crop = false, attrs = '' }: { readonly small?: boolean; readonly crop?: boolean; readonly attrs?: string } = {}): string {
   const [x, y, w, h] = small ? [21, 6, 58, 88] : [25, 11, 50, 78];
   const stem = x + (small ? 13 : 12);
   const top = y + (small ? 15 : 14);
@@ -78,10 +78,8 @@ export function siteMarkSvg({ id, small = false, crop = false, attrs = '' }: { r
   const pad = 2;
   const box = crop ? `${x - pad} ${y - pad} ${w + pad * 2} ${h + pad * 2}` : '0 0 100 100';
   return (
-    `<svg ${attrs} viewBox="${box}"><defs><clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/></clipPath></defs>` +
-    `<g clip-path="url(#${id})">${rules}` +
+    `<svg ${attrs} viewBox="${box}"><g>${rules}` +
     `<path class="mark__f" d="M${stem} ${y}V${y + h}M${stem} ${top}H${x + w}" stroke="${BRAND.margin}" stroke-width="${weight}"/>` +
-    `<path class="mark__f" d="M${stem} ${mid.toFixed(1)}H${(x + w * 0.74).toFixed(1)}" stroke="${BRAND.margin}" stroke-width="${weight}" stroke-linecap="round"/></g>` +
-    `<rect class="mark__edge" x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="${small ? 3 : 2}"/></svg>`
+    `<path class="mark__f" d="M${stem} ${mid.toFixed(1)}H${(x + w * 0.74).toFixed(1)}" stroke="${BRAND.margin}" stroke-width="${weight}" stroke-linecap="round"/></g></svg>`
   );
 }

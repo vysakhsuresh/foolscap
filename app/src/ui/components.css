@@ -3560,15 +3560,10 @@ html:not([data-theme]) .theme-toggle {
   border-color: var(--cyan);
 }
 
-/* The mark has no tile: the page is its sheet. On a light page the ruled
-   lines and the sheet's edge take a deeper ink so they still read. */
+/* The mark has no tile and no edge: the page is its sheet. On a light page
+   the ruled lines take a deeper ink so they still read. */
 :root[data-theme='light'] :is(.mark, .home-fab__mark) .mark__rule {
   stroke: #8DA2C8;
-}
-
-:root[data-theme='light'] :is(.mark, .home-fab__mark) .mark__edge {
-  stroke: #101a2b;
-  stroke-opacity: 0.3;
 }
 
 /* ---- Alignment on a phone or tablet ----
