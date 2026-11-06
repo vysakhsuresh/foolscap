@@ -54,3 +54,12 @@ export function markSvg({ id, ground = 'tile', small = false, scale = 1, attrs =
   const placed = scale === 1 ? body : `<g transform="translate(50 50) scale(${scale}) translate(-50 -50)">${body}</g>`;
   return `<svg ${attrs} viewBox="0 0 100 100"><defs><clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/></clipPath></defs>${back}${placed}</svg>`;
 }
+
+/**
+ * The F alone, in the margin's magenta, for the way home: the round button is
+ * its ground (near-black in the dark theme, white in the light one), so it
+ * needs no sheet of its own.
+ */
+export function letterSvg(attrs = 'xmlns="http://www.w3.org/2000/svg"'): string {
+  return `<svg ${attrs} viewBox="0 0 100 100"><path d="M34 17V85M28 23H74" fill="none" stroke="${BRAND.margin}" stroke-width="12"/><path d="M34 50H63" fill="none" stroke="${BRAND.margin}" stroke-width="12" stroke-linecap="round"/></svg>`;
+}

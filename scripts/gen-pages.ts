@@ -21,7 +21,7 @@ import { ADSENSE, DESCRIPTION, HELP, MADE_BY, SHARE_URL, SITE_NAME, SITE_ORIGIN 
 import { GUIDES, type Guide } from '../app/src/site/guides.ts';
 import { TOOL_COPY } from '../app/src/site/tool-copy.ts';
 import { GROUP_ICONS, TOOL_ICONS } from '../app/src/ui/tool-icons.ts';
-import { markSvg } from './brand-mark.ts';
+import { letterSvg, markSvg } from './brand-mark.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = resolve(ROOT, 'app');
@@ -83,7 +83,7 @@ const ICONS = `<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 
 // Back to the tools, from the bottom-left of every tool page, to the spot you left.
 const HOME_FAB = (id: string) =>
-  `<nav class="home-fab__nav" aria-label="Back to all tools"><a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools">${markSvg({ id: 'fab-sheet', ground: 'none', small: true, attrs: 'class="home-fab__mark" aria-hidden="true" focusable="false"' })}<span class="home-fab__label">All tools</span></a></nav>`;
+  `<nav class="home-fab__nav" aria-label="Back to all tools"><a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools">${letterSvg('class="home-fab__mark" aria-hidden="true" focusable="false"')}<span class="home-fab__label">All tools</span></a></nav>`;
 
 
 // The theme switch: Lucide's sun and moon. The sun shows on the dark page (tap

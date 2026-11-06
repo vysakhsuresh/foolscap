@@ -3562,9 +3562,9 @@ html:not([data-theme]) .theme-toggle {
   border-color: var(--cyan);
 }
 
-/* On white the marks cast a plain shadow; the sheet in the way home carries its own edge. */
+/* On white the way home's F stands crisp, with no glow; the header mark casts a plain shadow. */
 :root[data-theme='light'] .home-fab__mark {
-  filter: drop-shadow(0 2px 5px rgb(16 26 43 / 0.18));
+  filter: none;
 }
 
 :root[data-theme='light'] .mark {
