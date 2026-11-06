@@ -231,9 +231,12 @@ help are a pair of 60px circles in the bottom corners, 30px in, in the
 margin. On a phone or tablet (≤819px) every tool page with a main button has
 one row under the thumb — way home, the main button, Get help — on one centre
 line and one height (`ui/dock.ts`, `.run--dock`), so nothing floats over the
-page. Where there is no main button (Read, Summarise, Open a file, reading
-pages) the circles are 52px twins on the content's own 16px edges, and step
-aside while the page scrolls down (`ui/pinned.ts`), as the coffee pill does;
+page. The row is pinned to the screen, not to the tool's section, so it stays
+at the bottom however far the page is scrolled, and the page keeps its
+height free at the end (`--dock-h`) so the footer is never under it. Where there is no main button (Read, Summarise, Open a file, reading
+pages) the circles are 52px twins on the content's own 16px edges, and stay
+in their corners however the page is scrolled: they are how you leave a
+page, so they never hide (only the coffee pill steps aside, `ui/pinned.ts`);
 the footer leaves them room at the end. On a phone every field spans its
 column, so the right edge is one line. `tests/e2e/layout.spec.ts` checks all
 of this on every page.
@@ -650,3 +653,13 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   drift. The maskable install icon is its own file now
   (`icon-maskable-512.png`, the sheet inside the safe circle), and the
   home share picture counts the live tools instead of saying 45.
+- **2026-11-06** At the owner's word, the favicon and the install icons match
+  the header: the ruled lines and the red F with no sheet (`siteMarkSvg` with
+  `detail: 'tiny'` for a tab, three lines and a heavy F; the favicon's lines
+  follow the browser's own light or dark through a media query in the SVG),
+  and on a phone the site's dark ground, since a phone fills empty corners
+  with black anyway. The share pictures keep the tiled mark. And the way
+  home and Get help never hide: on a phone the dock was sticky inside the
+  tool's section, so it scrolled away once the page went past it, and the
+  loose circles tucked on scroll. The dock is now fixed to the screen with
+  room kept at the end, and only the coffee pill steps aside.

@@ -55,31 +55,68 @@ export function markSvg({ id, ground = 'tile', small = false, scale = 1, attrs =
   return `<svg ${attrs} viewBox="0 0 100 100"><defs><clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/></clipPath></defs>${back}${placed}</svg>`;
 }
 
+/** How much of the drawing to keep: a browser tab gets three lines, a button four, anything larger five. */
+type Detail = 'tiny' | 'small' | 'full';
+
+const SHEETS: Record<Detail, { box: readonly [number, number, number, number]; stem: number; top: number; mid: number; weight: number; lines: number; first: number; inset: number; rule: number }> = {
+  full: { box: [25, 11, 50, 78], stem: 12, top: 14, mid: 0.48, weight: 6.5, lines: 5, first: 13, inset: 7, rule: 2.3 },
+  small: { box: [21, 6, 58, 88], stem: 13, top: 15, mid: 0.48, weight: 9, lines: 4, first: 17, inset: 9, rule: 3.4 },
+  tiny: { box: [12, 8, 76, 84], stem: 16, top: 12, mid: 0.46, weight: 15, lines: 3, first: 40, inset: 5, rule: 6.5 },
+};
+
+/** The ruled lines' ink on a dark ground; the light theme deepens it (components.css, or the favicon's own media query). */
+export const RULE_ON_DARK = '#7D90B4';
+export const RULE_ON_LIGHT = '#8DA2C8';
+
 /**
  * The mark as part of the page, for the header and the way home: no tile, no
  * paper colour and no edge, so the page's own ground is the sheet (dark in the
  * dark theme, light in the light one) and all that shows is the ruled lines
  * and the red F. The colours here are the dark theme's; the light theme
- * restyles the classes (components.css). `small` draws fewer, bolder lines for
- * a button. `crop` trims the drawing to the sheet, for a box shaped like it.
+ * restyles the classes (components.css). `crop` trims the drawing to the
+ * sheet, for a box shaped like it.
+ *
+ * The icon files draw the same thing: the favicon on nothing at all (the tab
+ * is its ground, and `adaptive` picks the lines' ink from the browser's own
+ * light or dark), the install icons on the site's dark ground, because a phone
+ * fills an icon's empty corners with black anyway.
  */
-export function siteMarkSvg({ small = false, crop = false, attrs = '' }: { readonly small?: boolean; readonly crop?: boolean; readonly attrs?: string } = {}): string {
-  const [x, y, w, h] = small ? [21, 6, 58, 88] : [25, 11, 50, 78];
-  const stem = x + (small ? 13 : 12);
-  const top = y + (small ? 15 : 14);
-  const mid = y + h * 0.48;
-  const weight = small ? 9 : 6.5;
-  const count = small ? 4 : 5;
-  const first = top + (small ? 17 : 13);
-  const last = y + h - (small ? 9 : 7);
-  const rules = Array.from({ length: count }, (_, i) => first + ((last - first) * i) / (count - 1))
-    .map((ry) => `<path class="mark__rule" d="M${x} ${ry.toFixed(1)}H${x + w}" stroke="#7D90B4" stroke-width="${small ? 3.4 : 2.3}"/>`)
+export function siteMarkSvg({
+  small = false,
+  detail = small ? 'small' : 'full',
+  crop = false,
+  attrs = '',
+  ground,
+  scale = 1,
+  adaptive = false,
+}: {
+  readonly small?: boolean;
+  readonly detail?: Detail;
+  readonly crop?: boolean;
+  readonly attrs?: string;
+  /** A solid ground: rounded like an app tile, or full bleed for a platform that rounds it itself. */
+  readonly ground?: { readonly colour: string; readonly round: boolean };
+  /** Shrinks the drawing towards the middle (a maskable icon keeps it inside the safe circle). */
+  readonly scale?: number;
+  readonly adaptive?: boolean;
+} = {}): string {
+  const d = SHEETS[detail];
+  const [x, y, w, h] = d.box;
+  const stem = x + d.stem;
+  const top = y + d.top;
+  const mid = y + h * d.mid;
+  const first = top + d.first;
+  const last = y + h - d.inset;
+  const rules = Array.from({ length: d.lines }, (_, i) => first + ((last - first) * i) / (d.lines - 1))
+    .map((ry) => `<path class="mark__rule" d="M${x} ${ry.toFixed(1)}H${x + w}" stroke="${RULE_ON_DARK}" stroke-width="${d.rule}"/>`)
     .join('');
   const pad = 2;
   const box = crop ? `${x - pad} ${y - pad} ${w + pad * 2} ${h + pad * 2}` : '0 0 100 100';
-  return (
-    `<svg ${attrs} viewBox="${box}"><g>${rules}` +
-    `<path class="mark__f" d="M${stem} ${y}V${y + h}M${stem} ${top}H${x + w}" stroke="${BRAND.margin}" stroke-width="${weight}"/>` +
-    `<path class="mark__f" d="M${stem} ${mid.toFixed(1)}H${(x + w * 0.74).toFixed(1)}" stroke="${BRAND.margin}" stroke-width="${weight}" stroke-linecap="round"/></g></svg>`
-  );
+  const style = adaptive ? `<style>@media (prefers-color-scheme: light){.mark__rule{stroke:${RULE_ON_LIGHT}}}</style>` : '';
+  const back = ground ? `<rect width="100" height="100"${ground.round ? ' rx="22"' : ''} fill="${ground.colour}"/>` : '';
+  const drawing =
+    `${rules}<path class="mark__f" d="M${stem} ${y}V${y + h}M${stem} ${top}H${x + w}" stroke="${BRAND.margin}" stroke-width="${d.weight}"/>` +
+    `<path class="mark__f" d="M${stem} ${mid.toFixed(1)}H${(x + w * 0.74).toFixed(1)}" stroke="${BRAND.margin}" stroke-width="${d.weight}" stroke-linecap="round"/>`;
+  const placed = scale === 1 ? `<g>${drawing}</g>` : `<g transform="translate(50 50) scale(${scale}) translate(-50 -50)">${drawing}</g>`;
+  return `<svg ${attrs} viewBox="${box}">${style}${back}${placed}</svg>`;
 }

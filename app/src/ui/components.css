@@ -1447,11 +1447,23 @@ select.input option {
   }
 
   /* One row under the thumb: the way home, the main button, Get help, all on
-     one centre line and the button's height (ui/dock.ts). */
+     one centre line and the button's height (ui/dock.ts). It is pinned to the
+     screen, not to the tool's own section, so it stays at the bottom however
+     far the page is scrolled; the page keeps room for it at the end
+     (--dock-h, measured by ui/dock.ts) so it never sits on the footer. */
   .run--dock {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    margin-inline: 0;
+    z-index: 20;
     grid-template-columns: auto minmax(0, 1fr) auto;
     column-gap: var(--space-2);
     align-items: center;
+  }
+
+  body.has-dock {
+    padding-bottom: var(--dock-h, 110px);
   }
 
   .run--dock > :not(.home-fab__nav, .button, .help-orb) {
@@ -3578,23 +3590,6 @@ textarea.input {
 @media (max-width: 819px) {
   .input {
     max-width: none;
-  }
-
-  /* The corner circles step aside while the page is read (ui/pinned.ts). */
-  .home-fab,
-  .help-orb {
-    transition:
-      transform var(--motion) var(--ease),
-      opacity var(--motion),
-      border-color var(--motion),
-      box-shadow var(--motion);
-  }
-
-  .home-fab.is-tucked,
-  .help-orb.is-tucked {
-    transform: translateY(calc(100% + var(--space-6)));
-    opacity: 0;
-    pointer-events: none;
   }
 
   /* Read's bar is two rows: its tools in one line that scrolls sideways, then find. */

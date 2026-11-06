@@ -1,7 +1,9 @@
 /**
- * Every brand file, drawn from the one mark in scripts/brand-mark.ts: the
- * favicons, the install icons, the mark gen-og.ts puts on each share picture,
- * and the home page's own share picture. Committed like the pages; run after
+ * Every brand file, drawn from the one mark in scripts/brand-mark.ts. The
+ * favicons and install icons match the site's header: the ruled lines and the
+ * red F with no sheet, on nothing at all in a browser tab and on the site's
+ * dark ground on a phone. The share pictures keep the mark on its navy tile
+ * (brand/mark.svg, which gen-og.ts reads), as does the home page's own. Committed like the pages; run after
  * changing the mark:
  *
  *   npm run brand
@@ -14,15 +16,20 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 import { TOOLS } from '../app/src/ops/tools.ts';
 import { SITE_NAME, SITE_ORIGIN } from '../app/src/site/config.ts';
-import { markSvg } from './brand-mark.ts';
+import { markSvg, RULE_ON_DARK, siteMarkSvg } from './brand-mark.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = resolve(ROOT, 'app', 'public');
 const BRAND_DIR = resolve(PUBLIC, 'brand');
 
-// The vector files: the full mark for share pictures, the small one for browser tabs.
+/** The site's dark ground: a phone fills an icon's empty corners with black, so the icon brings its own. */
+const GROUND = '#0a0c10';
+const XMLNS = 'xmlns="http://www.w3.org/2000/svg"';
+
+// The vector files: the tiled mark for share pictures; for browser tabs the lines and the F alone,
+// their ink following the browser's own light or dark.
 writeFileSync(resolve(BRAND_DIR, 'mark.svg'), `${markSvg({ id: 'm' })}\n`);
-writeFileSync(resolve(PUBLIC, 'favicon.svg'), `${markSvg({ id: 'm', small: true })}\n`);
+writeFileSync(resolve(PUBLIC, 'favicon.svg'), `${siteMarkSvg({ detail: 'tiny', adaptive: true, attrs: XMLNS })}\n`);
 rmSync(resolve(BRAND_DIR, 'mark-line.svg'), { force: true });
 
 const browser = await chromium.launch();
@@ -33,14 +40,15 @@ async function png(svg: string, size: number): Promise<Buffer> {
   return page.screenshot({ type: 'png', omitBackground: true });
 }
 
-const full = markSvg({ id: 'm' });
-const small = markSvg({ id: 'm', small: true });
-writeFileSync(resolve(BRAND_DIR, 'icon-512.png'), await png(full, 512));
-writeFileSync(resolve(BRAND_DIR, 'icon-192.png'), await png(full, 192));
-// A platform that rounds the icon itself gets it full bleed; a maskable one keeps the sheet inside the safe circle.
-writeFileSync(resolve(BRAND_DIR, 'apple-touch-icon.png'), await png(markSvg({ id: 'm', ground: 'square' }), 180));
-writeFileSync(resolve(BRAND_DIR, 'icon-maskable-512.png'), await png(markSvg({ id: 'm', ground: 'square', scale: 0.8 }), 512));
-const favicons = await Promise.all([16, 32, 48].map(async (s) => ({ s, bytes: await png(small, s) })));
+const tile = siteMarkSvg({ ground: { colour: GROUND, round: true }, attrs: XMLNS });
+writeFileSync(resolve(BRAND_DIR, 'icon-512.png'), await png(tile, 512));
+writeFileSync(resolve(BRAND_DIR, 'icon-192.png'), await png(tile, 192));
+// A platform that rounds the icon itself gets it full bleed; a maskable one keeps the drawing inside the safe circle.
+writeFileSync(resolve(BRAND_DIR, 'apple-touch-icon.png'), await png(siteMarkSvg({ ground: { colour: GROUND, round: false }, scale: 0.86, attrs: XMLNS }), 180));
+writeFileSync(resolve(BRAND_DIR, 'icon-maskable-512.png'), await png(siteMarkSvg({ ground: { colour: GROUND, round: false }, scale: 0.72, attrs: XMLNS }), 512));
+// The PNG favicons cannot follow the browser's light or dark, so their lines take the ink that reads on both.
+const favicon = (s: number) => siteMarkSvg({ detail: s >= 48 ? 'small' : 'tiny', attrs: XMLNS }).replaceAll(RULE_ON_DARK, '#8296BC');
+const favicons = await Promise.all([16, 32, 48].map(async (s) => ({ s, bytes: await png(favicon(s), s) })));
 writeFileSync(resolve(BRAND_DIR, 'favicon-48.png'), favicons[2]!.bytes);
 
 // favicon.ico: the three sizes, each stored as PNG, which every current browser reads.
