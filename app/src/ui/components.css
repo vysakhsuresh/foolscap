@@ -55,10 +55,9 @@
 }
 
 .mark {
-  width: 44px;
+  width: 30px;
   height: 44px;
   flex: none;
-  filter: drop-shadow(0 6px 16px rgb(224 37 122 / 0.2));
   transition: transform var(--motion-slow) var(--spring);
 }
 
@@ -3189,7 +3188,6 @@ select.input option {
   width: 28px;
   height: 28px;
   flex: none;
-  filter: drop-shadow(0 3px 8px rgb(224 37 122 / 0.3));
   transition: transform var(--motion-slow) var(--spring);
 }
 
@@ -3562,13 +3560,15 @@ html:not([data-theme]) .theme-toggle {
   border-color: var(--cyan);
 }
 
-/* On white the way home's F stands crisp, with no glow; the header mark casts a plain shadow. */
-:root[data-theme='light'] .home-fab__mark {
-  filter: none;
+/* The mark has no tile: the page is its sheet. On a light page the ruled
+   lines and the sheet's edge take a deeper ink so they still read. */
+:root[data-theme='light'] :is(.mark, .home-fab__mark) .mark__rule {
+  stroke: #8DA2C8;
 }
 
-:root[data-theme='light'] .mark {
-  filter: drop-shadow(0 4px 12px rgb(16 26 43 / 0.22));
+:root[data-theme='light'] :is(.mark, .home-fab__mark) .mark__edge {
+  stroke: #101a2b;
+  stroke-opacity: 0.3;
 }
 
 /* ---- Alignment on a phone or tablet ----

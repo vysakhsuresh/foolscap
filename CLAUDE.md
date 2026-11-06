@@ -245,9 +245,13 @@ of foolscap: cream paper, blue ruled lines, and the red margin lines every
 Indian exam sheet carries, which down the side and across the top already
 make an F; one more stroke finishes it. Flat, on Sheaf's navy tile in
 Sheaf's magenta, because Foolscap is Sheaf on the web. One drawing,
-`scripts/brand-mark.ts`, makes all of it: inline in the header, the F
-alone in magenta in the way-home button (the button is its ground: black in
-the dark theme, white in the light one), every share picture, and every icon file
+`scripts/brand-mark.ts`, makes all of it. In the header and the way-home
+button the mark has no tile and no paper colour (`siteMarkSvg`): the page's
+own ground is the sheet, dark in the dark theme and light in the light one,
+so the mark reads as part of the page, as Layerbit's does, and what shows is
+the sheet's edge, its ruled lines and the red F (the light theme deepens the
+lines and the edge in components.css). The tiled version is for every share
+picture, and every icon file
 (`npm run brand`, `scripts/gen-brand.ts`: favicons, install icons, a
 maskable icon, the home share picture). Below about 40 pixels the ruled
 lines only blur, so small sizes drop them and draw the F bolder. The name

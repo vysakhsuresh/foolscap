@@ -56,10 +56,32 @@ export function markSvg({ id, ground = 'tile', small = false, scale = 1, attrs =
 }
 
 /**
- * The F alone, in the margin's magenta, for the way home: the round button is
- * its ground (near-black in the dark theme, white in the light one), so it
- * needs no sheet of its own.
+ * The mark as part of the page, for the header and the way home: no tile and
+ * no paper colour, so the page's own ground is the sheet (dark in the dark
+ * theme, light in the light one) and what shows is the sheet's edge, its ruled
+ * lines and the red F. The colours here are the dark theme's; the light theme
+ * restyles the classes (components.css). `small` draws fewer, bolder lines for
+ * a button. `crop` trims the drawing to the sheet, for a box shaped like it.
  */
-export function letterSvg(attrs = 'xmlns="http://www.w3.org/2000/svg"'): string {
-  return `<svg ${attrs} viewBox="0 0 100 100"><path d="M34 17V85M28 23H74" fill="none" stroke="${BRAND.margin}" stroke-width="12"/><path d="M34 50H63" fill="none" stroke="${BRAND.margin}" stroke-width="12" stroke-linecap="round"/></svg>`;
+export function siteMarkSvg({ id, small = false, crop = false, attrs = '' }: { readonly id: string; readonly small?: boolean; readonly crop?: boolean; readonly attrs?: string }): string {
+  const [x, y, w, h] = small ? [21, 6, 58, 88] : [25, 11, 50, 78];
+  const stem = x + (small ? 13 : 12);
+  const top = y + (small ? 15 : 14);
+  const mid = y + h * 0.48;
+  const weight = small ? 9 : 6.5;
+  const count = small ? 4 : 5;
+  const first = top + (small ? 17 : 13);
+  const last = y + h - (small ? 9 : 7);
+  const rules = Array.from({ length: count }, (_, i) => first + ((last - first) * i) / (count - 1))
+    .map((ry) => `<path class="mark__rule" d="M${x} ${ry.toFixed(1)}H${x + w}" stroke="#7D90B4" stroke-width="${small ? 3.4 : 2.3}"/>`)
+    .join('');
+  const pad = 2;
+  const box = crop ? `${x - pad} ${y - pad} ${w + pad * 2} ${h + pad * 2}` : '0 0 100 100';
+  return (
+    `<svg ${attrs} viewBox="${box}"><defs><clipPath id="${id}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5"/></clipPath></defs>` +
+    `<g clip-path="url(#${id})">${rules}` +
+    `<path class="mark__f" d="M${stem} ${y}V${y + h}M${stem} ${top}H${x + w}" stroke="${BRAND.margin}" stroke-width="${weight}"/>` +
+    `<path class="mark__f" d="M${stem} ${mid.toFixed(1)}H${(x + w * 0.74).toFixed(1)}" stroke="${BRAND.margin}" stroke-width="${weight}" stroke-linecap="round"/></g>` +
+    `<rect class="mark__edge" x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="${small ? 3 : 2}"/></svg>`
+  );
 }
