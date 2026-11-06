@@ -65,10 +65,16 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   if (request.mode === 'navigate') {
-    // Pages: the newest when online, the kept copy when not.
+    // Pages: the newest when online, the kept copy when not. The host lets a
+    // browser reuse a page for ten minutes, so a visit just after a publish
+    // could show the old one; asking the server first (a few hundred bytes
+    // when nothing changed) shows the new one at once. A navigation cannot be
+    // re-made with other options, so it is fetched by its address, and a
+    // redirect (a missing trailing slash) is handed back as a redirect.
     event.respondWith(
-      fetch(request)
+      fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' })
         .then((response) => {
+          if (response.redirected) return Response.redirect(response.url, 302);
           if (response.ok) {
             const copy = response.clone();
             caches.open(CORE).then((cache) => cache.put(request, copy));

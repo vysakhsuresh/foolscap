@@ -663,3 +663,11 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   tool's section, so it scrolled away once the page went past it, and the
   loose circles tucked on scroll. The dock is now fixed to the screen with
   room kept at the end, and only the coffee pill steps aside.
+- **2026-11-06** Pages always ask the server first. The owner checked a fix
+  on his phone right after it was published and saw the old page: GitHub
+  Pages lets a browser reuse a page for ten minutes, and the service worker
+  fetched pages the ordinary way. It now fetches every page with
+  `cache: 'no-cache'` (a few hundred bytes when nothing changed), by its
+  address since a navigation cannot be re-made with options, and hands a
+  redirect (a missing trailing slash) back as a redirect. Offline it still
+  serves the kept copy.
