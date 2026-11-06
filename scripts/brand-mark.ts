@@ -2,8 +2,8 @@
  * The mark: a sheet of foolscap, blue ruled lines across it and the red
  * margin lines every Indian exam sheet carries. Down the side and across the
  * top, those margin lines already make an F; one more stroke finishes it.
- * Drawn flat in Sheaf's colours (navy, cream, its magenta), because Foolscap
- * is Sheaf on the web.
+ * Drawn flat in Sheaf's colours (navy, cream, its magenta lifted a little
+ * brighter), because Foolscap is Sheaf on the web.
  *
  * One drawing, used everywhere: the header (scripts/gen-pages.ts), the share
  * pictures (scripts/gen-og.ts) and every icon file (scripts/gen-brand.ts).
@@ -13,8 +13,8 @@
 export const BRAND = {
   navy: '#101A2B',
   paper: '#F7F5EF',
-  rule: '#A9BCDD',
-  margin: '#E0257A',
+  rule: '#CBD6E8',
+  margin: '#FF2D87',
 } as const;
 
 export interface MarkOptions {
@@ -64,9 +64,16 @@ const SHEETS: Record<Detail, { box: readonly [number, number, number, number]; s
   tiny: { box: [12, 8, 76, 84], stem: 16, top: 12, mid: 0.46, weight: 15, lines: 3, first: 40, inset: 5, rule: 6.5 },
 };
 
-/** The ruled lines' ink on a dark ground; the light theme deepens it (components.css, or the favicon's own media query). */
-export const RULE_ON_DARK = '#7D90B4';
-export const RULE_ON_LIGHT = '#8DA2C8';
+/**
+ * The ruled lines' ink: soft, so they sit behind the F rather than strike it
+ * through. On a dark ground and on a light one (components.css restyles the
+ * light theme). A browser tab is neither page, so the favicon takes a little
+ * more ink (TAB_RULE_*), or its lines would vanish into the tab.
+ */
+export const RULE_ON_DARK = '#3F4B66';
+export const RULE_ON_LIGHT = '#C9D3E6';
+export const TAB_RULE_ON_DARK = '#6E7D9C';
+export const TAB_RULE_ON_LIGHT = '#AAB8D2';
 
 /**
  * The mark as part of the page, for the header and the way home: no tile, no
@@ -112,7 +119,7 @@ export function siteMarkSvg({
     .join('');
   const pad = 2;
   const box = crop ? `${x - pad} ${y - pad} ${w + pad * 2} ${h + pad * 2}` : '0 0 100 100';
-  const style = adaptive ? `<style>@media (prefers-color-scheme: light){.mark__rule{stroke:${RULE_ON_LIGHT}}}</style>` : '';
+  const style = adaptive ? `<style>.mark__rule{stroke:${TAB_RULE_ON_DARK}}@media (prefers-color-scheme: light){.mark__rule{stroke:${TAB_RULE_ON_LIGHT}}}</style>` : '';
   const back = ground ? `<rect width="100" height="100"${ground.round ? ' rx="22"' : ''} fill="${ground.colour}"/>` : '';
   const drawing =
     `${rules}<path class="mark__f" d="M${stem} ${y}V${y + h}M${stem} ${top}H${x + w}" stroke="${BRAND.margin}" stroke-width="${d.weight}"/>` +

@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 import { TOOLS } from '../app/src/ops/tools.ts';
 import { SITE_NAME, SITE_ORIGIN } from '../app/src/site/config.ts';
-import { markSvg, RULE_ON_DARK, siteMarkSvg } from './brand-mark.ts';
+import { markSvg, RULE_ON_DARK, siteMarkSvg, TAB_RULE_ON_DARK } from './brand-mark.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = resolve(ROOT, 'app', 'public');
@@ -47,7 +47,7 @@ writeFileSync(resolve(BRAND_DIR, 'icon-192.png'), await png(tile, 192));
 writeFileSync(resolve(BRAND_DIR, 'apple-touch-icon.png'), await png(siteMarkSvg({ ground: { colour: GROUND, round: false }, scale: 0.86, attrs: XMLNS }), 180));
 writeFileSync(resolve(BRAND_DIR, 'icon-maskable-512.png'), await png(siteMarkSvg({ ground: { colour: GROUND, round: false }, scale: 0.72, attrs: XMLNS }), 512));
 // The PNG favicons cannot follow the browser's light or dark, so their lines take the ink that reads on both.
-const favicon = (s: number) => siteMarkSvg({ detail: s >= 48 ? 'small' : 'tiny', attrs: XMLNS }).replaceAll(RULE_ON_DARK, '#8296BC');
+const favicon = (s: number) => siteMarkSvg({ detail: s >= 48 ? 'small' : 'tiny', attrs: XMLNS }).replaceAll(RULE_ON_DARK, TAB_RULE_ON_DARK);
 const favicons = await Promise.all([16, 32, 48].map(async (s) => ({ s, bytes: await png(favicon(s), s) })));
 writeFileSync(resolve(BRAND_DIR, 'favicon-48.png'), favicons[2]!.bytes);
 

@@ -3217,10 +3217,10 @@ select.input option {
 .home-fab:focus-visible {
   color: var(--text);
   transform: translateY(-3px);
-  border-color: rgb(224 37 122 / 0.55);
+  border-color: rgb(255 45 135 / 0.55);
   box-shadow:
     var(--shadow-deep),
-    0 0 24px rgb(224 37 122 / 0.22);
+    0 0 24px rgb(255 45 135 / 0.22);
 }
 
 .home-fab:hover .home-fab__mark,
@@ -3573,9 +3573,9 @@ html:not([data-theme]) .theme-toggle {
 }
 
 /* The mark has no tile and no edge: the page is its sheet. On a light page
-   the ruled lines take a deeper ink so they still read. */
+   the ruled lines take their own soft ink, behind the F. */
 :root[data-theme='light'] :is(.mark, .home-fab__mark) .mark__rule {
-  stroke: #8DA2C8;
+  stroke: #c9d3e6;
 }
 
 /* ---- Alignment on a phone or tablet ----
