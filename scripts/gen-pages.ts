@@ -21,6 +21,7 @@ import { ADSENSE, DESCRIPTION, HELP, MADE_BY, SHARE_URL, SITE_NAME, SITE_ORIGIN 
 import { GUIDES, type Guide } from '../app/src/site/guides.ts';
 import { TOOL_COPY } from '../app/src/site/tool-copy.ts';
 import { GROUP_ICONS, TOOL_ICONS } from '../app/src/ui/tool-icons.ts';
+import { markSvg } from './brand-mark.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = resolve(ROOT, 'app');
@@ -64,15 +65,10 @@ const groupOf = (id: GroupId) => GROUPS.find((g) => g.id === id) ?? { id, title:
 
 // ---- The shell: one copy, every page ----
 
-// The mark: a page whose top edge is a jester's cap, bells on its three
-// points, drawn as one line. The name is the fool's cap the paper once carried
-// as a watermark; the drawing says it in one shape. Inline, so it costs no
-// request; the same drawing is in app/public/brand/ for icons.
-const CAP_DRAWING = (ink: string) =>
-  `<g fill="none" stroke="${ink}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 29 C 16 18, 9 10, 4.5 19 C 11 15, 20 16, 24.5 22 C 27 15, 29.5 10, 32 6.5 C 34.5 10, 37 15, 39.5 22 C 44 16, 53 15, 59.5 19 C 55 10, 48 18, 46 29 V52 Q46 57 41 57 H23 Q18 57 18 52 Z"/><path d="M25 39 H39 M25 47.5 H35"/></g><g fill="${ink}"><circle cx="4.5" cy="20" r="4"/><circle cx="32" cy="6.5" r="4"/><circle cx="59.5" cy="20" r="4"/></g>`;
-const CAP_GRADIENT = (id: string) =>
-  `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".55" stop-color="#4facfe"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>`;
-const MARK = `<svg class="mark" data-testid="mark" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true" focusable="false">${CAP_GRADIENT('mark-g')}<rect width="64" height="64" rx="15" fill="url(#mark-g)"/><g transform="translate(8.5 9) scale(.74)">${CAP_DRAWING('#fff')}</g></svg>`;
+// The mark: a sheet of foolscap whose red margin lines make an F
+// (scripts/brand-mark.ts, which also draws every icon file). Inline, so it
+// costs no request.
+const MARK = markSvg({ id: 'mark-sheet', attrs: 'class="mark" data-testid="mark" width="44" height="44" aria-hidden="true" focusable="false"' });
 
 // Buy me a coffee's cup: Lucide's coffee, the same drawing and size as on layerbit.co.in.
 const CUP =
@@ -87,7 +83,7 @@ const ICONS = `<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 
 // Back to the tools, from the bottom-left of every tool page, to the spot you left.
 const HOME_FAB = (id: string) =>
-  `<nav class="home-fab__nav" aria-label="Back to all tools"><a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools"><svg class="home-fab__mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false">${CAP_GRADIENT('fab-g')}${CAP_DRAWING('url(#fab-g)')}</svg><span class="home-fab__label">All tools</span></a></nav>`;
+  `<nav class="home-fab__nav" aria-label="Back to all tools"><a class="home-fab" data-testid="home-fab" href="/#from-${id}" aria-label="All tools">${markSvg({ id: 'fab-sheet', ground: 'none', small: true, attrs: 'class="home-fab__mark" aria-hidden="true" focusable="false"' })}<span class="home-fab__label">All tools</span></a></nav>`;
 
 
 // The theme switch: Lucide's sun and moon. The sun shows on the dark page (tap

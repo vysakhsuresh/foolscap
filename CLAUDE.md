@@ -240,11 +240,17 @@ of this on every page.
 
 Touch targets at least 44px. Text contrast at least 4.5:1 — muted text is
 `#94a3b8` (7:1 on the ground); dark text on every gradient stop is 7:1 or
-more. Nothing smaller than 24px is drawn in a gradient. The mark is one line: a
-page whose top edge is a jester's cap, bells on its three points (the fool's
-cap the paper carried), white on a cyan→violet tile; drawn inline in the
-header, as the line alone in the way-home pill, and in `app/public/brand/`
-for the favicon and install icons. The name sits beside it, large.
+more. Nothing smaller than 24px is drawn in a gradient. The mark is a sheet
+of foolscap: cream paper, blue ruled lines, and the red margin lines every
+Indian exam sheet carries, which down the side and across the top already
+make an F; one more stroke finishes it. Flat, on Sheaf's navy tile in
+Sheaf's magenta, because Foolscap is Sheaf on the web. One drawing,
+`scripts/brand-mark.ts`, makes all of it: inline in the header, the sheet
+alone in the way-home pill, every share picture, and every icon file
+(`npm run brand`, `scripts/gen-brand.ts`: favicons, install icons, a
+maskable icon, the home share picture). Below about 40 pixels the ruled
+lines only blur, so small sizes drop them and draw the F bolder. The name
+sits beside it, large.
 
 The icons are Lucide's, as on Layerbit: line drawings in the family's own
 colour (`--icon-ink`, the middle of its gradient) on a faint tile of that
@@ -629,3 +635,13 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   form says what it needs. Two guides (a photo or signature to 20 or 50 KB;
   a passport photo from a phone). The shared size formatter now floors, so a
   file made under 20 KB never reads "20 KB".
+- **2026-11-06** A new mark, at the owner's word (the capped page "grunted
+  him from the start"). Two rounds: glossy app-style icons were the wrong
+  family (his Sheaf and Layerbit marks are flat shapes in two or three
+  colours), and a white "f" on blue read as Facebook. The owner chose Margin
+  F: a foolscap sheet whose margin lines make the F, in Sheaf's navy, cream
+  and magenta. `scripts/brand-mark.ts` is the one source; the header, the
+  way home, `gen-og.ts` and `gen-brand.ts` all draw from it, so no copy can
+  drift. The maskable install icon is its own file now
+  (`icon-maskable-512.png`, the sheet inside the safe circle), and the
+  home share picture counts the live tools instead of saying 45.
