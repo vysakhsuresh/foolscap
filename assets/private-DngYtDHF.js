@@ -1,0 +1,1 @@
+import{s as e,t}from"./shell-Cni0IHfb.js";t();var n=document.querySelector(`[data-testid="privacy-csp"]`);n&&(n.textContent=e);
