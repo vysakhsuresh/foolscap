@@ -1,11 +1,21 @@
-import { lines, page } from './kit.ts';
+import { box, lines, page } from './kit.ts';
+
+/*
+ * The Pages family: what each tool does to a document's pages, shown on the
+ * pages themselves. A row of pages always sits on the same three slots (left
+ * edges 1.25, 9.25, 17.25; 5.5 wide; centres 4, 12, 20), so the gaps stay
+ * open at 24px and the stories read as one family.
+ */
+
+/** A row slot's page, `h` tall from `y`. */
+const slot = (i: 0 | 1 | 2, y: number, h = 8): string => page(1.25 + 8 * i, y, 5.5, h);
 
 /** A page with its sheet washed in the family colour: the one being picked, or a full file. */
 const tinted = (svg: string): string => svg.replace('<path d=', '<path fill="currentColor" fill-opacity=".25" d=');
 
 /** A ribbon bookmark hanging from y: open at the top, notched at the foot. */
 const ribbon = (x: number, y: number, w: number, h: number, cls: string): string =>
-  `<path class="${cls}" fill="currentColor" fill-opacity=".3" d="M${x} ${y}v${h}l${w / 2}-1.6 ${w / 2} 1.6v-${h}"/>`;
+  `<path class="${cls}" fill="currentColor" fill-opacity=".3" d="M${x} ${y}v${h}l${w / 2}-1.5 ${w / 2} 1.5v-${h}"/>`;
 
 /** Page-number glyphs drawn as strokes, 6 units tall, from the top-left corner x, y. */
 const glyph = {
@@ -22,60 +32,61 @@ export const PAGES_SCENES = {
     `<g class="p s-merge-b" opacity="0">${page(13.5, 5.5, 9, 13)}${lines(15.5, 11, 5, 2.5, [1, 0.7])}</g>` +
     `<g class="p s-merge-one">${page(6, 2.5, 12, 19)}${lines(8.5, 10, 7, 3, [1, 1, 1, 0.6])}</g>`,
 
-  // Split: one file, a cut drawn down its middle, two files part along it. Rest: two files and the cut.
+  // Split: one file, a cut drawn down its middle, and two files part along it. Rest: two files and the cut.
   split:
-    `<g class="p s-split-a">${page(1.5, 5.5, 8.5, 13)}${lines(3.5, 11, 4.5, 2.5, [1, 0.7])}</g>` +
-    `<g class="p s-split-b">${page(14, 5.5, 8.5, 13)}${lines(16, 11, 4.5, 2.5, [1, 0.7])}</g>` +
+    `<g class="p s-split-a">${page(1.5, 5.5, 8, 13)}${lines(3.5, 11, 4, 2.5, [1, 0.7])}</g>` +
+    `<g class="p s-split-b">${page(14.5, 5.5, 8, 13)}${lines(16.5, 11, 4, 2.5, [1, 0.7])}</g>` +
     `<path class="p s-split-cut" d="M12 2.5v19" stroke-dasharray="2 2.5"/>`,
 
-  // Organise: three pages; the picked one lifts, its neighbour slides under, it drops into the new place.
+  // Organise: the last page lifts, the other two shift along under it, it drops in at the front.
   // Rest: the new order, with the hop it made drawn above.
   organise:
-    `<g class="p s-organise-b">${page(1.5, 12.5, 6, 8.5)}</g>` +
-    `<g class="p s-organise-a">${tinted(page(9, 12.5, 6, 8.5))}</g>` +
-    page(16.5, 12.5, 6, 8.5) +
-    `<path class="p s-organise-hop" pathLength="1" d="M4.5 10.5C4.5 4.5 12 4.5 12 10.5"/>` +
-    `<path class="p s-organise-head" d="m9.8 8.3 2.2 2.2 2.2-2.2"/>`,
+    `<g class="p s-organise-a">${tinted(slot(0, 13))}</g>` +
+    `<g class="p s-organise-rest">${slot(1, 13)}${slot(2, 13)}</g>` +
+    `<path class="p s-organise-hop" pathLength="1" d="M20 10.5C20 3.5 4 3.5 4 10.5"/>` +
+    `<path class="p s-organise-head" d="m1.8 8.3 2.2 2.2 2.2-2.2"/>`,
 
-  // Extract: a row of pages; the middle one is ticked, drops out of the row and becomes a file of its own.
+  // Extract: the middle page of a row is ticked, then drops out of the row and becomes a file of its own.
+  // Rest: the row with its gap, and the picked page below.
   'extract-pages':
-    page(1.5, 1.5, 6, 8.5) +
-    page(16.5, 1.5, 6, 8.5) +
-    `<g class="p s-extract-pages-out">${tinted(page(7.75, 11, 8.5, 12))}` +
-    `<path class="p s-extract-pages-tick" pathLength="1" d="m9.75 17.25 2 2 3-3.75"/></g>`,
+    slot(0, 1.5) +
+    slot(2, 1.5) +
+    `<g class="p s-extract-pages-out">${tinted(page(8.15, 11.5, 7.7, 11.2))}` +
+    `<path class="p s-extract-pages-tick" pathLength="1" d="m10 17.4 1.7 1.7 2.6-3.3"/></g>`,
 
-  // Insert: two pages part to open a gap, a new page drops into it. Rest: the new page in its place.
+  // Insert: two pages part to open a gap, a new page drops into it. Rest: the new page in its place, a plus above.
   'insert-pages':
-    `<g class="p s-insert-pages-a">${page(1.5, 8, 6, 8.5)}</g>` +
-    `<g class="p s-insert-pages-b">${page(16.5, 8, 6, 8.5)}</g>` +
-    `<g class="p s-insert-pages-new">${page(9, 8, 6, 8.5)}<path d="M12 11v3.5M10.25 12.75h3.5"/></g>`,
+    `<g class="p s-insert-pages-a">${slot(0, 9)}</g>` +
+    `<g class="p s-insert-pages-b">${slot(2, 9)}</g>` +
+    `<g class="p s-insert-pages-new">${tinted(slot(1, 9))}</g>` +
+    `<path class="p s-insert-pages-plus" d="M12 2.5v4M10 4.5h4"/>`,
 
-  // Crop: crop corners close in on a page; the margins fall away, leaving the trimmed page.
+  // Crop: a sheet; the two arms of a crop frame lift off its edges and close in on the words,
+  // and the margins fall away. Rest: the crop frame around the words.
   crop:
-    `<g class="p s-crop-big" opacity="0">${page(3, 1.5, 18, 21)}</g>` +
-    `<g class="p s-crop-small">${page(6.5, 5.5, 11, 13)}</g>` +
-    lines(8.5, 10, 7, 2.5, [1, 1, 0.6]) +
-    `<path class="p s-crop-tl" d="M4.5 7.5V3.5h4"/>` +
-    `<path class="p s-crop-br" d="M19.5 16.5v4h-4"/>`,
+    `<g class="p s-crop-sheet" opacity="0">${box(4, 1.5, 16, 21)}</g>` +
+    lines(9, 9.5, 6, 2.5, [1, 1, 0.6]) +
+    `<path class="p s-crop-a" d="M7 2.5v15A1.5 1.5 0 0 0 8.5 19h13"/>` +
+    `<path class="p s-crop-b" d="M17 21.5v-15A1.5 1.5 0 0 0 15.5 5h-13"/>`,
 
-  // Bookmarks: ribbons drop onto the top of a page, one and then another.
+  // Bookmarks: one ribbon, then another, drops onto the top of the page.
   bookmarks:
-    page(4, 2, 16, 20) +
-    lines(7, 16.5, 10, 2.5, [1, 0.6]) +
-    ribbon(7, 2, 3, 9.5, 'p s-bookmarks-a') +
-    ribbon(11.5, 2, 3, 6.5, 'p s-bookmarks-b'),
+    page(3.5, 2, 17, 20) +
+    lines(6.5, 16.5, 11, 2.5, [1, 0.6]) +
+    ribbon(5.75, 2, 2.5, 9.5, 'p s-bookmarks-a') +
+    ribbon(10.25, 2, 2.5, 6.5, 'p s-bookmarks-b'),
 
   // Page labels: three pages numbered 1 2 3 turn over to i ii 1.
   'page-labels':
-    page(1.5, 1.5, 6, 9) + page(9, 1.5, 6, 9) + page(16.5, 1.5, 6, 9) +
-    `<path class="p s-page-labels-old" opacity="0" d="${glyph.one(3.7, 15)}${glyph.two(10.3, 15)}${glyph.three(17.85, 15)}"/>` +
-    `<path class="p s-page-labels-new" d="${glyph.i(4.5, 15)}${glyph.i(10.6, 15)}${glyph.i(13.4, 15)}${glyph.one(18.7, 15)}"/>`,
+    slot(0, 2.5, 8.5) + slot(1, 2.5, 8.5) + slot(2, 2.5, 8.5) +
+    `<path class="p s-page-labels-old" opacity="0" d="${glyph.one(3.2, 15)}${glyph.two(10.3, 15)}${glyph.three(18.3, 15)}"/>` +
+    `<path class="p s-page-labels-new" d="${glyph.i(4, 15)}${glyph.i(10.6, 15)}${glyph.i(13.4, 15)}${glyph.one(19.2, 15)}"/>`,
 
-  // Split by size: one wide, full file is cut at thirds into three equal files.
+  // Split by size: one wide, full file is cut at thirds into three equal files that part.
   'split-by-size':
-    `<g class="p s-split-by-size-one" opacity="0">${tinted(page(3, 7, 18, 10))}</g>` +
-    `<path class="p s-split-by-size-cuts" opacity="0" d="M9 4v16M15 4v16" stroke-dasharray="2 2"/>` +
-    `<g class="p s-split-by-size-a">${tinted(page(1.5, 7, 6, 10))}</g>` +
-    `<g class="p s-split-by-size-b">${tinted(page(9, 7, 6, 10))}</g>` +
-    `<g class="p s-split-by-size-c">${tinted(page(16.5, 7, 6, 10))}</g>`,
+    `<g class="p s-split-by-size-one" opacity="0">${tinted(page(3.75, 7, 16.5, 10))}</g>` +
+    `<path class="p s-split-by-size-cuts" opacity="0" d="M9.25 4v16M14.75 4v16" stroke-dasharray="2 2"/>` +
+    `<g class="p s-split-by-size-a">${tinted(slot(0, 7, 10))}</g>` +
+    `<g class="p s-split-by-size-b">${tinted(slot(1, 7, 10))}</g>` +
+    `<g class="p s-split-by-size-c">${tinted(slot(2, 7, 10))}</g>`,
 } as const;

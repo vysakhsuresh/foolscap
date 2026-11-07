@@ -8,6 +8,8 @@
 export function liveIcons(): void {
   if (!('IntersectionObserver' in window)) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // The stories' motions arrive after the page has drawn: still, an icon is already its story's last frame.
+  void import('./scenes/all.css');
   const seen = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) entry.target.classList.toggle('is-live', entry.isIntersecting);

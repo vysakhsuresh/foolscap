@@ -22,7 +22,7 @@ import { formatSize, plural } from '../ui/format';
 import { mountShell } from '../ui/shell';
 import '../ui/flow.css';
 import { noSuggestion, officeByName, suggest, wordsSay, type FileFacts } from '../ui/suggest';
-import { TOOL_ICONS } from '../ui/tool-icons';
+import { TOOL_ART } from '../ui/scenes/index.ts';
 import { mountRecipes, type RecipesPanel } from '../ui/recipes';
 import { imageThumb, pdfThumb, type Box } from '../ui/thumbs';
 
@@ -136,7 +136,7 @@ async function mount(body: HTMLElement, zone: HTMLElement, input: HTMLInputEleme
       ...found.map((s) => {
         const tool = toolById(s.tool);
         const card = el('button', { class: 'tool-card suggest', testid: `suggest-${s.tool}`, attrs: { type: 'button', 'data-group': tool.group } }, [
-          el('span', { class: 'tool-card__icon' }, [icon(TOOL_ICONS[s.tool])]),
+          el('span', { class: 'tool-card__icon' }, [icon(TOOL_ART[s.tool])]),
           el('span', { class: 'tool-card__title', text: tool.title }),
           el('span', { class: 'tool-card__summary', text: s.why }),
         ]);

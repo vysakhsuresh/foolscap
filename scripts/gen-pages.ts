@@ -20,7 +20,8 @@ import { GROUPS, KEYWORDS, SEARCH_NAMES, TOOLS, type GroupId, type ToolMeta } fr
 import { ADSENSE, DESCRIPTION, HELP, MADE_BY, SHARE_URL, SITE_NAME, SITE_ORIGIN } from '../app/src/site/config.ts';
 import { GUIDES, type Guide } from '../app/src/site/guides.ts';
 import { TOOL_COPY } from '../app/src/site/tool-copy.ts';
-import { GROUP_ICONS, TOOL_ICONS } from '../app/src/ui/tool-icons.ts';
+import { TOOL_ART } from '../app/src/ui/scenes/index.ts';
+import { GROUP_ICONS } from '../app/src/ui/tool-icons.ts';
 import { siteMarkSvg } from './brand-mark.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -288,7 +289,7 @@ function toolPage(tool: ToolMeta): string {
   const zone = dropZone(tool);
   const siblings = live.filter((t) => t.group === tool.group && t.id !== tool.id);
   const related = siblings
-    .map((t) => `<a class="related__item" href="/tools/${t.id}/">${svg(TOOL_ICONS[t.id], 'related__icon')}<span>${esc(t.title)}</span></a>`)
+    .map((t) => `<a class="related__item" href="/tools/${t.id}/">${svg(TOOL_ART[t.id], 'related__icon')}<span>${esc(t.title)}</span></a>`)
     .join('\n        ');
   const path = `/tools/${tool.id}/`;
   // Search results cut a title at about 60 characters: the longest form that fits.
@@ -349,7 +350,7 @@ function toolPage(tool: ToolMeta): string {
       tool.input === 'none'
         ? ''
         : `<label class="drop-zone" data-testid="drop-zone" for="file-input">
-      ${svg(TOOL_ICONS[tool.id], 'drop-zone__icon')}
+      ${svg(TOOL_ART[tool.id], 'drop-zone__icon')}
       <span class="drop-zone__title">${zone.title}</span>
       <span class="drop-zone__hint" id="drop-hint">${zone.hint}</span>
       <input class="visually-hidden" id="file-input" data-testid="file-input" type="file"${zone.accept ? ` accept="${zone.accept}"` : ''}${zone.multiple ? ' multiple' : ''} aria-describedby="drop-hint">
@@ -392,7 +393,7 @@ const jumpRow = (label: string, chips: string) => `<div class="family-jumps__wra
 
 function card(tool: ToolMeta): string {
   const keywords = esc(`${tool.title} ${tool.summary} ${KEYWORDS[tool.id] ?? ''}`.toLowerCase());
-  const icon = `<span class="tool-card__icon">${svg(TOOL_ICONS[tool.id])}</span>`;
+  const icon = `<span class="tool-card__icon">${svg(TOOL_ART[tool.id])}</span>`;
   if (tool.status === 'live') {
     return `<a class="tool-card" href="/tools/${tool.id}/" data-testid="tool-card-${tool.id}" data-keywords="${keywords}">${icon}<span class="tool-card__title">${esc(tool.title)}</span><span class="tool-card__summary">${esc(tool.summary)}</span></a>`;
   }
@@ -472,7 +473,7 @@ function articlePage(o: ArticleOptions): string {
 `;
 }
 
-const toolTile = (t: ToolMeta) => `<a class="related__item" href="/tools/${t.id}/">${svg(TOOL_ICONS[t.id], 'related__icon')}<span>${esc(t.title)}</span></a>`;
+const toolTile = (t: ToolMeta) => `<a class="related__item" href="/tools/${t.id}/">${svg(TOOL_ART[t.id], 'related__icon')}<span>${esc(t.title)}</span></a>`;
 const guideCard = (g: Guide) =>
   `<a class="guide-card" href="/guides/${g.slug}/" data-group="${toolById(g.tool).group}"><span class="guide-card__title">${esc(g.h1)}</span><span class="guide-card__summary">${esc(g.description)}</span></a>`;
 const toolById = (id: ToolMeta['id']): ToolMeta => {

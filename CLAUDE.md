@@ -180,7 +180,7 @@ app/public/_headers         the CSP and friends
 | `tesseract.js` (+ core, English and 20 more models) | Apache-2.0 | Make searchable, in the op worker, self-hosted under `/tesseract/` |
 | `pkijs`, `asn1js`, `bytestreamjs` | BSD-3-Clause | Digital signature: PKCS#12 and CMS, in the op worker only |
 | `@noble/hashes`, `pvutils`, `pvtsutils` / `tslib` | MIT / 0BSD | Hashes and helpers under pkijs |
-| Lucide (`lucide-static`) | ISC | The tool and family icons, copied into `ui/tool-icons.ts` by `scripts/gen-icons.mjs` |
+| Lucide (`lucide-static`) | ISC | The five family icons, copied into `ui/tool-icons.ts` by `scripts/gen-icons.mjs` (the tool icons are our own, `ui/scenes/`) |
 | Space Grotesk | OFL | The site's one face, self-hosted |
 
 ## Design direction
@@ -260,18 +260,28 @@ maskable icon, the home share picture). Below about 40 pixels the ruled
 lines only blur, so small sizes drop them and draw the F bolder. The name
 sits beside it, large.
 
-The icons are Lucide's, as on Layerbit: line drawings in the family's own
-colour (`--icon-ink`, the middle of its gradient) on a faint tile of that
-colour with a thin rim.
-Each one acts out its tool (`ui/motion.css`): Merge's two squares slide into
-one, Compress squeezes, the lock's shackle drops shut, Scan's line sweeps,
-Sign writes itself. One action every four seconds, cards in a grid offset
-from each other, transforms and opacity only, and only while the icon is on
-screen (`ui/motion.ts` marks it `.is-live`); nothing moves for anyone who
-asked for less motion, and every motion starts and ends on the plain icon,
-so a still one is simply the drawing. `scripts/gen-icons.mjs` names each
-drawing (`act-t-<tool>`, `act-g-<family>`) and gives its parts
-`pathLength="1"` so any part can be drawn on; a page's date ignores both.
+Every icon is a line drawing in the family's own colour (`--icon-ink`, the
+middle of its gradient) on a faint tile of that colour with a thin rim.
+**A tool's icon is a four-second story of what the tool does**, drawn by us
+in `ui/scenes/` (one `.ts` and one `.css` per family, a small kit of sheets,
+boxes and lines in `kit.ts`, the shared timing in `base.css`, and
+`index.ts`, which wraps each one as `TOOL_ART`): two files slide together
+and become one for Merge; arrows squeeze a big sheet into a small one for
+Compress; an open lock lands and its shackle snaps shut for Add a password;
+a pen writes the signature for Sign; a line sweeps a picture of words and
+leaves real lines behind it for Make searchable. The still
+drawing is the story's last frame, the result, so a still icon (no
+JavaScript yet, reduced motion, a chip or a crumb) says the same thing; parts
+seen only during the story carry `opacity="0"`. A story plays only while its
+icon is on screen (`ui/motion.ts` marks it `.is-live`) and only in a card,
+the family jumps or a tool page's drop zone, never in a chip or a crumb;
+cards in a grid start offset from each other; nothing moves for anyone who
+asked for less motion. The stories' CSS is loaded by `motion.ts` after first
+paint (`import('./scenes/all.css')`), so it costs a tool page's first paint
+nothing and is never fetched under reduced motion. The five family icons
+are Lucide's, from `scripts/gen-icons.mjs` (`act-g-<family>`, parts with
+`pathLength="1"`), with their small motions in `ui/motion.css`. A page's
+date ignores every `<svg>`, so redrawing an icon never moves it.
 Facts (Free forever, No sign-up…) are plain text with a tick, never pills
 that look tappable; the nav marks the current page by colour, and a
 background appears only under the pointer or the keyboard.
@@ -680,3 +690,12 @@ costs ("a redacted page becomes a picture"). Every button is a verb.
   address since a navigation cannot be re-made with options, and hands a
   redirect (a missing trailing slash) back as a redirect. Offline it still
   serves the kept copy.
+- **2026-11-07** Tool icons tell a story, at the owner's word ("the animation
+  should show the user what the tool does"). Lucide's drawings with a part
+  that wiggled only said "this is alive". Each of the 46 tools now has its
+  own drawing in `ui/scenes/` that acts the tool out in four seconds and
+  rests on the result, so the still icon and the moving one say the same
+  thing. Drawn on a 24-unit grid at a 2-unit line, checked frame by frame at
+  24 and 48 pixels. The families keep their Lucide icons. The stories' CSS
+  (under 5 KB gzipped) loads after first paint, which keeps a tool page's
+  first scripts under the 60 KB budget.

@@ -14,56 +14,6 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ICONS = resolve(ROOT, 'node_modules/lucide-static/icons');
 const { version } = JSON.parse(readFileSync(resolve(ROOT, 'node_modules/lucide-static/package.json'), 'utf8'));
 
-/** Tool → Lucide icon name. */
-const TOOLS = {
-  merge: 'combine',
-  split: 'split',
-  organise: 'layout-grid',
-  'extract-pages': 'file-output',
-  'insert-pages': 'file-plus-2',
-  crop: 'crop',
-  'split-by-size': 'scissors-line-dashed',
-  compress: 'shrink',
-  'compress-image': 'square-user-round',
-  'images-to-pdf': 'images',
-  'pdf-to-images': 'file-image',
-  'n-up': 'grid-2x2',
-  'extract-images': 'image-down',
-  watermark: 'stamp',
-  'page-numbers': 'hash',
-  sign: 'signature',
-  'mark-up': 'highlighter',
-  'add-text': 'type',
-  'fill-form': 'text-cursor-input',
-  'header-footer': 'panel-top-bottom-dashed',
-  'add-password': 'lock',
-  'remove-password': 'lock-open',
-  'remove-areas': 'eraser',
-  'document-details': 'brush-cleaning',
-  background: 'paint-bucket',
-  'page-labels': 'list-ordered',
-  attachments: 'paperclip',
-  bookmarks: 'bookmark',
-  'digital-sign': 'file-badge',
-  'pdf-to-word': 'file-type',
-  'pdf-to-excel': 'file-spreadsheet',
-  'pdf-to-powerpoint': 'presentation',
-  'pdf-to-epub': 'book-text',
-  'office-to-pdf': 'file-output',
-  'add-image': 'image-plus',
-  compare: 'git-compare',
-  'edit-text': 'text-cursor',
-  'create-form': 'clipboard-pen-line',
-  summarise: 'sparkles',
-  'pdf-a': 'archive',
-  'rent-receipts': 'receipt-indian-rupee',
-  'edit-images': 'image-up',
-  read: 'book-open',
-  scan: 'scan-line',
-  ocr: 'scan-text',
-  'extract-text': 'file-text',
-};
-
 const GROUPS = { pages: 'files', convert: 'arrow-left-right', mark: 'pen-line', protect: 'shield-check', read: 'book-open-text' };
 
 function inner(name) {
@@ -82,24 +32,20 @@ const entry = (key, name, act) => `  ${/^[a-z]+$/.test(key) ? key : `'${key}'`}:
 
 const out = `// Written by scripts/gen-icons.mjs from lucide-static ${version} (ISC). Do not edit; change the names there.
 /**
- * One Lucide icon per tool and per family, on Lucide's 24-unit grid, stroked
- * in currentColor so each family's colour draws its own icons. The page
- * generator (scripts/gen-pages.ts) writes them into the static HTML. Each
- * carries a class naming it (act-t-merge, act-g-pages), so ui/motion.css can
- * make its parts act out what the tool does.
+ * One Lucide icon per family, on Lucide's 24-unit grid, stroked in
+ * currentColor so each family's colour draws its own. The page generator
+ * (scripts/gen-pages.ts) writes them into the static HTML. Each carries a
+ * class naming it (act-g-pages…) for ui/motion.css. The tools' own icons are
+ * drawn stories: ui/scenes/.
  */
-import type { GroupId, ToolId } from '../ops/tools';
+import type { GroupId } from '../ops/tools';
 
 const icon = (act: string, body: string) =>
   \`<g class="act act-\${act}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\${body}</g>\`;
-
-export const TOOL_ICONS: Record<ToolId, string> = {
-${Object.entries(TOOLS).map(([k, n]) => entry(k, n, `t-${k}`)).join('\n')}
-};
 
 export const GROUP_ICONS: Record<GroupId, string> = {
 ${Object.entries(GROUPS).map(([k, n]) => entry(k, n, `g-${k}`)).join('\n')}
 };
 `;
 writeFileSync(resolve(ROOT, 'app/src/ui/tool-icons.ts'), out);
-console.log(`icons: ${Object.keys(TOOLS).length} tools and ${Object.keys(GROUPS).length} families from lucide-static ${version}`);
+console.log(`icons: ${Object.keys(GROUPS).length} families from lucide-static ${version}`);
