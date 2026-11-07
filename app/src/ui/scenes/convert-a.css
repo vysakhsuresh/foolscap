@@ -1,0 +1,191 @@
+@media (prefers-reduced-motion: no-preference) {
+  /* Compress: a big page appears, the arrows close in from its edges, and it is squeezed into the small page. */
+  .is-live .s-compress-big { animation-name: k-compress-big; transform-origin: 12px 12px; }
+  .is-live .s-compress-small { animation-name: k-compress-small; }
+  .is-live .s-compress-l { animation-name: k-compress-l; }
+  .is-live .s-compress-r { animation-name: k-compress-r; }
+  @keyframes k-compress-big {
+    0%, 4% { opacity: 0; transform: none; }
+    12%, 28% { opacity: 1; transform: none; }
+    50% { opacity: 1; transform: scale(0.615); }
+    56%, 100% { opacity: 0; transform: scale(0.615); }
+  }
+  @keyframes k-compress-small {
+    0% { opacity: 1; }
+    6%, 48% { opacity: 0; }
+    56%, 100% { opacity: 1; }
+  }
+  @keyframes k-compress-l {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    14% { opacity: 0; transform: translateX(-2.5px); }
+    22%, 28% { opacity: 1; transform: translateX(-2.5px); }
+    50%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-compress-r {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    14% { opacity: 0; transform: translateX(2.5px); }
+    22%, 28% { opacity: 1; transform: translateX(2.5px); }
+    50%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* Resize photo to KB: a big photo shrinks into the little photo box on a form. */
+  .is-live .s-compress-image-big { animation-name: k-compress-image-big; transform-origin: 0 0; }
+  .is-live .s-compress-image-small { animation-name: k-compress-image-small; }
+  .is-live .s-compress-image-form { animation-name: k-compress-image-form; }
+  @keyframes k-compress-image-big {
+    0%, 4% { opacity: 0; transform: none; }
+    12%, 24% { opacity: 1; transform: none; }
+    48% { opacity: 1; transform: translate(4.25px, 3.625px) scale(0.4375); }
+    54%, 100% { opacity: 0; transform: translate(4.25px, 3.625px) scale(0.4375); }
+  }
+  @keyframes k-compress-image-small {
+    0% { opacity: 1; }
+    6%, 46% { opacity: 0; }
+    54%, 100% { opacity: 1; }
+  }
+  @keyframes k-compress-image-form {
+    0% { opacity: 1; }
+    6%, 34% { opacity: 0; }
+    48%, 100% { opacity: 1; }
+  }
+
+  /*
+   * The flips (Word, Excel, Word or Excel to PDF): the first side speeds up
+   * as it turns edge-on and the second slows as it opens, so the card never
+   * hangs at no width.
+   */
+
+  /* PDF to Word: the page of text flips over and comes back as a W document. */
+  .is-live .s-pdf-to-word-pdf { animation-name: k-pdf-to-word-pdf; transform-origin: 12px 12px; }
+  .is-live .s-pdf-to-word-doc { animation-name: k-pdf-to-word-doc; transform-origin: 12px 12px; }
+  @keyframes k-pdf-to-word-pdf {
+    0%, 4% { opacity: 0; transform: none; }
+    12% { opacity: 1; transform: none; }
+    28% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+    38% { opacity: 1; transform: scaleX(0); }
+    39%, 100% { opacity: 0; transform: scaleX(0); }
+  }
+  @keyframes k-pdf-to-word-doc {
+    0% { opacity: 1; transform: none; }
+    8% { opacity: 0; transform: none; }
+    10%, 37% { opacity: 0; transform: scaleX(0); }
+    38% { opacity: 1; transform: scaleX(0); animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1); }
+    48%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* PDF to Excel: the page of figures flips over and comes back as a grid of cells. */
+  .is-live .s-pdf-to-excel-pdf { animation-name: k-pdf-to-excel-pdf; transform-origin: 12px 12px; }
+  .is-live .s-pdf-to-excel-sheet { animation-name: k-pdf-to-excel-sheet; transform-origin: 12px 12px; }
+  @keyframes k-pdf-to-excel-pdf {
+    0%, 4% { opacity: 0; transform: none; }
+    12% { opacity: 1; transform: none; }
+    28% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+    38% { opacity: 1; transform: scaleX(0); }
+    39%, 100% { opacity: 0; transform: scaleX(0); }
+  }
+  @keyframes k-pdf-to-excel-sheet {
+    0% { opacity: 1; transform: none; }
+    8% { opacity: 0; transform: none; }
+    10%, 37% { opacity: 0; transform: scaleX(0); }
+    38% { opacity: 1; transform: scaleX(0); animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1); }
+    48%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* PDF to PowerPoint: the page turns on its side into a slide, and the stand draws in under it. */
+  .is-live .s-pdf-to-powerpoint-pdf { animation-name: k-pdf-to-powerpoint-pdf; transform-origin: 12px 11.5px; }
+  .is-live .s-pdf-to-powerpoint-screen { animation-name: k-pdf-to-powerpoint-screen; }
+  .is-live .s-pdf-to-powerpoint-stand { animation-name: k-pdf-to-powerpoint-stand; stroke-dasharray: 1 1.4; }
+  @keyframes k-pdf-to-powerpoint-pdf {
+    0%, 2% { opacity: 0; transform: none; }
+    12%, 22% { opacity: 1; transform: none; }
+    40% { opacity: 1; transform: translateY(-2px) rotate(-90deg); }
+    46%, 100% { opacity: 0; transform: translateY(-2px) rotate(-90deg); }
+  }
+  @keyframes k-pdf-to-powerpoint-screen {
+    0% { opacity: 1; }
+    8%, 39% { opacity: 0; }
+    48%, 100% { opacity: 1; }
+  }
+  @keyframes k-pdf-to-powerpoint-stand {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    8% { opacity: 0; stroke-dashoffset: 0; }
+    9%, 46% { opacity: 0; stroke-dashoffset: 1.2; }
+    47% { opacity: 1; stroke-dashoffset: 1.2; }
+    60%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+
+  /* PDF to EPUB: the wide page narrows into a phone, and the text flows again, line by line, as more, shorter lines. */
+  .is-live .s-pdf-to-epub-pdf { animation-name: k-pdf-to-epub-pdf; transform-origin: 12px 12px; }
+  .is-live .s-pdf-to-epub-phone { animation-name: k-pdf-to-epub-phone; }
+  .is-live .s-pdf-to-epub-t { stroke-dasharray: 1 1.4; }
+  .is-live .s-pdf-to-epub-t1 { animation-name: k-pdf-to-epub-t1; }
+  .is-live .s-pdf-to-epub-t2 { animation-name: k-pdf-to-epub-t2; }
+  .is-live .s-pdf-to-epub-t3 { animation-name: k-pdf-to-epub-t3; }
+  .is-live .s-pdf-to-epub-t4 { animation-name: k-pdf-to-epub-t4; }
+  @keyframes k-pdf-to-epub-pdf {
+    0%, 4% { opacity: 0; transform: none; }
+    12%, 24% { opacity: 1; transform: none; }
+    40% { opacity: 1; transform: scaleX(0.6875); }
+    46%, 100% { opacity: 0; transform: scaleX(0.6875); }
+  }
+  @keyframes k-pdf-to-epub-phone {
+    0% { opacity: 1; }
+    6%, 36% { opacity: 0; }
+    44%, 100% { opacity: 1; }
+  }
+  @keyframes k-pdf-to-epub-t1 {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    7%, 42% { opacity: 0; stroke-dashoffset: 1.2; }
+    43% { opacity: 1; stroke-dashoffset: 1.2; }
+    50%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-pdf-to-epub-t2 {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    7%, 45% { opacity: 0; stroke-dashoffset: 1.2; }
+    46% { opacity: 1; stroke-dashoffset: 1.2; }
+    53%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-pdf-to-epub-t3 {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    7%, 48% { opacity: 0; stroke-dashoffset: 1.2; }
+    49% { opacity: 1; stroke-dashoffset: 1.2; }
+    56%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-pdf-to-epub-t4 {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    7%, 51% { opacity: 0; stroke-dashoffset: 1.2; }
+    52% { opacity: 1; stroke-dashoffset: 1.2; }
+    59%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+
+  /* Word or Excel to PDF: a W document flips over into a page of text, which steps forward with the original behind it. */
+  .is-live .s-office-to-pdf-doc { animation-name: k-office-to-pdf-doc; transform-origin: 12px 12px; }
+  .is-live .s-office-to-pdf-pdf { animation-name: k-office-to-pdf-pdf; transform-origin: 16px 15.5px; }
+  .is-live .s-office-to-pdf-back { animation-name: k-office-to-pdf-back; }
+  @keyframes k-office-to-pdf-doc {
+    0%, 2% { opacity: 0; transform: none; }
+    12% { opacity: 1; transform: none; }
+    24% { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45); }
+    34% { opacity: 1; transform: scaleX(0); }
+    35%, 100% { opacity: 0; transform: scaleX(0); }
+  }
+  @keyframes k-office-to-pdf-pdf {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    8%, 33% { opacity: 0; transform: translate(-4px, -3.5px) scaleX(0); }
+    34% { opacity: 1; transform: translate(-4px, -3.5px) scaleX(0); animation-timing-function: cubic-bezier(0, 0.55, 0.45, 1); }
+    44%, 50% { opacity: 1; transform: translate(-4px, -3.5px) scaleX(1); }
+    62%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-office-to-pdf-back {
+    0% { opacity: 1; }
+    6%, 52% { opacity: 0; }
+    64%, 100% { opacity: 1; }
+  }
+}

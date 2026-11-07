@@ -1,0 +1,104 @@
+@media (prefers-reduced-motion: no-preference) {
+  /* Edit pictures: the picture fades, comes back small and higher up, and the pointer drags its corner down until it is bigger. */
+  .is-live .s-edit-images-pic { animation-name: k-edit-images-pic; transform-origin: 6.5px 9px; }
+  .is-live .s-edit-images-grip { animation-name: k-edit-images-grip; }
+  @keyframes k-edit-images-pic {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    8% { opacity: 0; transform: translate(0, -3.5px) scale(0.55); }
+    14%, 24% { opacity: 1; transform: translate(0, -3.5px) scale(0.55); }
+    54%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-edit-images-grip {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    8% { opacity: 0; transform: translate(-3.6px, -6.43px); }
+    14%, 24% { opacity: 1; transform: translate(-3.6px, -6.43px); }
+    54%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* Add image: the picture leaves, then is set down onto the page from above (bigger, tilted, fading in) and lands with a small bounce. */
+  .is-live .s-add-image-pic { animation-name: k-add-image-pic; transform-origin: 12px 15.25px; }
+  @keyframes k-add-image-pic {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    8%, 18% { opacity: 0; transform: translate(2px, -3px) scale(1.6) rotate(-12deg); }
+    26% { opacity: 1; }
+    36% { opacity: 1; transform: scale(0.93) rotate(1deg); }
+    43% { transform: scale(1.03) rotate(0deg); }
+    50%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* Fill in a form: the answer and the tick go (the checkbox closes), the words are typed in behind a caret, then the tick is drawn out through the checkbox's corner. */
+  .is-live .s-fill-form-text { animation-name: k-fill-form-text; stroke-dasharray: 1 1.4; }
+  .is-live .s-fill-form-caret { animation-name: k-fill-form-caret; }
+  .is-live .s-fill-form-tick { animation-name: k-fill-form-tick; stroke-dasharray: 1 1.4; }
+  .is-live .s-fill-form-shut { animation-name: k-fill-form-shut; }
+  @keyframes k-fill-form-text {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    8%, 16% { opacity: 1; stroke-dashoffset: 1.2; }
+    38%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-fill-form-caret {
+    0%, 10% { opacity: 0; transform: translateX(-1px); }
+    14%, 16% { opacity: 1; transform: translateX(-1px); }
+    38% { opacity: 1; transform: translateX(5px); }
+    44%, 100% { opacity: 0; transform: translateX(5px); }
+  }
+  @keyframes k-fill-form-shut {
+    0%, 4% { opacity: 0; }
+    8%, 48% { opacity: 1; }
+    54%, 100% { opacity: 0; }
+  }
+  @keyframes k-fill-form-tick {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    8%, 44% { opacity: 1; stroke-dashoffset: 1.2; }
+    56%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+
+  /* Page background: the colour drains away, then rises up the page from the bottom edge, under the words. */
+  .is-live .s-background-tint { animation-name: k-background-tint; transform-origin: 12px 22px; }
+  @keyframes k-background-tint {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    8% { opacity: 0; transform: scaleY(0); }
+    14%, 18% { opacity: 1; transform: scaleY(0); }
+    52%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* Create a form: the boxes go back to printed blank lines, then each blank grows a box: the text box, then the checkbox. */
+  .is-live .s-create-form-field { animation-name: k-create-form-field; stroke-dasharray: 1 1.4; }
+  .is-live .s-create-form-check { animation-name: k-create-form-check; stroke-dasharray: 1 1.4; }
+  @keyframes k-create-form-field {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    8%, 18% { opacity: 1; stroke-dashoffset: 1.2; }
+    36%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-create-form-check {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    8%, 38% { opacity: 1; stroke-dashoffset: 1.2; }
+    54%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+
+  /* Header and footer: both bands go, then the header band opens up to the top edge and the footer band down to the bottom edge. */
+  .is-live .s-header-footer-head { animation-name: k-header-footer-head; transform-origin: 12px 8px; }
+  .is-live .s-header-footer-foot { animation-name: k-header-footer-foot; transform-origin: 12px 17.5px; }
+  @keyframes k-header-footer-head {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    8% { opacity: 0; transform: scaleY(0); }
+    14%, 16% { opacity: 1; transform: scaleY(0); }
+    34%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-header-footer-foot {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    8% { opacity: 0; transform: scaleY(0); }
+    14%, 36% { opacity: 1; transform: scaleY(0); }
+    54%, 100% { opacity: 1; transform: none; }
+  }
+}

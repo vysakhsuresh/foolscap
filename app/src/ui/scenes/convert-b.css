@@ -1,0 +1,116 @@
+@media (prefers-reduced-motion: no-preference) {
+  /* Archive copy: the lid lifts away, a page falls in, the lid comes back down on it. */
+  .is-live .s-pdf-a-lid { animation-name: k-pdf-a-lid; }
+  .is-live .s-pdf-a-page { animation-name: k-pdf-a-page; }
+  @keyframes k-pdf-a-lid {
+    0% { opacity: 1; transform: none; }
+    10%, 48% { opacity: 0; transform: translateY(-4px); }
+    58% { opacity: 1; transform: translateY(0.6px); }
+    64%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-pdf-a-page {
+    0%, 8% { opacity: 0; transform: translateY(-5px); }
+    18%, 26% { opacity: 1; transform: none; }
+    44%, 100% { opacity: 0; transform: translateY(9px); }
+  }
+
+  /* Rent receipts: the slip prints upward, the rupee sign is written, then its line. */
+  .is-live .s-rent-receipts-slip { animation-name: k-rent-receipts-slip; }
+  .is-live .s-rent-receipts-rupee { animation-name: k-rent-receipts-rupee; stroke-dasharray: 1 1.4; }
+  .is-live .s-rent-receipts-line { animation-name: k-rent-receipts-line; stroke-dasharray: 1 1.4; }
+  @keyframes k-rent-receipts-slip {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    8% { opacity: 0; transform: translateY(8px); }
+    18% { opacity: 1; transform: translateY(5px); }
+    32%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-rent-receipts-rupee {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    7%, 30% { opacity: 0; stroke-dashoffset: 1.2; }
+    31% { opacity: 1; stroke-dashoffset: 1.2; }
+    52%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-rent-receipts-line {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    7%, 50% { opacity: 0; stroke-dashoffset: 1.2; }
+    51% { opacity: 1; stroke-dashoffset: 1.2; }
+    62%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+
+  /* Images to PDF: two loose photos glide into place and a page closes round them. */
+  .is-live .s-images-to-pdf-page { animation-name: k-images-to-pdf-page; transform-origin: 12px 12px; }
+  .is-live .s-images-to-pdf-a { animation-name: k-images-to-pdf-a; transform-origin: 12px 11px; }
+  .is-live .s-images-to-pdf-b { animation-name: k-images-to-pdf-b; transform-origin: 12px 18px; }
+  @keyframes k-images-to-pdf-page {
+    0% { opacity: 1; transform: none; }
+    8%, 40% { opacity: 0; transform: scale(1.12); }
+    54%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-images-to-pdf-a {
+    0% { opacity: 1; transform: none; }
+    5% { opacity: 0; transform: none; }
+    7% { opacity: 0; transform: translate(-3.5px, -4.5px) rotate(-10deg) scale(1.1); }
+    15%, 22% { opacity: 1; transform: translate(-3.5px, -4.5px) rotate(-10deg) scale(1.1); }
+    46%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-images-to-pdf-b {
+    0% { opacity: 1; transform: none; }
+    5% { opacity: 0; transform: none; }
+    7% { opacity: 0; transform: translate(3.5px, 1.5px) rotate(8deg) scale(1.1); }
+    15%, 26% { opacity: 1; transform: translate(3.5px, 1.5px) rotate(8deg) scale(1.1); }
+    48%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* PDF to images: a page of text turns over and comes back a picture. */
+  .is-live .s-pdf-to-images-sheet { animation-name: k-pdf-to-images-sheet; transform-origin: 12px 12px; }
+  .is-live .s-pdf-to-images-text { animation-name: k-pdf-to-images-text; transform-origin: 12px 12px; }
+  .is-live .s-pdf-to-images-pic { animation-name: k-pdf-to-images-pic; transform-origin: 12px 12px; }
+  @keyframes k-pdf-to-images-sheet {
+    0%, 30% { transform: none; }
+    37% { transform: scaleX(0.08); }
+    44%, 100% { transform: none; }
+  }
+  @keyframes k-pdf-to-images-text {
+    0% { opacity: 0; transform: none; }
+    10%, 30% { opacity: 1; transform: none; }
+    37% { opacity: 1; transform: scaleX(0.08); }
+    37.1%, 100% { opacity: 0; transform: scaleX(0.08); }
+  }
+  @keyframes k-pdf-to-images-pic {
+    0% { opacity: 1; transform: none; }
+    10% { opacity: 0; transform: none; }
+    37% { opacity: 0; transform: scaleX(0.08); }
+    37.1% { opacity: 1; transform: scaleX(0.08); }
+    44%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* Pages per sheet: four full pages shrink together into the quarters of one sheet. */
+  .is-live .s-n-up-sheet { animation-name: k-n-up-sheet; transform-origin: 12px 12px; }
+  .is-live .s-n-up-pages { animation-name: k-n-up-pages; transform-origin: 12px 12px; }
+  @keyframes k-n-up-sheet {
+    0% { opacity: 1; transform: none; }
+    6%, 38% { opacity: 0; transform: scale(1.15); }
+    52%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-n-up-pages {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    8% { opacity: 0; transform: scale(1.3); }
+    14%, 24% { opacity: 1; transform: scale(1.3); }
+    48%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* Extract images: the picture in a page lifts and comes out whole, leaving the text. */
+  .is-live .s-extract-images-pic { animation-name: k-extract-images-pic; transform-origin: 18px 12px; }
+  @keyframes k-extract-images-pic {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    8% { opacity: 0; transform: translate(-11.5px, 3.5px) scale(0.65); }
+    15%, 24% { opacity: 1; transform: translate(-11.5px, 3.5px) scale(0.65); }
+    32% { opacity: 1; transform: translate(-11px, 2.2px) scale(0.76); }
+    58%, 100% { opacity: 1; transform: none; }
+  }
+}

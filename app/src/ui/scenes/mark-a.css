@@ -1,0 +1,164 @@
+@media (prefers-reduced-motion: no-preference) {
+  /* Watermark: the label goes, a stamp comes down on the page at a slant, presses, lifts; the label is left behind. */
+  .is-live .s-watermark-mark { animation-name: k-watermark-mark; transform-origin: 12px 13.5px; }
+  .is-live .s-watermark-stamp { animation-name: k-watermark-stamp; transform-origin: 12px 13.5px; }
+  @keyframes k-watermark-mark {
+    0% { opacity: 1; transform: none; }
+    6%, 32% { opacity: 0; transform: scale(0.9); }
+    35% { opacity: 1; transform: scale(1.05); }
+    40%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-watermark-stamp {
+    0%, 6% { opacity: 0; transform: translateY(-5px) rotate(-30deg); }
+    14% { opacity: 1; transform: translateY(-5px) rotate(-30deg); }
+    28% { opacity: 1; transform: rotate(-30deg); }
+    31% { opacity: 1; transform: translateY(0.7px) rotate(-30deg); }
+    35% { opacity: 1; transform: rotate(-30deg); }
+    48% { opacity: 1; transform: translateY(-5px) rotate(-30deg); }
+    56%, 100% { opacity: 0; transform: translateY(-6px) rotate(-30deg); }
+  }
+
+  /* Page numbers: the numbers go, then 1 is written at the foot of the first page and 2 at the second. */
+  .is-live .s-page-numbers-1 { animation-name: k-page-numbers-1; stroke-dasharray: 1 1.4; }
+  .is-live .s-page-numbers-2 { animation-name: k-page-numbers-2; stroke-dasharray: 1 1.4; }
+  @keyframes k-page-numbers-1 {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; animation-timing-function: step-end; }
+    7%, 14% { opacity: 1; stroke-dashoffset: 1.2; }
+    26%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-page-numbers-2 {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; animation-timing-function: step-end; }
+    7%, 30% { opacity: 1; stroke-dashoffset: 1.2; }
+    42%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+
+  /* Sign: the signature goes, a pen sets down at the start of the line and writes it, then lifts away. */
+  .is-live .s-sign-name { animation-name: k-sign-name; stroke-dasharray: 1 1.4; }
+  .is-live .s-sign-pen { animation-name: k-sign-pen; }
+  @keyframes k-sign-name {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; animation-timing-function: step-end; }
+    7%, 14% { opacity: 1; stroke-dashoffset: 1.2; }
+    16% { opacity: 1; stroke-dashoffset: 1; animation-timing-function: linear; }
+    52%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-sign-pen {
+    0%, 6% { opacity: 0; transform: translate(-9px, -2px); }
+    12% { opacity: 1; transform: translate(-9px, -2px); }
+    16% { opacity: 1; transform: translate(-9px, 0); animation-timing-function: linear; }
+    24.3% { transform: translate(-6.4px, -3.6px); animation-timing-function: linear; }
+    33.3% { transform: translate(-6px, 0.8px); animation-timing-function: linear; }
+    39.8% { transform: translate(-3.8px, -1.8px); animation-timing-function: linear; }
+    44.1% { transform: translate(-3.2px, 0.4px); animation-timing-function: linear; }
+    48.8% { transform: translate(-1.2px, -1.2px); animation-timing-function: linear; }
+    52% { opacity: 1; transform: none; }
+    56% { opacity: 1; transform: translate(0.5px, -1.5px); }
+    62%, 100% { opacity: 0; transform: translate(1px, -3px); }
+  }
+
+  /* Mark up: the marks go, a highlighter sweeps along a line leaving a band, then a ring is drawn round a word. */
+  .is-live .s-mark-up-band { animation-name: k-mark-up-band; transform-origin: 6px 10.5px; }
+  .is-live .s-mark-up-pen { animation-name: k-mark-up-pen; }
+  .is-live .s-mark-up-ring { animation-name: k-mark-up-ring; stroke-dasharray: 1 1.4; }
+  @keyframes k-mark-up-band {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; animation-timing-function: step-end; }
+    7%, 16% { opacity: 1; transform: scaleX(0); }
+    36%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-mark-up-pen {
+    0%, 6% { opacity: 0; transform: translate(0, -2px); }
+    12% { opacity: 1; transform: translate(0, -2px); }
+    16% { opacity: 1; transform: none; }
+    36% { opacity: 1; transform: translateX(10.5px); }
+    40% { opacity: 1; transform: translate(11px, -2px); }
+    46%, 100% { opacity: 0; transform: translate(11.5px, -3px); }
+  }
+  @keyframes k-mark-up-ring {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; animation-timing-function: step-end; }
+    7%, 40% { opacity: 1; stroke-dashoffset: 1.2; }
+    58%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+
+  /* Edit text: the old word is back, gets selected, is deleted, and a new word types in after the cursor. */
+  .is-live .s-edit-text-sel { animation-name: k-edit-text-sel; transform-origin: 10.2px 14.5px; }
+  .is-live .s-edit-text-old { animation-name: k-edit-text-old; }
+  .is-live .s-edit-text-new { animation-name: k-edit-text-new; stroke-dasharray: 1 1.4; }
+  .is-live .s-edit-text-cur { animation-name: k-edit-text-cur; }
+  @keyframes k-edit-text-sel {
+    0%, 10% { opacity: 0; transform: scaleX(0); }
+    11% { opacity: 1; transform: scaleX(0); }
+    20%, 25% { opacity: 1; transform: none; }
+    27%, 100% { opacity: 0; transform: none; }
+  }
+  @keyframes k-edit-text-old {
+    0% { opacity: 0; }
+    6%, 25% { opacity: 1; }
+    27%, 100% { opacity: 0; }
+  }
+  @keyframes k-edit-text-new {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; animation-timing-function: step-end; }
+    7% { opacity: 1; stroke-dashoffset: 1.2; animation-timing-function: step-end; }
+    33% { opacity: 1; stroke-dashoffset: 0.67; animation-timing-function: step-end; }
+    37% { opacity: 1; stroke-dashoffset: 0.33; animation-timing-function: step-end; }
+    41%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-edit-text-cur {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; animation-timing-function: step-end; }
+    27% { opacity: 1; transform: translateX(-4px); animation-timing-function: step-end; }
+    30% { opacity: 0; transform: translateX(-4px); animation-timing-function: step-end; }
+    31.5% { opacity: 1; transform: translateX(-4px); animation-timing-function: step-end; }
+    33% { opacity: 1; transform: translateX(-1.67px); animation-timing-function: step-end; }
+    37% { opacity: 1; transform: translateX(-0.83px); animation-timing-function: step-end; }
+    41% { opacity: 1; transform: none; animation-timing-function: step-end; }
+    47% { opacity: 0; transform: none; animation-timing-function: step-end; }
+    52% { opacity: 1; transform: none; animation-timing-function: step-end; }
+    58% { opacity: 0; transform: none; animation-timing-function: step-end; }
+    63%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* Add text: a tap on the empty part of the page, a text box opens there, a new line types in after the cursor. */
+  .is-live .s-add-text-tap { animation-name: k-add-text-tap; transform-origin: 8px 16px; }
+  .is-live .s-add-text-box { animation-name: k-add-text-box; transform-origin: 8px 16px; }
+  .is-live .s-add-text-line { animation-name: k-add-text-line; stroke-dasharray: 1 1.4; }
+  .is-live .s-add-text-cur { animation-name: k-add-text-cur; }
+  @keyframes k-add-text-tap {
+    0%, 9% { opacity: 0; transform: scale(0.4); }
+    11% { opacity: 1; transform: scale(0.5); }
+    20%, 100% { opacity: 0; transform: scale(1.2); }
+  }
+  @keyframes k-add-text-box {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; animation-timing-function: step-end; }
+    7%, 16% { opacity: 0; transform: scale(0.2); }
+    24% { opacity: 1; transform: scale(1.05); }
+    28%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-add-text-line {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; animation-timing-function: step-end; }
+    7% { opacity: 1; stroke-dashoffset: 1.2; animation-timing-function: step-end; }
+    31% { opacity: 1; stroke-dashoffset: 0.75; animation-timing-function: step-end; }
+    35% { opacity: 1; stroke-dashoffset: 0.5; animation-timing-function: step-end; }
+    39% { opacity: 1; stroke-dashoffset: 0.25; animation-timing-function: step-end; }
+    43%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-add-text-cur {
+    0%, 24% { opacity: 0; transform: translateX(-7px); animation-timing-function: step-end; }
+    25% { opacity: 1; transform: translateX(-7px); animation-timing-function: step-end; }
+    28% { opacity: 0; transform: translateX(-7px); animation-timing-function: step-end; }
+    29.5% { opacity: 1; transform: translateX(-7px); animation-timing-function: step-end; }
+    31% { opacity: 1; transform: translateX(-3.375px); animation-timing-function: step-end; }
+    35% { opacity: 1; transform: translateX(-2.25px); animation-timing-function: step-end; }
+    39% { opacity: 1; transform: translateX(-1.125px); animation-timing-function: step-end; }
+    43% { opacity: 1; transform: none; animation-timing-function: step-end; }
+    49% { opacity: 0; transform: none; animation-timing-function: step-end; }
+    54% { opacity: 1; transform: none; }
+    60%, 100% { opacity: 0; transform: none; }
+  }
+}

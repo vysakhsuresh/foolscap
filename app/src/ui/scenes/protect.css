@@ -1,0 +1,111 @@
+@media (prefers-reduced-motion: no-preference) {
+  /* Add a password: the lock leaves, comes back open from above, lands, and the shackle snaps shut. */
+  .is-live .s-add-password-lock { animation-name: k-add-password-lock; transform-origin: 12px 16px; }
+  .is-live .s-add-password-arc { animation-name: k-add-password-arc; transform-origin: 9.5px 10px; }
+  @keyframes k-add-password-lock {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    10% { opacity: 0; transform: translateY(-3px); }
+    16% { opacity: 1; transform: translateY(-3px); }
+    32% { opacity: 1; transform: none; }
+    35% { transform: translateY(-0.6px); }
+    38% { transform: none; }
+    50% { transform: none; }
+    53% { transform: translateY(0.5px); }
+    56%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-add-password-arc {
+    0%, 6% { transform: none; }
+    8%, 44% { transform: rotate(-30deg); }
+    51% { transform: rotate(3deg); }
+    55%, 100% { transform: none; }
+  }
+
+  /* Remove a password: the lock fades and returns shut; the shackle springs open. */
+  .is-live .s-remove-password-lock { animation-name: k-remove-password-lock; transform-origin: 12px 16px; }
+  .is-live .s-remove-password-arc { animation-name: k-remove-password-arc; transform-origin: 9.5px 10px; }
+  @keyframes k-remove-password-lock {
+    0% { opacity: 1; transform: none; }
+    6%, 8% { opacity: 0; transform: none; }
+    14% { opacity: 1; transform: none; }
+    34% { transform: none; }
+    38% { transform: translateY(0.5px); }
+    42%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-remove-password-arc {
+    0%, 6% { transform: none; }
+    7%, 36% { transform: rotate(30deg); }
+    44% { transform: rotate(-5deg); }
+    50% { transform: rotate(2deg); }
+    54%, 100% { transform: none; }
+  }
+
+  /* Digital signature: the seal leaves; it is pressed back on from above; the tick draws inside it. */
+  .is-live .s-digital-sign-seal { animation-name: k-digital-sign-seal; transform-origin: 12px 15px; }
+  .is-live .s-digital-sign-tick { animation-name: k-digital-sign-tick; stroke-dasharray: 1 1.4; }
+  @keyframes k-digital-sign-seal {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    16% { opacity: 0; transform: scale(1.8); }
+    28% { opacity: 1; transform: scale(0.9); }
+    33%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-digital-sign-tick {
+    0% { stroke-dashoffset: 0; }
+    6%, 36% { stroke-dashoffset: 1.2; }
+    52%, 100% { stroke-dashoffset: 0; }
+  }
+
+  /* Remove areas: a box is drawn round a line of words, the words go, the box fills solid. */
+  .is-live .s-remove-areas-mark { animation-name: k-remove-areas-mark; stroke-dasharray: 1 1.4; }
+  .is-live .s-remove-areas-words { animation-name: k-remove-areas-words; transform-origin: 8.5px 11.5px; }
+  .is-live .s-remove-areas-fill { animation-name: k-remove-areas-fill; }
+  @keyframes k-remove-areas-mark {
+    0% { opacity: 1; stroke-dashoffset: 0; }
+    6% { opacity: 0; stroke-dashoffset: 0; }
+    8% { opacity: 0; stroke-dashoffset: 1.2; }
+    12% { opacity: 1; stroke-dashoffset: 1.2; }
+    32%, 100% { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes k-remove-areas-words {
+    0%, 4% { opacity: 0; transform: none; }
+    12%, 36% { opacity: 1; transform: none; }
+    46%, 100% { opacity: 0; transform: scaleX(0); }
+  }
+  @keyframes k-remove-areas-fill {
+    0% { opacity: 1; }
+    6%, 48% { opacity: 0; }
+    58%, 100% { opacity: 1; }
+  }
+
+  /* Clean hidden data: a tag shows on the page; the brush swings across it, the tag is swept off, the brush swings back. */
+  .is-live .s-document-details-tag { animation-name: k-document-details-tag; transform-origin: 9px 17px; }
+  .is-live .s-document-details-brush { animation-name: k-document-details-brush; transform-origin: 19.5px 2.5px; }
+  @keyframes k-document-details-tag {
+    0%, 4% { opacity: 0; transform: none; }
+    12%, 32% { opacity: 1; transform: none; }
+    44%, 100% { opacity: 0; transform: translate(-6px, 2px) rotate(-25deg); }
+  }
+  @keyframes k-document-details-brush {
+    0%, 18% { transform: none; }
+    36% { transform: rotate(34deg); }
+    50% { transform: rotate(-4deg); }
+    56%, 100% { transform: none; }
+  }
+
+  /* Attachments: a small file slides in from the right, sinks into the page where the clip will be, the paperclip comes down onto the page's edge. */
+  .is-live .s-attachments-file { animation-name: k-attachments-file; transform-origin: 10px 7px; }
+  .is-live .s-attachments-clip { animation-name: k-attachments-clip; }
+  @keyframes k-attachments-file {
+    0%, 4% { opacity: 0; transform: translateX(8px); }
+    12% { opacity: 1; transform: translateX(8px); }
+    30% { opacity: 1; transform: none; }
+    42%, 100% { opacity: 0; transform: scale(0.3); }
+  }
+  @keyframes k-attachments-clip {
+    0% { opacity: 1; transform: none; }
+    6%, 38% { opacity: 0; transform: translateY(-4px); }
+    50% { opacity: 1; transform: translateY(0.5px); }
+    54%, 100% { opacity: 1; transform: none; }
+  }
+}

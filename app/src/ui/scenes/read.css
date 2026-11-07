@@ -1,0 +1,164 @@
+@media (prefers-reduced-motion: no-preference) {
+  /* Compare: the marks clear; one band runs across both pages row by row, stops on the row that differs, and the changed word lights up. */
+  .is-live .s-compare-band { animation-name: k-compare-band; }
+  .is-live .s-compare-word { animation-name: k-compare-word; transform-origin: 19.7px 13px; }
+  .is-live .s-compare-new { animation-name: k-compare-new; transform-origin: 19.85px 13px; }
+  @keyframes k-compare-band {
+    0% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: none; }
+    7% { opacity: 0; transform: translateY(-4.5px); }
+    14%, 24% { opacity: 1; transform: translateY(-4.5px); }
+    34%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-compare-word {
+    0% { opacity: 1; transform: none; }
+    6%, 38% { opacity: 0; transform: scale(0.5); }
+    46% { opacity: 1; transform: scale(1.2); }
+    52%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-compare-new {
+    0%, 38% { transform: none; }
+    46% { transform: scale(1.5); }
+    52%, 100% { transform: none; }
+  }
+
+  /* Read: the book shows closed, its cover swings open to the left, then a page turns. */
+  .is-live .s-read-book { animation-name: k-read-book; }
+  .is-live .s-read-cover { animation-name: k-read-cover; transform-origin: 12px 12px; }
+  .is-live .s-read-leaf { animation-name: k-read-leaf; transform-origin: 12px 12px; }
+  .is-live .s-read-next { animation-name: k-read-next; }
+  @keyframes k-read-book {
+    0% { opacity: 1; transform: none; }
+    5% { opacity: 0; transform: none; }
+    6% { opacity: 0; transform: translateX(-4.75px); }
+    12%, 18% { opacity: 1; transform: translateX(-4.75px); }
+    40%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-read-cover {
+    0%, 5% { transform: none; }
+    6%, 18% { transform: scaleX(-1); }
+    40%, 100% { transform: none; }
+  }
+  @keyframes k-read-leaf {
+    0%, 28% { opacity: 0; transform: none; }
+    36% { opacity: 1; }
+    46% { opacity: 1; transform: none; }
+    56% { opacity: 1; }
+    62% { opacity: 0; transform: scaleX(-1); }
+    63%, 100% { opacity: 0; transform: none; }
+  }
+  @keyframes k-read-next {
+    0% { opacity: 1; }
+    5%, 52% { opacity: 0; }
+    58%, 100% { opacity: 1; }
+  }
+
+  /* Summarise: a full page of lines arrives, folds down to nothing as the sparkle twinkles, and two key points appear. */
+  .is-live .s-summarise-full { animation-name: k-summarise-full; transform-origin: 4px 13px; }
+  .is-live .s-summarise-k1 { animation-name: k-summarise-k1; }
+  .is-live .s-summarise-k2 { animation-name: k-summarise-k2; }
+  .is-live .s-summarise-spark { animation-name: k-summarise-spark; transform-origin: 19px 6.5px; }
+  @keyframes k-summarise-full {
+    0%, 4% { opacity: 0; transform: none; }
+    12%, 28% { opacity: 1; transform: none; }
+    38% { opacity: 1; }
+    46%, 100% { opacity: 0; transform: scale(0.8, 0.55); }
+  }
+  @keyframes k-summarise-k1 {
+    0% { opacity: 1; transform: none; }
+    6%, 38% { opacity: 0; transform: translateX(-1.5px); }
+    48%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-summarise-k2 {
+    0% { opacity: 1; transform: none; }
+    6%, 44% { opacity: 0; transform: translateX(-1.5px); }
+    54%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-summarise-spark {
+    0%, 28% { transform: none; }
+    38% { transform: rotate(45deg) scale(1.3); }
+    50%, 100% { transform: rotate(90deg); }
+  }
+
+  /* Scan: the sheet shows crooked and small in the viewfinder, the corners close in on it, and it turns straight to fill the frame. */
+  .is-live .s-scan-frame { animation-name: k-scan-frame; transform-origin: 12px 12px; }
+  .is-live .s-scan-sheet { animation-name: k-scan-sheet; transform-origin: 12px 12px; }
+  @keyframes k-scan-frame {
+    0%, 20% { transform: none; }
+    27% { transform: scale(0.86); }
+    34%, 100% { transform: none; }
+  }
+  @keyframes k-scan-sheet {
+    0% { opacity: 1; transform: none; }
+    5% { opacity: 0; transform: none; }
+    6% { opacity: 0; transform: rotate(-16deg) scale(0.72); }
+    12%, 34% { opacity: 1; transform: rotate(-16deg) scale(0.72); }
+    56%, 100% { opacity: 1; transform: none; }
+  }
+
+  /* Make searchable: the words show as a picture (dots); a line sweeps down and leaves real lines behind it; a magnifier arrives. */
+  .is-live .s-ocr-dots { animation-name: k-ocr-dots; }
+  .is-live .s-ocr-beam { animation-name: k-ocr-beam; }
+  .is-live .s-ocr-r1 { animation-name: k-ocr-r1; }
+  .is-live .s-ocr-r2 { animation-name: k-ocr-r2; }
+  .is-live .s-ocr-r3 { animation-name: k-ocr-r3; }
+  .is-live .s-ocr-r4 { animation-name: k-ocr-r4; }
+  .is-live .s-ocr-find { animation-name: k-ocr-find; transform-origin: 18px 17px; }
+  .is-live .s-ocr-corner { animation-name: k-ocr-corner; }
+  @keyframes k-ocr-dots {
+    0%, 4% { opacity: 0; }
+    12%, 54% { opacity: 1; }
+    60%, 100% { opacity: 0; }
+  }
+  @keyframes k-ocr-beam {
+    0%, 12% { opacity: 0; transform: none; }
+    17% { opacity: 1; transform: none; animation-timing-function: linear; }
+    54% { opacity: 1; transform: translateY(15.5px); }
+    58% { opacity: 0; transform: translateY(15.5px); }
+    59%, 100% { opacity: 0; transform: none; }
+  }
+  @keyframes k-ocr-r1 { 0% { opacity: 1; } 8%, 27.5% { opacity: 0; } 30%, 100% { opacity: 1; } }
+  @keyframes k-ocr-r2 { 0% { opacity: 1; } 8%, 34.5% { opacity: 0; } 37%, 100% { opacity: 1; } }
+  @keyframes k-ocr-r3 { 0% { opacity: 1; } 8%, 41.5% { opacity: 0; } 44%, 100% { opacity: 1; } }
+  @keyframes k-ocr-r4 { 0% { opacity: 1; } 8%, 49% { opacity: 0; } 51.5%, 100% { opacity: 1; } }
+  @keyframes k-ocr-find {
+    0% { opacity: 1; transform: none; }
+    6%, 56% { opacity: 0; transform: scale(0.5); }
+    64% { opacity: 1; transform: scale(1.12); }
+    69%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-ocr-corner {
+    0% { opacity: 0; }
+    6%, 56% { opacity: 1; }
+    62%, 100% { opacity: 0; }
+  }
+
+  /* Extract text: the copies go back into the page, then lift out one line at a time and settle beside it. */
+  .is-live .s-extract-text-l1 { animation-name: k-extract-text-l1; }
+  .is-live .s-extract-text-l2 { animation-name: k-extract-text-l2; }
+  .is-live .s-extract-text-l3 { animation-name: k-extract-text-l3; }
+  @keyframes k-extract-text-l1 {
+    0% { opacity: 1; transform: none; }
+    5% { opacity: 0; transform: none; }
+    6% { opacity: 0; transform: translateX(-12px); }
+    12%, 16% { opacity: 1; transform: translateX(-12px); }
+    22% { transform: translate(-11px, -2px); }
+    36%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-extract-text-l2 {
+    0% { opacity: 1; transform: none; }
+    5% { opacity: 0; transform: none; }
+    6% { opacity: 0; transform: translateX(-12px); }
+    12%, 24% { opacity: 1; transform: translateX(-12px); }
+    30% { transform: translate(-11px, -2px); }
+    44%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-extract-text-l3 {
+    0% { opacity: 1; transform: none; }
+    5% { opacity: 0; transform: none; }
+    6% { opacity: 0; transform: translateX(-12px); }
+    12%, 32% { opacity: 1; transform: translateX(-12px); }
+    38% { transform: translate(-11px, -2px); }
+    52%, 100% { opacity: 1; transform: none; }
+  }
+}
