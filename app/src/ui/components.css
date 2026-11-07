@@ -654,8 +654,8 @@ a.tool-card:focus-visible .tool-card__icon {
 }
 
 .tool-card__icon svg {
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
 }
 
 .tool-card__icon svg g {
@@ -1101,10 +1101,10 @@ select.input option {
 }
 
 .drop-zone__icon {
-  width: 64px;
-  height: 64px;
-  padding: 15px;
-  border-radius: 18px;
+  width: 84px;
+  height: 84px;
+  padding: 16px;
+  border-radius: 22px;
   background: color-mix(in srgb, var(--icon-ink) 11%, transparent);
   border: 1px solid color-mix(in srgb, var(--icon-ink) 26%, transparent);
   color: var(--icon-ink);

@@ -1,0 +1,21 @@
+/*
+ * The shared timing for every tool's scene (app/src/ui/scenes/*.css): one
+ * story every four seconds, only while the icon is on screen (ui/motion.ts
+ * marks its <svg> .is-live), and nothing at all for anyone who asked for
+ * less motion. A scene sets only which keyframes each part plays; every
+ * part that moves carries the class `p`. Positions are in the icon's own
+ * 24-unit grid.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .act * {
+    transform-box: view-box;
+  }
+
+  .is-live .act .p {
+    animation-duration: 4s;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+    animation-delay: var(--d, 0s);
+    animation-iteration-count: infinite;
+    animation-fill-mode: both;
+  }
+}

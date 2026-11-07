@@ -1,6 +1,6 @@
 {
   "/": {
-    "hash": "70e64306ca2b90b1",
+    "hash": "482ddbcd2f48cc84",
     "published": "2026-10-10",
     "modified": "2026-10-18"
   },
@@ -10,12 +10,12 @@
     "modified": "2026-10-18"
   },
   "/contact/": {
-    "hash": "45fc4531000c92df",
+    "hash": "b31e8c06334fc1d6",
     "published": "2026-10-12",
     "modified": "2026-10-17"
   },
   "/guides/": {
-    "hash": "1b2b5c73cee46d91",
+    "hash": "d7da1aa1ef2717df",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
@@ -340,7 +340,7 @@
     "modified": "2026-10-18"
   },
   "/open/": {
-    "hash": "745e4b1c370caf3f",
+    "hash": "ec0db633888c7952",
     "published": "2026-10-17",
     "modified": "2026-10-17"
   },
@@ -355,237 +355,237 @@
     "modified": "2026-10-17"
   },
   "/tools/": {
-    "hash": "7ed1a70a853ac90c",
+    "hash": "0b2c13b509867997",
     "published": "2026-10-18",
     "modified": "2026-10-18"
   },
   "/tools/add-image/": {
-    "hash": "51dcb36df747956f",
+    "hash": "822abcec802f701d",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/add-password/": {
-    "hash": "7572080baf8bd1be",
+    "hash": "1334162d6269a778",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/add-text/": {
-    "hash": "f818bdc5a20de878",
+    "hash": "055fbc1d17a22835",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/attachments/": {
-    "hash": "ba52281dffe2030d",
+    "hash": "c1e7f8f98c1b9227",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/background/": {
-    "hash": "e423beb637750980",
+    "hash": "d44274bcfa71a9da",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/bookmarks/": {
-    "hash": "78b2dbab3e971d42",
+    "hash": "9824e5449bb4c3b6",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/compare/": {
-    "hash": "2a8efbcea69faaea",
+    "hash": "805c122bf7a27f9c",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/compress-image/": {
-    "hash": "cec3cc9fdefd2f9e",
+    "hash": "c901c79c2f1e60eb",
     "published": "2026-10-18",
     "modified": "2026-10-18"
   },
   "/tools/compress/": {
-    "hash": "c1113b9aff714f97",
+    "hash": "ee36f674cdf38090",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/create-form/": {
-    "hash": "57ae946dfed43aeb",
+    "hash": "fe2750ba264fa4c0",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/crop/": {
-    "hash": "2e7942fffdc608df",
+    "hash": "45aa220d28204018",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/digital-sign/": {
-    "hash": "aa255d550beebf7c",
+    "hash": "71dfe93f46ff05e7",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/document-details/": {
-    "hash": "44b410c659719a05",
+    "hash": "b27a3365414fa64d",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/edit-images/": {
-    "hash": "166aec9885d54977",
+    "hash": "53c1a2d37cadf85a",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/edit-text/": {
-    "hash": "576c1e54fc9834c2",
+    "hash": "9778af984fbaff6f",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/extract-images/": {
-    "hash": "355fcc5d55c5747c",
+    "hash": "50b35bf1ed72d649",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/extract-pages/": {
-    "hash": "17f5a5c223260396",
+    "hash": "7d0f4dacc7568266",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/extract-text/": {
-    "hash": "e6440e017ae89b04",
+    "hash": "d32631ca7ea96b90",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/fill-form/": {
-    "hash": "006cc790b08da5e1",
+    "hash": "7d44b3b4e078aeeb",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/header-footer/": {
-    "hash": "3ab1d2bfe38786f9",
+    "hash": "f5f785190df0c7be",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/images-to-pdf/": {
-    "hash": "3696c1c827db787d",
+    "hash": "5f2efd8ed28d0bb6",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/insert-pages/": {
-    "hash": "4f3437d0eab17e14",
+    "hash": "d666dc92f7a0eeab",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/mark-up/": {
-    "hash": "8850f872b7445fd2",
+    "hash": "b879b898f27bbffd",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/merge/": {
-    "hash": "c81b0beb77040950",
+    "hash": "1dbf274491960a73",
     "published": "2026-10-10",
     "modified": "2026-10-18"
   },
   "/tools/n-up/": {
-    "hash": "85df521c4a7922ef",
+    "hash": "c12cae12d431d6c0",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/ocr/": {
-    "hash": "aff3fd602fead2dc",
+    "hash": "b3f79b654429cbb6",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/office-to-pdf/": {
-    "hash": "9c58d07f708e62cd",
+    "hash": "a07a8c3badc4e473",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/organise/": {
-    "hash": "b3c7f95065f53d4b",
+    "hash": "be31ac8af1ed0f67",
     "published": "2026-10-10",
     "modified": "2026-10-18"
   },
   "/tools/page-labels/": {
-    "hash": "747bee29cedf595a",
+    "hash": "c5dd8f50a677ec6c",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/page-numbers/": {
-    "hash": "e5c25ef97c8fa0aa",
+    "hash": "4bac320c5419b832",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-a/": {
-    "hash": "bb90a040234d0e2a",
+    "hash": "2ab984979f3efd49",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-epub/": {
-    "hash": "4346771da1f98b44",
+    "hash": "abcc28c0b14ac690",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-excel/": {
-    "hash": "20bff417c2b8e3a2",
+    "hash": "a3597bad5d71c827",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-images/": {
-    "hash": "e88ea5d7591f6ee9",
+    "hash": "c4312954db0edf9d",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-powerpoint/": {
-    "hash": "d71f0cb9497d57a6",
+    "hash": "b039907fe5bf6be0",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/pdf-to-word/": {
-    "hash": "c7c5d3bb0e2c25c6",
+    "hash": "15186f18f65c80e2",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/read/": {
-    "hash": "f616452d02571199",
+    "hash": "9774fe916dce0db8",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/remove-areas/": {
-    "hash": "befb37825bb154cd",
+    "hash": "0511a89c40ba0f19",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/remove-password/": {
-    "hash": "3bc6873fbbb3a7fc",
+    "hash": "ecb34549ecc08caa",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/rent-receipts/": {
-    "hash": "75036ffcede2163f",
+    "hash": "8a7d75206e74d3a9",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/scan/": {
-    "hash": "46fbf8f87e79fd37",
+    "hash": "62c1bd748032e803",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/sign/": {
-    "hash": "8f6377c9c7e1ad86",
+    "hash": "878b9444e345f55d",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/split-by-size/": {
-    "hash": "8ab1f30d8d6670a4",
+    "hash": "dd954256c73915ee",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/split/": {
-    "hash": "dd4e478ea45d1353",
+    "hash": "1b5274dae93bafac",
     "published": "2026-10-10",
     "modified": "2026-10-18"
   },
   "/tools/summarise/": {
-    "hash": "f44a8ac77b5d0ba7",
+    "hash": "47a71e2ff44d4dc2",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   },
   "/tools/watermark/": {
-    "hash": "f9a965dc9a030b18",
+    "hash": "722312cdc384dae4",
     "published": "2026-10-12",
     "modified": "2026-10-18"
   }

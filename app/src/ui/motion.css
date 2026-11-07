@@ -1,58 +1,34 @@
 /*
- * Tool icons that act out what the tool does: Merge's two squares slide into
- * one, Compress squeezes, Lock's shackle drops shut, Scan's line sweeps, Sign
- * writes itself. Each icon is a Lucide drawing whose <g> names its tool
- * (act-t-merge, act-g-pages, written by scripts/gen-icons.mjs); its parts are
- * moved here by their order in the drawing.
- *
- * Every motion starts and ends on the drawing as it stands, so an icon that is
- * still (off screen, before the script runs, or for anyone who has asked for
- * less motion) is simply the plain icon. An icon moves only while it is on
- * screen: ui/motion.ts adds .is-live to its <svg>. One action every few
- * seconds, and neighbouring cards start at different moments (--d), so a page
- * of tools never marches in step. Transforms and opacity only, cheap on a
- * low-end phone.
+ * The five family icons move a little (the tools' own icons tell their whole
+ * story: scenes/*.css). Each family icon is a Lucide drawing whose <g> names
+ * it (act-g-pages…, written by scripts/gen-icons.mjs); its parts are moved by
+ * their order in the drawing. Every motion starts and ends on the drawing as
+ * it stands, an icon moves only while it is on screen (ui/motion.ts adds
+ * .is-live to its <svg>), and nothing moves for anyone who asked for less
+ * motion. Cards in a grid start at different moments (--d).
  */
 @media (prefers-reduced-motion: no-preference) {
-  .act > * {
-    transform-box: view-box;
-    --act: 4s;
+  :is(.tool-card, .family-jump):nth-child(4n + 2) { --d: 0.7s; }
+  :is(.tool-card, .family-jump):nth-child(4n + 3) { --d: 1.4s; }
+  :is(.tool-card, .family-jump):nth-child(4n + 4) { --d: 2.1s; }
+
+  .is-live > [class*='act-g-'] > * {
     --o: 0s;
+    animation-duration: 4s;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+    animation-delay: calc(var(--d, 0s) + var(--o));
+    animation-iteration-count: infinite;
+    animation-fill-mode: both;
   }
 
-  /* Cards in a grid start at different moments. */
-  :is(.tool-card, .related__item, .family-jump):nth-child(4n + 2) { --d: 0.7s; }
-  :is(.tool-card, .related__item, .family-jump):nth-child(4n + 3) { --d: 1.4s; }
-  :is(.tool-card, .related__item, .family-jump):nth-child(4n + 4) { --d: 2.1s; }
-
-  /* The motions. Each one is a few hundred milliseconds of action, then rest. */
   @keyframes act-move {
     0%, 48%, 100% { transform: none; }
     16%, 32% { transform: translate(var(--mx, 0px), var(--my, 0px)); }
-  }
-  @keyframes act-scale {
-    0%, 48%, 100% { transform: none; }
-    16%, 32% { transform: scale(var(--sx, var(--s, 1)), var(--sy, var(--s, 1))); }
-  }
-  @keyframes act-turn {
-    0%, 48%, 100% { transform: none; }
-    16%, 32% { transform: rotate(var(--r, 10deg)); }
-  }
-  @keyframes act-sweep {
-    0%, 48%, 100% { transform: none; }
-    12%, 36% { transform: rotate(var(--r, 10deg)); }
-    24% { transform: rotate(calc(-1 * var(--r, 10deg))); }
   }
   @keyframes act-rub {
     0%, 48%, 100% { transform: none; }
     10%, 34% { transform: translate(var(--mx, 1.5px), var(--my, 0px)); }
     22% { transform: translate(calc(-1 * var(--mx, 1.5px)), calc(-1 * var(--my, 0px))); }
-  }
-  @keyframes act-pop {
-    0%, 48%, 100% { transform: none; }
-    8% { transform: scale(0); }
-    24% { transform: scale(var(--s, 1.2)); }
-    34% { transform: none; }
   }
   @keyframes act-grow {
     0%, 48%, 100% { transform: none; }
@@ -64,11 +40,7 @@
     10% { opacity: 0.12; }
     26% { opacity: 1; }
   }
-  @keyframes act-blink {
-    0%, 10%, 20%, 30%, 40%, 100% { opacity: 1; }
-    10.01%, 19.99%, 30.01%, 39.99% { opacity: 0; }
-  }
-  /* Drawn on: the dash is the whole part, and the gap a little longer, so a part
+  /* Drawn on: the dash is the whole part and the gap a little longer, so a part
      hidden at either end leaves no round cap behind as a dot. */
   @keyframes act-draw {
     0%, 40%, 100% { stroke-dashoffset: 0; }
@@ -76,170 +48,7 @@
     5.01% { stroke-dashoffset: 1.2; }
     36% { stroke-dashoffset: 0; }
   }
-  @keyframes act-lock {
-    0%, 100% { transform: none; }
-    10%, 26% { transform: translateY(-3px); }
-    38% { transform: translateY(0.5px); }
-    44% { transform: none; }
-  }
-  @keyframes act-scan {
-    0%, 60%, 100% { transform: none; }
-    15% { transform: translateY(-6px); }
-    45% { transform: translateY(6px); }
-  }
-  @keyframes act-drip {
-    0%, 50%, 100% { transform: none; opacity: 1; }
-    25% { transform: translateY(2.5px); opacity: 0; }
-    26% { transform: translateY(-1.5px); opacity: 0; }
-    40% { transform: none; opacity: 1; }
-  }
 
-  .is-live > .act > * {
-    animation-duration: var(--act);
-    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
-    animation-delay: calc(var(--d, 0s) + var(--o));
-    animation-iteration-count: infinite;
-    animation-fill-mode: both;
-  }
-
-  /* ---- Pages ---- */
-  /* Merge: the two squares slide into one. */
-  .is-live > .act-t-merge > :nth-child(6) { animation-name: act-move; --mx: 5.5px; --my: 5.5px; }
-  .is-live > .act-t-merge > :nth-child(5) { animation-name: act-move; --mx: -5.5px; --my: -5.5px; }
-  .is-live > .act-t-merge > :nth-child(-n + 4) { animation-name: act-flash; }
-  /* Split: the two branches spread apart. */
-  .is-live > .act-t-split > * { animation-name: act-scale; --sx: 1.4; --sy: 1; transform-origin: 12px 22px; }
-  /* Organise: the top two pages swap places. */
-  .is-live > .act-t-organise > :nth-child(1) { animation-name: act-move; --mx: 11px; }
-  .is-live > .act-t-organise > :nth-child(2) { animation-name: act-move; --mx: -11px; }
-  /* Extract or remove pages: the arrow pulls a page out. */
-  .is-live > .act-t-extract-pages > :is(:nth-child(3), :nth-child(4)) { animation-name: act-move; --mx: -2.5px; }
-  /* Insert pages: the plus pops in. */
-  .is-live > .act-t-insert-pages > :is(:nth-child(3), :nth-child(4)) { animation-name: act-pop; transform-origin: 17px 19px; }
-  /* Crop: the corners close in. */
-  .is-live > .act-t-crop > :nth-child(1) { animation-name: act-move; --mx: 2.2px; --my: -2.2px; }
-  .is-live > .act-t-crop > :nth-child(2) { animation-name: act-move; --mx: -2.2px; --my: 2.2px; }
-  /* Split by size: the scissors snip along the dashes. */
-  .is-live > .act-t-split-by-size > :is(:nth-child(1), :nth-child(2), :nth-child(5)) { animation-name: act-turn; --r: -14deg; transform-origin: 8px 12px; }
-  .is-live > .act-t-split-by-size > :is(:nth-child(3), :nth-child(4)) { animation-name: act-turn; --r: 14deg; transform-origin: 8px 12px; }
-  .is-live > .act-t-split-by-size > :is(:nth-child(6), :nth-child(7)) { animation-name: act-move; --mx: -2px; }
-  /* Pages per sheet: the sheet divides into four. */
-  .is-live > .act-t-n-up > :nth-child(1) { animation-name: act-grow; --sy: 0; transform-origin: 12px 12px; }
-  .is-live > .act-t-n-up > :nth-child(2) { animation-name: act-grow; --sx: 0; transform-origin: 12px 12px; --o: 0.2s; }
-  /* Page numbers: the # is written stroke by stroke. */
-  .is-live > .act-t-page-numbers > * { animation-name: act-draw; stroke-dasharray: 1 1.4; }
-  .is-live > .act-t-page-numbers > :nth-child(2) { --o: 0.15s; }
-  .is-live > .act-t-page-numbers > :nth-child(3) { --o: 0.3s; }
-  .is-live > .act-t-page-numbers > :nth-child(4) { --o: 0.45s; }
-  /* Page labels: the list fills in, line by line. */
-  .is-live > .act-t-page-labels > :nth-child(-n + 3) { animation-name: act-grow; --sx: 0; transform-origin: 11px 12px; }
-  .is-live > .act-t-page-labels > :nth-child(2) { --o: 0.15s; }
-  .is-live > .act-t-page-labels > :nth-child(3) { --o: 0.3s; }
-  /* Bookmarks: the ribbon drops into place. */
-  .is-live > .act-t-bookmarks > * { animation-name: act-move; --my: -2.5px; }
-
-  /* ---- Convert ---- */
-  /* Compress: the four corners squeeze in. */
-  .is-live > .act-t-compress > :nth-child(1) { animation-name: act-move; --mx: -1.3px; --my: -1.3px; }
-  .is-live > .act-t-compress > :nth-child(2) { animation-name: act-move; --mx: 1.3px; --my: -1.3px; }
-  .is-live > .act-t-compress > :nth-child(3) { animation-name: act-move; --mx: -1.3px; --my: 1.3px; }
-  .is-live > .act-t-compress > :nth-child(4) { animation-name: act-move; --mx: 1.3px; --my: 1.3px; }
-  /* Resize photo to KB: the photo shrinks. */
-  .is-live > .act-t-compress-image > * { animation-name: act-scale; --s: 0.78; transform-origin: 12px 12px; }
-  /* Images to PDF: the photo drops onto the stack. */
-  .is-live > .act-t-images-to-pdf > :is(:nth-child(1), :nth-child(3), :nth-child(4)) { animation-name: act-move; --mx: -2.5px; --my: 2.5px; }
-  /* PDF to images: the sun rises in the picture. */
-  .is-live > .act-t-pdf-to-images > :nth-child(3) { animation-name: act-move; --my: -2.5px; }
-  /* Extract images: the arrow brings the picture down. */
-  .is-live > .act-t-extract-images > :is(:nth-child(2), :nth-child(3)) { animation-name: act-move; --my: 1.8px; }
-  /* PDF to Word: the T springs up. */
-  .is-live > .act-t-pdf-to-word > :nth-child(n + 3) { animation-name: act-pop; transform-origin: 12px 15px; }
-  /* PDF to Excel: the cells fill in, one by one. */
-  .is-live > .act-t-pdf-to-excel > :nth-child(n + 3) { animation-name: act-flash; }
-  .is-live > .act-t-pdf-to-excel > :nth-child(4) { --o: 0.15s; }
-  .is-live > .act-t-pdf-to-excel > :nth-child(5) { --o: 0.3s; }
-  .is-live > .act-t-pdf-to-excel > :nth-child(6) { --o: 0.45s; }
-  /* PDF to PowerPoint: the screen pulls down. */
-  .is-live > .act-t-pdf-to-powerpoint > :nth-child(2) { animation-name: act-grow; --sy: 0; transform-origin: 12px 3px; }
-  /* PDF to EPUB: the lines are written into the book. */
-  .is-live > .act-t-pdf-to-epub > :is(:nth-child(2), :nth-child(3)) { animation-name: act-draw; stroke-dasharray: 1 1.4; }
-  .is-live > .act-t-pdf-to-epub > :nth-child(2) { --o: 0.2s; }
-  /* Word or Excel to PDF: the page is drawn. */
-  .is-live > .act-t-office-to-pdf > :is(:nth-child(1), :nth-child(2)) { animation-name: act-draw; stroke-dasharray: 1 1.4; }
-  /* PDF/A: the archive's lid lifts and closes. */
-  .is-live > .act-t-pdf-a > :nth-child(1) { animation-name: act-move; --my: -2.5px; }
-  .is-live > .act-t-pdf-a > :nth-child(3) { animation-name: act-flash; }
-  /* Rent receipts: the rupee springs up. */
-  .is-live > .act-t-rent-receipts > :nth-child(n + 2) { animation-name: act-pop; --s: 1.15; transform-origin: 12px 11px; }
-
-  /* ---- Mark up ---- */
-  /* Watermark: the stamp presses down. */
-  .is-live > .act-t-watermark > :is(:nth-child(1), :nth-child(2)) { animation-name: act-move; --my: 2px; }
-  .is-live > .act-t-watermark > :nth-child(3) { animation-name: act-flash; --o: 0.25s; }
-  /* Sign: the signature writes itself. */
-  .is-live > .act-t-sign > :nth-child(1) { animation-name: act-draw; stroke-dasharray: 1 1.4; }
-  /* Mark up: the highlighter strokes across. */
-  .is-live > .act-t-mark-up > * { animation-name: act-rub; --mx: 1.6px; --my: -0.8px; }
-  /* Add text: the T is written, top, then stem, then foot. */
-  .is-live > .act-t-add-text > * { animation-name: act-draw; stroke-dasharray: 1 1.4; }
-  .is-live > .act-t-add-text > :nth-child(1) { --o: 0.2s; }
-  .is-live > .act-t-add-text > :nth-child(3) { --o: 0.4s; }
-  /* Fill in a form: the cursor blinks in the box. */
-  .is-live > .act-t-fill-form > :is(:nth-child(1), :nth-child(4), :nth-child(5)) { animation-name: act-blink; }
-  /* Header and footer: the top line rises, the bottom line sinks. */
-  .is-live > .act-t-header-footer > :is(:nth-child(2), :nth-child(4), :nth-child(6), :nth-child(8)) { animation-name: act-move; --my: -2px; }
-  .is-live > .act-t-header-footer > :is(:nth-child(1), :nth-child(3), :nth-child(5), :nth-child(7)) { animation-name: act-move; --my: 2px; }
-  /* Remove areas: the eraser rubs out. */
-  .is-live > .act-t-remove-areas > * { animation-name: act-rub; --mx: 1.6px; }
-  /* Page background: the bucket tips and a drop falls. */
-  .is-live > .act-t-background > :is(:nth-child(1), :nth-child(2), :nth-child(4)) { animation-name: act-turn; --r: -10deg; transform-origin: 11px 12px; }
-  .is-live > .act-t-background > :nth-child(3) { animation-name: act-drip; --o: 0.2s; }
-  /* Add image: the plus pops and the sun rises. */
-  .is-live > .act-t-add-image > :is(:nth-child(1), :nth-child(2)) { animation-name: act-pop; transform-origin: 19px 5px; }
-  .is-live > .act-t-add-image > :nth-child(5) { animation-name: act-move; --my: -1.5px; --o: 0.2s; }
-  /* Edit pictures: the arrow lifts the picture. */
-  .is-live > .act-t-edit-images > :is(:nth-child(2), :nth-child(3)) { animation-name: act-move; --my: -1.8px; }
-  /* Edit text: the cursor blinks. */
-  .is-live > .act-t-edit-text > * { animation-name: act-blink; }
-  /* Create a form: the pen writes and the line grows. */
-  .is-live > .act-t-create-form > :nth-child(5) { animation-name: act-rub; --mx: 1.2px; --my: 0.6px; }
-  .is-live > .act-t-create-form > :nth-child(4) { animation-name: act-grow; --sx: 0; transform-origin: 8px 18px; }
-  /* Compare: one side, then the other, then the paths between. */
-  .is-live > .act-t-compare > :nth-child(1) { animation-name: act-pop; --s: 1.25; transform-origin: 18px 18px; }
-  .is-live > .act-t-compare > :nth-child(2) { animation-name: act-pop; --s: 1.25; transform-origin: 6px 6px; --o: 0.3s; }
-  .is-live > .act-t-compare > :is(:nth-child(3), :nth-child(4)) { animation-name: act-draw; stroke-dasharray: 1 1.4; --o: 0.15s; }
-
-  /* ---- Protect ---- */
-  /* Add a password: the shackle drops shut. */
-  .is-live > .act-t-add-password > :nth-child(2) { animation-name: act-lock; }
-  /* Remove a password: the shackle lifts free. */
-  .is-live > .act-t-remove-password > :nth-child(2) { animation-name: act-move; --my: -2.5px; }
-  /* Document details: the brush sweeps. */
-  .is-live > .act-t-document-details > * { animation-name: act-sweep; --r: 9deg; transform-origin: 12px 4px; }
-  /* Attachments: the paperclip wiggles. */
-  .is-live > .act-t-attachments > * { animation-name: act-sweep; --r: 9deg; transform-origin: 12px 12px; }
-  /* Digital signature: the seal springs up. */
-  .is-live > .act-t-digital-sign > :is(:nth-child(3), :nth-child(4)) { animation-name: act-pop; transform-origin: 6px 15px; }
-
-  /* ---- Read and capture ---- */
-  /* Read: the book opens. */
-  .is-live > .act-t-read > :nth-child(2) { animation-name: act-scale; --sx: 0.82; --sy: 1; transform-origin: 12px 12px; }
-  /* Summarise: the sparkle flares and the small ones twinkle. */
-  .is-live > .act-t-summarise > :nth-child(1) { animation-name: act-pop; --s: 1.15; transform-origin: 12px 12px; }
-  .is-live > .act-t-summarise > :is(:nth-child(2), :nth-child(3)) { animation-name: act-flash; --o: 0.25s; }
-  .is-live > .act-t-summarise > :nth-child(4) { animation-name: act-flash; --o: 0.45s; }
-  /* Scan: the line sweeps the page. */
-  .is-live > .act-t-scan > :nth-child(5) { animation-name: act-scan; }
-  /* Make searchable: the words are read, line by line. */
-  .is-live > .act-t-ocr > :nth-child(n + 5) { animation-name: act-flash; }
-  .is-live > .act-t-ocr > :nth-child(6) { --o: 0.15s; }
-  .is-live > .act-t-ocr > :nth-child(7) { --o: 0.3s; }
-  /* Extract text: the lines slide out of the page. */
-  .is-live > .act-t-extract-text > :nth-child(n + 3) { animation-name: act-move; --mx: -2px; }
-  .is-live > .act-t-extract-text > :nth-child(4) { --o: 0.12s; }
-  .is-live > .act-t-extract-text > :nth-child(5) { --o: 0.24s; }
-
-  /* ---- The five families ---- */
   .is-live > .act-g-pages > :is(:nth-child(1), :nth-child(2)) { animation-name: act-move; --mx: 1.2px; --my: -1.2px; }
   .is-live > .act-g-pages > :nth-child(3) { animation-name: act-move; --mx: -1.2px; --my: 1.2px; }
   .is-live > .act-g-convert > :is(:nth-child(1), :nth-child(2)) { animation-name: act-move; --mx: -1.8px; }

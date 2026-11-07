@@ -50,6 +50,12 @@ function datesOf(path: string, substance: string): { readonly published: string;
   const hash = createHash('sha1').update(substance).digest('hex').slice(0, 16);
   const known = pageDates[path];
   if (known && known.hash === hash) return known;
+  // FOOLSCAP_REHASH=1: the fingerprint's recipe changed but no page did, so keep every date.
+  if (known && process.env['FOOLSCAP_REHASH'] === '1') {
+    pageDates[path] = { ...known, hash };
+    datesChanged = true;
+    return pageDates[path];
+  }
   const seen = known === undefined ? gitDates(path) : null;
   const next = { hash, published: known?.published ?? seen?.first ?? TODAY, modified: seen?.last ?? TODAY };
   pageDates[path] = next;
@@ -869,8 +875,8 @@ if (writeIfChanged(resolve(APP, '404.html'), notFoundPage())) changed++;
     for (const p of paths) {
       if (p.startsWith('/guides/') && p !== '/guides/') continue;
       const html = existsSync(fileOf(p)) ? readFileSync(fileOf(p), 'utf8') : '';
-      // The icons' motion hooks (a class naming the drawing, pathLength) are decoration, not what the page says.
-      datesOf(p, ((/<main[\s\S]*<\/main>/.exec(html) ?? [html])[0]).replace(/ class="act act-[a-z0-9-]+"/g, '').replace(/ pathLength="1"/g, ''));
+      // Drawings (the tools' icons and their motion) are decoration, not what the page says.
+      datesOf(p, ((/<main[\s\S]*<\/main>/.exec(html) ?? [html])[0]).replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>'));
     }
     const urls = paths.map((p) => `  <url><loc>${SITE_ORIGIN}${p}</loc><lastmod>${pageDates[p]?.modified ?? TODAY}</lastmod></url>`).join('\n');
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;

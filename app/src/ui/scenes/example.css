@@ -1,0 +1,24 @@
+@media (prefers-reduced-motion: no-preference) {
+  /* Merge: the result fades away, two pages arrive from the sides and slide into one, the one returns. */
+  .is-live .s-merge-one { animation-name: k-merge-one; transform-origin: 12px 12px; }
+  .is-live .s-merge-a { animation-name: k-merge-a; }
+  .is-live .s-merge-b { animation-name: k-merge-b; }
+  @keyframes k-merge-one {
+    0% { opacity: 1; transform: none; }
+    8%, 50% { opacity: 0; transform: scale(0.8); }
+    60% { opacity: 1; transform: scale(1.08); }
+    68%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-merge-a {
+    0%, 6% { opacity: 0; transform: none; }
+    14% { opacity: 1; transform: none; }
+    44% { opacity: 1; transform: translateX(4.5px); }
+    54%, 100% { opacity: 0; transform: translateX(4.5px); }
+  }
+  @keyframes k-merge-b {
+    0%, 6% { opacity: 0; transform: none; }
+    14% { opacity: 1; transform: none; }
+    44% { opacity: 1; transform: translateX(-4.5px); }
+    54%, 100% { opacity: 0; transform: translateX(-4.5px); }
+  }
+}
