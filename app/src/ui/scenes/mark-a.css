@@ -13,9 +13,8 @@
     14% { opacity: 1; transform: translateY(-5px) rotate(-30deg); }
     28% { opacity: 1; transform: rotate(-30deg); }
     31% { opacity: 1; transform: translateY(0.7px) rotate(-30deg); }
-    35% { opacity: 1; transform: rotate(-30deg); }
-    48% { opacity: 1; transform: translateY(-5px) rotate(-30deg); }
-    56%, 100% { opacity: 0; transform: translateY(-6px) rotate(-30deg); }
+    34% { opacity: 1; transform: rotate(-30deg); }
+    44%, 100% { opacity: 0; transform: translateY(-5px) rotate(-30deg); }
   }
 
   /* Page numbers: the numbers go, then 1 is written at the foot of the first page and 2 at the second. */
@@ -128,9 +127,9 @@
   .is-live .s-add-text-line { animation-name: k-add-text-line; stroke-dasharray: 1 1.4; }
   .is-live .s-add-text-cur { animation-name: k-add-text-cur; }
   @keyframes k-add-text-tap {
-    0%, 9% { opacity: 0; transform: scale(0.4); }
-    11% { opacity: 1; transform: scale(0.5); }
-    20%, 100% { opacity: 0; transform: scale(1.2); }
+    0%, 8% { opacity: 0; transform: scale(0.5); }
+    10%, 13% { opacity: 1; transform: scale(0.5); }
+    21%, 100% { opacity: 0; transform: scale(1.25); }
   }
   @keyframes k-add-text-box {
     0% { opacity: 1; transform: none; }

@@ -27,7 +27,7 @@ export const MARK_A_SCENES = {
     page(4, 2, 16, 20) + lines(7, 6.5, 10, 4, [0.8, 1]) +
     `<path d="M7 16.5h1.5M13 16.5h2.8"/>` +
     `<g class="p s-mark-up-band"><rect x="6" y="9" width="12" height="3" fill="currentColor" fill-opacity="0.35" stroke="none"/></g>` +
-    `<ellipse class="p s-mark-up-ring" pathLength="1" cx="14.4" cy="16.5" rx="3.6" ry="2.6" transform="rotate(-8 14.4 16.5)"/>` +
+    `<path class="p s-mark-up-ring" pathLength="1" d="M17.31 14.76A3.8 2.7 0 1 0 11.96 18.57A3.9 2.8 0 1 0 16.35 14.08"/>` +
     `<g class="p s-mark-up-pen" opacity="0"><g transform="translate(6.5 10.5) rotate(35)"><path d="M-1.6-3L-.9 0h1.8l.7-3zM-1.6-3v-4h3.2v4" fill="currentColor" fill-opacity="0.3"/></g></g>`,
 
   // Edit text: a word is selected, deleted, and a different word typed in its place.

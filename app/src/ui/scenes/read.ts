@@ -37,9 +37,9 @@ export const READ_SCENES = {
   summarise:
     page(1.5, 2.5, 12.5, 19) +
     `<g class="p s-summarise-full" opacity="0">${lines(4, 9, 7.5, 3, [1, 1, 1, 0.6])}</g>` +
-    `<g class="p s-summarise-k1"><path d="M4.5 10.5h0"/><path d="M7.5 10.5h4"/></g>` +
-    `<g class="p s-summarise-k2"><path d="M4.5 15.5h0"/><path d="M7.5 15.5h3"/></g>` +
-    `<path class="p s-summarise-spark" fill="currentColor" fill-opacity="0.25" d="M19 3Q19.6 5.9 22.5 6.5Q19.6 7.1 19 10Q18.4 7.1 15.5 6.5Q18.4 5.9 19 3Z"/>`,
+    `<g class="p s-summarise-k1"><path d="M4.5 10.5h.01"/><path d="M7.5 10.5h4"/></g>` +
+    `<g class="p s-summarise-k2"><path d="M4.5 15.5h.01"/><path d="M7.5 15.5h3"/></g>` +
+    `<path class="p s-summarise-spark" fill="currentColor" fill-opacity="0.25" d="M19.5 3.25Q20.05 5.95 22.75 6.5Q20.05 7.05 19.5 9.75Q18.95 7.05 16.25 6.5Q18.95 5.95 19.5 3.25Z"/>`,
 
   // Scan: a photographed sheet sits crooked in the camera's corners; the corners
   // close in, and the sheet turns straight and fills the frame.

@@ -40,7 +40,7 @@
     54%, 100% { transform: none; }
   }
 
-  /* Digital signature: the seal leaves; it is pressed back on from above; the tick draws inside it. */
+  /* Digital signature: the seal leaves; it comes down large and is pressed onto the page; the tick draws inside it. */
   .is-live .s-digital-sign-seal { animation-name: k-digital-sign-seal; transform-origin: 12px 15px; }
   .is-live .s-digital-sign-tick { animation-name: k-digital-sign-tick; stroke-dasharray: 1 1.4; }
   @keyframes k-digital-sign-seal {
