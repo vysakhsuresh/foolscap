@@ -1,0 +1,12 @@
+# Addresses people type for the pages that exist under another name. Paths
+# only: this site never proxies anywhere (tests/unit/no-server.test.ts).
+/privacy /private/ 301
+/privacy/ /private/ 301
+/privacy-policy /private/ 301
+/privacy-policy/ /private/ 301
+/about-us /about/ 301
+/about-us/ /about/ 301
+/contact-us /contact/ 301
+/contact-us/ /contact/ 301
+/guide /guides/ 301
+/guide/ /guides/ 301
