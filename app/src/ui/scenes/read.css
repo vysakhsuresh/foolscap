@@ -1,25 +1,26 @@
 @media (prefers-reduced-motion: no-preference) {
-  /* Compare: the marks clear; one band runs across both pages row by row, stops on the row that differs, and the changed word lights up. */
-  .is-live .s-compare-band { animation-name: k-compare-band; }
-  .is-live .s-compare-word { animation-name: k-compare-word; transform-origin: 19.7px 13px; }
-  .is-live .s-compare-new { animation-name: k-compare-new; transform-origin: 19.85px 13px; }
-  @keyframes k-compare-band {
+  /* Compare: the marks clear; an equals sign (and the band it sits on) checks the two pages row by row, stops on the row that differs, turns into "not equal", and the changed word lights up. */
+  .is-live .s-compare-scan { animation-name: k-compare-scan; }
+  .is-live .s-compare-not { animation-name: k-compare-not; transform-origin: 12px 12.5px; }
+  .is-live .s-compare-word { animation-name: k-compare-word; transform-origin: 20.3px 12.5px; }
+  @keyframes k-compare-scan {
     0% { opacity: 1; transform: none; }
-    6% { opacity: 0; transform: none; }
-    7% { opacity: 0; transform: translateY(-4.5px); }
-    14%, 24% { opacity: 1; transform: translateY(-4.5px); }
+    5% { opacity: 0; transform: none; }
+    6% { opacity: 0; transform: translateY(-4.5px); }
+    13%, 24% { opacity: 1; transform: translateY(-4.5px); }
     34%, 100% { opacity: 1; transform: none; }
+  }
+  @keyframes k-compare-not {
+    0% { opacity: 1; transform: none; }
+    5%, 38% { opacity: 0; transform: scale(0.4); }
+    46% { opacity: 1; transform: scale(1.25); }
+    52%, 100% { opacity: 1; transform: none; }
   }
   @keyframes k-compare-word {
     0% { opacity: 1; transform: none; }
-    6%, 38% { opacity: 0; transform: scale(0.5); }
-    46% { opacity: 1; transform: scale(1.2); }
-    52%, 100% { opacity: 1; transform: none; }
-  }
-  @keyframes k-compare-new {
-    0%, 38% { transform: none; }
-    46% { transform: scale(1.5); }
-    52%, 100% { transform: none; }
+    5%, 44% { opacity: 0; transform: scale(0.5); }
+    52% { opacity: 1; transform: scale(1.2); }
+    58%, 100% { opacity: 1; transform: none; }
   }
 
   /* Read: the book shows closed, its cover swings open to the left, then a page turns. */

@@ -4,9 +4,9 @@
   .is-live .s-watermark-stamp { animation-name: k-watermark-stamp; transform-origin: 12px 13.5px; }
   @keyframes k-watermark-mark {
     0% { opacity: 1; transform: none; }
-    6%, 32% { opacity: 0; transform: scale(0.9); }
-    35% { opacity: 1; transform: scale(1.05); }
-    40%, 100% { opacity: 1; transform: none; }
+    6%, 34% { opacity: 0; transform: scale(0.9); }
+    38% { opacity: 1; transform: scale(1.05); }
+    43%, 100% { opacity: 1; transform: none; }
   }
   @keyframes k-watermark-stamp {
     0%, 6% { opacity: 0; transform: translateY(-5px) rotate(-30deg); }
@@ -14,7 +14,7 @@
     28% { opacity: 1; transform: rotate(-30deg); }
     31% { opacity: 1; transform: translateY(0.7px) rotate(-30deg); }
     34% { opacity: 1; transform: rotate(-30deg); }
-    44%, 100% { opacity: 0; transform: translateY(-5px) rotate(-30deg); }
+    42%, 100% { opacity: 0; transform: translateY(-5px) rotate(-30deg); }
   }
 
   /* Page numbers: the numbers go, then 1 is written at the foot of the first page and 2 at the second. */
@@ -39,19 +39,21 @@
   @keyframes k-sign-name {
     0% { opacity: 1; stroke-dashoffset: 0; }
     6% { opacity: 0; stroke-dashoffset: 0; animation-timing-function: step-end; }
-    7%, 14% { opacity: 1; stroke-dashoffset: 1.2; }
-    16% { opacity: 1; stroke-dashoffset: 1; animation-timing-function: linear; }
+    7% { opacity: 1; stroke-dashoffset: 1.2; }
+    16% { opacity: 1; stroke-dashoffset: 1.2; animation-timing-function: linear; }
     52%, 100% { opacity: 1; stroke-dashoffset: 0; }
   }
+  /* The line shows from 22% (offset 1) to 52%; the pen waits at the start, then follows it. */
   @keyframes k-sign-pen {
     0%, 6% { opacity: 0; transform: translate(-9px, -2px); }
     12% { opacity: 1; transform: translate(-9px, -2px); }
-    16% { opacity: 1; transform: translate(-9px, 0); animation-timing-function: linear; }
-    24.3% { transform: translate(-6.4px, -3.6px); animation-timing-function: linear; }
-    33.3% { transform: translate(-6px, 0.8px); animation-timing-function: linear; }
-    39.8% { transform: translate(-3.8px, -1.8px); animation-timing-function: linear; }
-    44.1% { transform: translate(-3.2px, 0.4px); animation-timing-function: linear; }
-    48.8% { transform: translate(-1.2px, -1.2px); animation-timing-function: linear; }
+    17% { opacity: 1; transform: translate(-9px, 0); }
+    22% { opacity: 1; transform: translate(-9px, 0); animation-timing-function: linear; }
+    28.9% { opacity: 1; transform: translate(-6.4px, -3.6px); animation-timing-function: linear; }
+    36.4% { opacity: 1; transform: translate(-6px, 0.8px); animation-timing-function: linear; }
+    41.8% { opacity: 1; transform: translate(-3.8px, -1.8px); animation-timing-function: linear; }
+    45.4% { opacity: 1; transform: translate(-3.2px, 0.4px); animation-timing-function: linear; }
+    49.3% { opacity: 1; transform: translate(-1.2px, -1.2px); animation-timing-function: linear; }
     52% { opacity: 1; transform: none; }
     56% { opacity: 1; transform: translate(0.5px, -1.5px); }
     62%, 100% { opacity: 0; transform: translate(1px, -3px); }

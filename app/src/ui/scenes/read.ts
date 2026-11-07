@@ -13,15 +13,17 @@ const half = (s: 1 | -1): string => {
 
 /** The read family: reading a document, and capturing one. */
 export const READ_SCENES = {
-  // Compare: two versions side by side. A band runs down both, row by row, and
-  // stops at the row that differs; the changed word on the newer page is marked.
+  // Compare: two versions side by side. An equals sign between them checks
+  // them row by row (a band marks the row on each page), stops where they
+  // differ and turns into "not equal"; the changed word on the newer page is marked.
   compare:
-    page(1.5, 3, 9, 18) +
-    page(13.5, 3, 9, 18) +
-    tint(2.5, 10.5, 19, 5, 'p s-compare-band', 0.32) +
-    tint(17.9, 10.5, 3.6, 5, 'p s-compare-word', 0.35) +
-    `<path d="M3.5 8.5h5M3.5 13h5M3.5 17.5h3"/>` +
-    `<path d="M15.5 8.5h5M15.5 13h1.2M15.5 17.5h3"/><path class="p s-compare-new" d="M19.2 13h1.3"/>`,
+    page(1, 3, 7.5, 18) +
+    page(15.5, 3, 7.5, 18) +
+    `<g class="p s-compare-scan">${tint(2, 10, 5.5, 5, '', 0.35)}${tint(16.5, 10, 5.5, 5, '', 0.35)}<path d="M10.7 11h2.6M10.7 14h2.6"/></g>` +
+    `<path class="p s-compare-not" d="M13.1 9.6L10.9 15.4"/>` +
+    tint(18.6, 10.5, 3.4, 4, 'p s-compare-word', 0.35) +
+    `<path d="M3 8h3.5M3 12.5h3.5M3 17h2.2"/>` +
+    `<path d="M17.5 8h3.5M17.5 12.5h.6M19.6 12.5h1.4M17.5 17h2.2"/>`,
 
   // Read: a closed document opens like a book, then a page turns.
   read:

@@ -5,8 +5,8 @@ export const MARK_A_SCENES = {
   // Watermark: a rubber stamp comes down on the page at a slant, presses, lifts, and leaves its label.
   watermark:
     page(4, 2, 16, 20) +
-    `<g class="p s-watermark-mark"><g transform="rotate(-30 12 13.5)">${box(7, 10.9, 10, 5.2, '', 1)}<path d="M9.5 13.5h5"/></g></g>` +
-    `<g class="p s-watermark-stamp" opacity="0"><path d="M13.2 10.5V7.8c0-.9.6-.9.6-2.1a1.8 1.8 0 0 0-3.6 0c0 1.2.6 1.2.6 2.1v2.7"/><path d="M16.8 12a1.5 1.5 0 0 0-1.5-1.5H8.7A1.5 1.5 0 0 0 7.2 12v.9a.6.6 0 0 0 .6.6h8.4a.6.6 0 0 0 .6-.6z"/></g>`,
+    `<g class="p s-watermark-mark"><g transform="rotate(-30 12 13.5)"><rect x="6.8" y="11" width="10.4" height="5" rx="0.4" fill="currentColor" fill-opacity="0.2"/><path d="M9.5 13.5h5"/></g></g>` +
+    `<g class="p s-watermark-stamp" opacity="0"><path d="M13.2 12.5V9.8c0-.9.6-.9.6-2.1a1.8 1.8 0 0 0-3.6 0c0 1.2.6 1.2.6 2.1v2.7"/><path d="M17.2 14a1.5 1.5 0 0 0-1.5-1.5H8.3A1.5 1.5 0 0 0 6.8 14v.9a.6.6 0 0 0 .6.6h9.2a.6.6 0 0 0 .6-.6z"/></g>`,
 
   // Page numbers: two pages, and a number is written at each foot in turn, 1 then 2.
   'page-numbers':
@@ -25,9 +25,9 @@ export const MARK_A_SCENES = {
   // Mark up: a highlighter sweeps along a line leaving a band, then a ring is drawn round a word.
   'mark-up':
     page(4, 2, 16, 20) + lines(7, 6.5, 10, 4, [0.8, 1]) +
-    `<path d="M7 16.5h1.5M13 16.5h2.8"/>` +
+    `<path d="M7 16.5h1.3M12.8 16.5h2.8"/>` +
     `<g class="p s-mark-up-band"><rect x="6" y="9" width="12" height="3" fill="currentColor" fill-opacity="0.35" stroke="none"/></g>` +
-    `<path class="p s-mark-up-ring" pathLength="1" d="M17.31 14.76A3.8 2.7 0 1 0 11.96 18.57A3.9 2.8 0 1 0 16.35 14.08"/>` +
+    `<path class="p s-mark-up-ring" pathLength="1" d="M14.2 13.7c-2.04 0-3.7 1.21-3.7 2.7s1.66 2.7 3.7 2.7 3.7-1.21 3.7-2.7c0-1.7-2.4-2.75-5.3-2.6"/>` +
     `<g class="p s-mark-up-pen" opacity="0"><g transform="translate(6.5 10.5) rotate(35)"><path d="M-1.6-3L-.9 0h1.8l.7-3zM-1.6-3v-4h3.2v4" fill="currentColor" fill-opacity="0.3"/></g></g>`,
 
   // Edit text: a word is selected, deleted, and a different word typed in its place.

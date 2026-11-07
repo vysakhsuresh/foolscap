@@ -22,33 +22,29 @@
     48%, 100% { opacity: 0; transform: translateX(-1.5px); }
   }
 
-  /* Split */
-  .is-live .s-split-one { animation-name: k-split-one; transform-origin: 12px 12px; }
+  /* Split: the two files come together as one, a cut runs down it, and they part along the cut. */
   .is-live .s-split-a { animation-name: k-split-a; }
   .is-live .s-split-b { animation-name: k-split-b; }
-  .is-live .s-split-cut { animation-name: k-split-cut; transform-origin: 12px 2px; }
-  @keyframes k-split-one {
-    0%, 4% { opacity: 0; }
-    12%, 36% { opacity: 1; }
-    42%, 100% { opacity: 0; }
-  }
+  .is-live .s-split-cut { animation-name: k-split-cut; transform-origin: 12px 2.5px; }
   @keyframes k-split-a {
     0% { opacity: 1; transform: none; }
-    6%, 36% { opacity: 0; transform: translateX(2px); }
-    42% { opacity: 1; transform: translateX(2px); }
-    58%, 100% { opacity: 1; transform: none; }
+    5% { opacity: 0; transform: none; }
+    6% { opacity: 0; transform: translateX(6.25px); }
+    12%, 36% { opacity: 1; transform: translateX(6.25px); }
+    54%, 100% { opacity: 1; transform: none; }
   }
   @keyframes k-split-b {
     0% { opacity: 1; transform: none; }
-    6%, 36% { opacity: 0; transform: translateX(-2px); }
-    42% { opacity: 1; transform: translateX(-2px); }
-    58%, 100% { opacity: 1; transform: none; }
+    5% { opacity: 0; transform: none; }
+    6% { opacity: 0; transform: translateX(-6.25px); }
+    12%, 36% { opacity: 1; transform: translateX(-6.25px); }
+    54%, 100% { opacity: 1; transform: none; }
   }
   @keyframes k-split-cut {
     0% { opacity: 1; transform: none; }
-    6%, 16% { opacity: 0; transform: scaleY(0); }
+    5%, 16% { opacity: 0; transform: scaleY(0); }
     17% { opacity: 1; transform: scaleY(0); }
-    34%, 100% { opacity: 1; transform: none; }
+    32%, 100% { opacity: 1; transform: none; }
   }
 
   /* Organise */
@@ -85,26 +81,26 @@
     72%, 100% { opacity: 1; }
   }
 
-  /* Extract pages */
-  .is-live .s-extract-pages-out { animation-name: k-extract-pages-out; transform-origin: 12px 17px; }
-  .is-live .s-extract-pages-gap { animation-name: k-extract-pages-gap; }
+  /* Extract pages: the middle page of a row is ticked, then drops out of the row and grows into a file of its own. */
+  .is-live .s-extract-pages-out { animation-name: k-extract-pages-out; transform-origin: 7.75px 11px; }
+  .is-live .s-extract-pages-tick { animation-name: k-extract-pages-tick; stroke-dasharray: 1 1.4; }
   @keyframes k-extract-pages-out {
     0% { opacity: 1; transform: none; }
     5% { opacity: 0; transform: none; }
-    6% { opacity: 0; transform: translateY(-11px) scale(0.6); }
-    12%, 28% { opacity: 1; transform: translateY(-11px) scale(0.6); }
-    56%, 100% { opacity: 1; transform: none; }
+    6% { opacity: 0; transform: translate(1.25px, -9.5px) scale(0.706); }
+    12%, 30% { opacity: 1; transform: translate(1.25px, -9.5px) scale(0.706); }
+    54%, 100% { opacity: 1; transform: none; }
   }
-  @keyframes k-extract-pages-gap {
-    0%, 30% { opacity: 0; }
-    44%, 100% { opacity: 0.6; }
+  @keyframes k-extract-pages-tick {
+    0%, 5% { stroke-dashoffset: 0; }
+    6%, 14% { stroke-dashoffset: 1.2; }
+    26%, 100% { stroke-dashoffset: 0; }
   }
 
   /* Insert pages */
   .is-live .s-insert-pages-a { animation-name: k-insert-pages-a; }
   .is-live .s-insert-pages-b { animation-name: k-insert-pages-b; }
   .is-live .s-insert-pages-new { animation-name: k-insert-pages-new; }
-  .is-live .s-insert-pages-plus { animation-name: k-insert-pages-plus; }
   @keyframes k-insert-pages-a {
     0% { opacity: 1; transform: none; }
     5% { opacity: 0; transform: none; }
@@ -121,29 +117,23 @@
   }
   @keyframes k-insert-pages-new {
     0% { opacity: 1; transform: none; }
-    5%, 32% { opacity: 0; transform: translateY(-8px); }
-    40% { opacity: 1; transform: translateY(-8px); }
+    5%, 32% { opacity: 0; transform: translateY(-7px); }
+    38% { opacity: 1; transform: translateY(-7px); }
     54%, 100% { opacity: 1; transform: none; }
   }
-  @keyframes k-insert-pages-plus {
-    0% { opacity: 1; }
-    5%, 52% { opacity: 0; }
-    62%, 100% { opacity: 1; }
-  }
-
   /* Crop */
   .is-live .s-crop-big { animation-name: k-crop-big; transform-origin: 12px 12px; }
   .is-live .s-crop-small { animation-name: k-crop-small; transform-origin: 12px 12px; }
   .is-live .s-crop-tl { animation-name: k-crop-tl; }
   .is-live .s-crop-br { animation-name: k-crop-br; }
   @keyframes k-crop-big {
-    0%, 2% { opacity: 0; transform: scale(0.7); }
-    12%, 36% { opacity: 1; transform: none; }
-    48%, 100% { opacity: 0; transform: scale(0.7); }
+    0%, 2% { opacity: 0; }
+    10%, 38% { opacity: 1; }
+    44%, 100% { opacity: 0; }
   }
   @keyframes k-crop-small {
     0% { opacity: 1; }
-    6%, 40% { opacity: 0; }
+    6%, 42% { opacity: 0; }
     50%, 100% { opacity: 1; }
   }
   @keyframes k-crop-tl {
@@ -178,8 +168,8 @@
   }
 
   /* Page labels */
-  .is-live .s-page-labels-old { animation-name: k-page-labels-old; transform-origin: 12px 10.75px; }
-  .is-live .s-page-labels-new { animation-name: k-page-labels-new; transform-origin: 12px 10.75px; }
+  .is-live .s-page-labels-old { animation-name: k-page-labels-old; transform-origin: 12px 18px; }
+  .is-live .s-page-labels-new { animation-name: k-page-labels-new; transform-origin: 12px 18px; }
   @keyframes k-page-labels-old {
     0%, 4% { opacity: 0; transform: none; }
     10%, 30% { opacity: 1; transform: none; }
@@ -192,38 +182,38 @@
     46%, 100% { opacity: 1; transform: none; }
   }
 
-  /* Split by size */
+  /* Split by size: one wide, full file; two cuts at thirds; three equal files part. */
   .is-live .s-split-by-size-one { animation-name: k-split-by-size-one; }
-  .is-live .s-split-by-size-cuts { animation-name: k-split-by-size-cuts; transform-origin: 3px 12px; }
+  .is-live .s-split-by-size-cuts { animation-name: k-split-by-size-cuts; transform-origin: 12px 4px; }
   .is-live .s-split-by-size-a { animation-name: k-split-by-size-a; }
   .is-live .s-split-by-size-b { animation-name: k-split-by-size-b; }
   .is-live .s-split-by-size-c { animation-name: k-split-by-size-c; }
   @keyframes k-split-by-size-one {
     0%, 4% { opacity: 0; }
-    12%, 38% { opacity: 1; }
-    40%, 100% { opacity: 0; }
+    12%, 36% { opacity: 1; }
+    38%, 100% { opacity: 0; }
   }
   @keyframes k-split-by-size-cuts {
-    0%, 16% { opacity: 0; transform: scaleX(0); }
-    17% { opacity: 1; transform: scaleX(0); }
+    0%, 15% { opacity: 0; transform: scaleY(0); }
+    16% { opacity: 1; transform: scaleY(0); }
     32%, 38% { opacity: 1; transform: none; }
-    42%, 100% { opacity: 0; transform: none; }
+    46%, 100% { opacity: 0; transform: none; }
   }
   @keyframes k-split-by-size-a {
     0% { opacity: 1; transform: none; }
-    5%, 38% { opacity: 0; transform: translateY(2.25px); }
-    40% { opacity: 1; transform: translateY(2.25px); }
-    56%, 100% { opacity: 1; transform: none; }
+    5%, 36% { opacity: 0; transform: translateX(1.5px); }
+    38%, 40% { opacity: 1; transform: translateX(1.5px); }
+    54%, 100% { opacity: 1; transform: none; }
   }
   @keyframes k-split-by-size-b {
     0% { opacity: 1; }
-    5%, 38% { opacity: 0; }
-    40%, 100% { opacity: 1; }
+    5%, 36% { opacity: 0; }
+    38%, 100% { opacity: 1; }
   }
   @keyframes k-split-by-size-c {
     0% { opacity: 1; transform: none; }
-    5%, 38% { opacity: 0; transform: translateY(-2.25px); }
-    40% { opacity: 1; transform: translateY(-2.25px); }
-    56%, 100% { opacity: 1; transform: none; }
+    5%, 36% { opacity: 0; transform: translateX(-1.5px); }
+    38%, 40% { opacity: 1; transform: translateX(-1.5px); }
+    54%, 100% { opacity: 1; transform: none; }
   }
 }
