@@ -263,6 +263,15 @@ sits beside it, large.
 The icons are Lucide's, as on Layerbit: line drawings in the family's own
 colour (`--icon-ink`, the middle of its gradient) on a faint tile of that
 colour with a thin rim.
+Each one acts out its tool (`ui/motion.css`): Merge's two squares slide into
+one, Compress squeezes, the lock's shackle drops shut, Scan's line sweeps,
+Sign writes itself. One action every four seconds, cards in a grid offset
+from each other, transforms and opacity only, and only while the icon is on
+screen (`ui/motion.ts` marks it `.is-live`); nothing moves for anyone who
+asked for less motion, and every motion starts and ends on the plain icon,
+so a still one is simply the drawing. `scripts/gen-icons.mjs` names each
+drawing (`act-t-<tool>`, `act-g-<family>`) and gives its parts
+`pathLength="1"` so any part can be drawn on; a page's date ignores both.
 Facts (Free forever, No sign-up…) are plain text with a tick, never pills
 that look tappable; the nav marks the current page by colour, and a
 background appears only under the pointer or the keyboard.

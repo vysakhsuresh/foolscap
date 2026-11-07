@@ -6,6 +6,8 @@
 import './tokens.css';
 import './components.css';
 import './content.css';
+import './motion.css';
+import { liveIcons } from './motion';
 import { tuckWhileScrolling } from './pinned';
 import { mountThemeToggle } from './theme';
 
@@ -13,6 +15,7 @@ export function mountShell(): void {
   mountThemeToggle();
   keepForOffline();
   tuckWhileScrolling();
+  liveIcons();
 }
 
 /**

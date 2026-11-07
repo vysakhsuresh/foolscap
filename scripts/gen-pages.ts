@@ -869,7 +869,8 @@ if (writeIfChanged(resolve(APP, '404.html'), notFoundPage())) changed++;
     for (const p of paths) {
       if (p.startsWith('/guides/') && p !== '/guides/') continue;
       const html = existsSync(fileOf(p)) ? readFileSync(fileOf(p), 'utf8') : '';
-      datesOf(p, (/<main[\s\S]*<\/main>/.exec(html) ?? [html])[0]);
+      // The icons' motion hooks (a class naming the drawing, pathLength) are decoration, not what the page says.
+      datesOf(p, ((/<main[\s\S]*<\/main>/.exec(html) ?? [html])[0]).replace(/ class="act act-[a-z0-9-]+"/g, '').replace(/ pathLength="1"/g, ''));
     }
     const urls = paths.map((p) => `  <url><loc>${SITE_ORIGIN}${p}</loc><lastmod>${pageDates[p]?.modified ?? TODAY}</lastmod></url>`).join('\n');
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;

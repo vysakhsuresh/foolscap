@@ -69,28 +69,36 @@ const GROUPS = { pages: 'files', convert: 'arrow-left-right', mark: 'pen-line', 
 function inner(name) {
   const svg = readFileSync(resolve(ICONS, `${name}.svg`), 'utf8');
   const body = svg.slice(svg.indexOf('>', svg.indexOf('<svg')) + 1, svg.lastIndexOf('</svg>'));
-  return body.replace(/\s*\n\s*/g, '').replace(/\s+\/>/g, '/>').trim();
+  // pathLength="1" lets ui/motion.css draw any part of an icon on, whatever its real length.
+  return body
+    .replace(/\s*\n\s*/g, '')
+    .replace(/\s+\/>/g, '/>')
+    .replace(/<(path|rect|circle|line|polyline|ellipse|polygon)\b/g, '<$1 pathLength="1"')
+    .trim();
 }
 
-const entry = (key, name) => `  ${/^[a-z]+$/.test(key) ? key : `'${key}'`}: icon(${JSON.stringify(inner(name))}), // ${name}`;
+/** `act` names the drawing for ui/motion.css: t-<tool> or g-<family>. */
+const entry = (key, name, act) => `  ${/^[a-z]+$/.test(key) ? key : `'${key}'`}: icon('${act}', ${JSON.stringify(inner(name))}), // ${name}`;
 
 const out = `// Written by scripts/gen-icons.mjs from lucide-static ${version} (ISC). Do not edit; change the names there.
 /**
  * One Lucide icon per tool and per family, on Lucide's 24-unit grid, stroked
  * in currentColor so each family's colour draws its own icons. The page
- * generator (scripts/gen-pages.ts) writes them into the static HTML.
+ * generator (scripts/gen-pages.ts) writes them into the static HTML. Each
+ * carries a class naming it (act-t-merge, act-g-pages), so ui/motion.css can
+ * make its parts act out what the tool does.
  */
 import type { GroupId, ToolId } from '../ops/tools';
 
-const icon = (body: string) =>
-  \`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\${body}</g>\`;
+const icon = (act: string, body: string) =>
+  \`<g class="act act-\${act}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\${body}</g>\`;
 
 export const TOOL_ICONS: Record<ToolId, string> = {
-${Object.entries(TOOLS).map(([k, n]) => entry(k, n)).join('\n')}
+${Object.entries(TOOLS).map(([k, n]) => entry(k, n, `t-${k}`)).join('\n')}
 };
 
 export const GROUP_ICONS: Record<GroupId, string> = {
-${Object.entries(GROUPS).map(([k, n]) => entry(k, n)).join('\n')}
+${Object.entries(GROUPS).map(([k, n]) => entry(k, n, `g-${k}`)).join('\n')}
 };
 `;
 writeFileSync(resolve(ROOT, 'app/src/ui/tool-icons.ts'), out);
